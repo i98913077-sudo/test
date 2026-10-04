@@ -9,6 +9,8 @@ import edge_tts
 
 W, H, FPS = 1280, 720, 25
 OUT = "/home/user/nl"; os.makedirs(OUT, exist_ok=True)
+FINAL = "/home/user/nugul.mp4"; CH_TOTAL = 10
+RECAP = [("1", "정답은 없다"), ("2", "반대편에 서라"), ("3", "큰 거래대금"), ("4", "잠이 먼저"), ("5", "검증하라")]
 FP = "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"
 TF = skia.Typeface.MakeFromFile(FP)
 FONTS = {}
@@ -441,7 +443,7 @@ def art_ending(c, x):
 
 def art_recap(c, x):
     grad_bg(c, "#0a0f22", "#1a2447")
-    items = [("1", "정답은 없다"), ("2", "반대편에 서라"), ("3", "큰 거래대금"), ("4", "잠이 먼저"), ("5", "검증하라")]
+    items = RECAP
     for i, (n, s) in enumerate(items):
         if x.k - 1 >= i:
             p = back(x.lt / 0.3) if x.k - 1 == i else 1
@@ -603,7 +605,7 @@ def main():
         # 진행 바 + 장
         if chap[sc]:
             rect(c, 0, 0, W, 8, "#10142a"); rect(c, 0, 0, W * t / total, 8, GOLD)
-            txt(c, ("%d / 10" % chap[sc]) if chap[sc] <= 10 else "정리", 40, 52, 26, "#9fb0d8", align="l", stroke=False)
+            txt(c, ("%d / %d" % (chap[sc], CH_TOTAL)) if chap[sc] <= CH_TOTAL else "정리", 40, 52, 26, "#9fb0d8", align="l", stroke=False)
         if "flash" in fx and x.lt < 0.25: rect(c, 0, 0, W, H, "#ffffff", int(200 * (1 - x.lt / 0.25)))
         return surf.makeImageSnapshot().tobytes()
 
@@ -641,8 +643,8 @@ def main():
         pr.stdin.write(draw(f))
         if f % 500 == 0: print("frame", f, "/", nf, flush=True)
     pr.stdin.close(); pr.wait()
-    sh("ffmpeg -y -loglevel error -i %s/video.mp4 -i %s/audio.m4a -c copy -shortest /home/user/nugul.mp4" % (OUT, OUT))
-    print("FINAL /home/user/nugul.mp4 %.1fs %.1fMB" % (dur("/home/user/nugul.mp4"), os.path.getsize("/home/user/nugul.mp4") / 1e6), flush=True)
+    sh("ffmpeg -y -loglevel error -i %s/video.mp4 -i %s/audio.m4a -c copy -shortest %s" % (OUT, OUT, FINAL))
+    print("FINAL %s %.1fs %.1fMB" % (FINAL, dur(FINAL), os.path.getsize(FINAL) / 1e6), flush=True)
 
 if __name__ == "__main__":
     main()

@@ -153,7 +153,7 @@ def end_art(c, x):
 N.SCENES = [("hook", None, N.art_hook), ("intro", 1, art_intro), ("chat2", 1, art_chat2), ("florida", 2, art_florida), ("bank", 3, art_bank),
             ("seoul", 4, art_seoul), ("basement", 5, art_basement), ("calc", 6, art_calc), ("recap", 7, N.art_recap), ("end", None, end_art)]
 
-NEW = {"이 계약서에 적힌 땅, 실제로 있습니까?", "병원비 할부 중이시죠? 대출 가능합니다!", "이 서류에 서명해도 돼요?", "안 됩니다.",
+NEW = {"주식법전(우리).", "이 계약서에 적힌 땅, 실제로 있습니까?", "병원비 할부 중이시죠? 대출 가능합니다!", "이 서류에 서명해도 돼요?", "안 됩니다.",
        "내 집인 줄 알았는데, 은행 집이었어요.", "나도, 사고 싶습니다.", "이번엔 제가, 곁에 있을게요.", "땅은 없는데, 계약서만 비싸요."}
 
 SHOTS = [

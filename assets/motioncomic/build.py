@@ -51,6 +51,82 @@ STORY = [
     ("16_bench", [("A", "지켜보고 있었습니다.\n아니, 곁에 있었습니다."), ("B", "주식법전(우리).\n괄호는 빼십시오."), ("C", "…싫습니다.")]),
 ]
 
+
+# speaker per shot, same order as STORY shots
+# N narrator, G 너굴, M 몰빵, R 저승사자/직원(여), F 미래의 너굴, GM = line1 G + line2 M, None = no voice
+SPK = ["N","R","R", None,"N","G", "N","R","G", "N",None,"N", "N",None,"G", "N","G","N",
+       "N","G","G", "N","R","N", "N","M","N", "N","R","F", "N","G","M", "N","M","G",
+       "N","G","M", "M","M", None,"F","G", "M", "M","GM","M"]
+VOICE = {
+    "N": ("ko-KR-SunHiNeural", "-8%", "+0Hz"),
+    "R": ("ko-KR-SunHiNeural", "+8%", "+25Hz"),
+    "G": ("ko-KR-InJoonNeural", "+6%", "+8Hz"),
+    "M": ("ko-KR-HyunsuMultilingualNeural", "-8%", "+0Hz"),
+    "F": ("ko-KR-InJoonNeural", "-12%", "-30Hz"),
+}
+
+import re, asyncio
+
+def clean(text, spk):
+    if text.startswith("(자막)"):
+        return ""
+    if spk == "N":
+        t = text.replace("(", "").replace(")", "")
+    else:
+        t = re.sub(r"\([^)]*\)", "", text) if spk != "GM" else text.replace("(", " ").replace(")", " ")
+    t = t.replace("…", "").replace("※", "").replace("→", "에서").replace("\n", " ")
+    return t.strip()
+
+async def _tts(jobs):
+    import edge_tts
+    avail = {v["ShortName"] for v in await edge_tts.list_voices()}
+    async def one(text, key, out):
+        voice, rate, pitch = VOICE[key]
+        if voice not in avail:
+            voice, rate, pitch = "ko-KR-InJoonNeural", "-10%", "-25Hz"
+        await edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(out)
+    await asyncio.gather(*[one(*j) for j in jobs])
+
+def make_voices(jobs_list):
+    """jobs_list: [(idx, kind, text)] -> {idx: wav path or None}"""
+    todo, parts = [], {}
+    for idx, spk, text in jobs_list:
+        if not spk:
+            continue
+        pieces = []
+        if spk == "GM":
+            lines = text.split("\n")
+            seq = [("G", lines[0]), ("M", lines[1] if len(lines) > 1 else "")]
+        else:
+            seq = [(spk, text)]
+        for n, (k, t) in enumerate(seq):
+            t = clean(t, k)
+            if not t:
+                continue
+            out = "%s/v%03d_%d.mp3" % (WORK, idx, n)
+            todo.append((t, k, out))
+            pieces.append(out)
+        if pieces:
+            parts[idx] = pieces
+    if todo:
+        asyncio.run(_tts(todo))
+    res = {}
+    for idx, pieces in parts.items():
+        wav = "%s/v%03d.wav" % (WORK, idx)
+        if len(pieces) == 1:
+            sh("ffmpeg -y -loglevel error -i %s -ar 44100 -ac 2 %s" % (pieces[0], wav))
+        else:
+            ins = " ".join("-i %s" % x for x in pieces)
+            fl = "".join("[%d:a]" % i for i in range(len(pieces))) + "concat=n=%d:v=0:a=1[a]" % len(pieces)
+            sh("ffmpeg -y -loglevel error %s -filter_complex \"%s\" -map '[a]' -ar 44100 -ac 2 %s" % (ins, fl, wav))
+        dur = float(sh("ffprobe -v error -show_entries format=duration -of csv=p=0 %s" % wav).stdout.strip())
+        if dur > 5.2:
+            fast = "%s/v%03d_f.wav" % (WORK, idx)
+            sh("ffmpeg -y -loglevel error -i %s -filter:a atempo=%.3f %s" % (wav, min(1.6, dur / 5.2), fast))
+            wav = fast
+        res[idx] = wav
+    return res
+
 def sh(cmd):
     r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     if r.returncode:
@@ -71,6 +147,8 @@ AUDIN = "-f lavfi -t %s -i anullsrc=r=44100:cl=stereo" % D
 AUDOUT = "-c:a aac -b:a 96k -shortest"
 ENC = "-c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -r %d" % FPS
 
+VOICES = {}
+
 def shot(args):
     idx, key, kind, text = args
     out = "%s/s%03d.mp4" % (WORK, idx)
@@ -80,8 +158,14 @@ def shot(args):
     vf = ("zoompan=z='%s':x='%s':y='%s':d=%d:s=%dx%d:fps=%d,%s,"
           "fade=t=in:st=0:d=0.3,fade=t=out:st=%s:d=0.3,format=yuv420p"
           % (z, x, y, FRAMES, W, H, FPS, drawtext(tf, 40, "h-text_h-46"), D - 0.3))
-    sh("ffmpeg -y -loglevel error -i %s/%s.png %s -vf \"%s\" -frames:v %d %s %s %s"
-       % (WORK, key, AUDIN, vf, FRAMES, AUDOUT, ENC, out))
+    if idx in VOICES:
+        ain = "-i %s" % VOICES[idx]
+        af = "-af \"loudnorm=I=-16:TP=-2:LRA=11,aresample=44100,adelay=500:all=1,apad=whole_dur=%s\"" % D
+    else:
+        ain = AUDIN
+        af = ""
+    sh("ffmpeg -y -loglevel error -i %s/%s.png %s -vf \"%s\" %s -t %s -frames:v %d -ac 2 -c:a aac -b:a 128k %s %s"
+       % (WORK, key, ain, vf, af, D, FRAMES, ENC, out))
     return out
 
 def card(name, secs, lines, size):
@@ -116,6 +200,9 @@ def main():
             i += 1
     if test:
         jobs = jobs[:3]
+    global VOICES
+    VOICES = make_voices([(j[0], SPK[j[0]], j[3]) for j in jobs])
+    print("voices:", len(VOICES), flush=True)
     with ThreadPoolExecutor(3) as ex:
         outs = list(ex.map(shot, jobs))
     print("rendered", len(outs), "shots", flush=True)

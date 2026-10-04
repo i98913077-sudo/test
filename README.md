@@ -32,3 +32,5 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/d78e4e57-
 https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/05bd9a8d-7b3d-4403-85cc-cc739400980e.mp4
 - 구성: 5막(확신 → 반복 → 가격은 이야기다 → 남의 몸으로 → 곁에 있다는 것). 내레이션은 새로 쓴 글, 대사는 대본 원문(자동 검증).
 - 비트시트: `assets/motioncomic/beats.json`, 클립 슬롯: `assets/motioncomic/SLOTS.md`, 빌드: `build3.py`
+
+- 웹소설 연재판 (11화, 9:39, 효과음·조문카드·독자댓글·다음화 예고): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/f3b2e9c6-b74e-4207-9f88-9c04e9df2d8b.mp4  (assets/motioncomic/beats4.json, build4.py)

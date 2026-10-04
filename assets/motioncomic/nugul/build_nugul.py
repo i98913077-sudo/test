@@ -425,7 +425,7 @@ def art_ending(c, x):
     grad_bg(c, "#7fc8ff", "#ffe7b0")
     circ(c, 1100, 130, 64, "#fff0a0"); rect(c, 0, 600, W, 120, "#e2c58c")
     raccoon(c, 360, 640, 1.2, "smile", x.st, hand_r=(86, -150))
-    rect(c, 470, 470, 40, 44, "#fff", r=6)
+    rect(c, 470, 470, 40, 44, "#ffffff", r=6)
     for i in range(3): txt(c, "~", 490 + math.sin(x.st * 3 + i) * 6, 450 - i * 22 - (x.st * 12 % 20), 28, "#ffffff", a=160, stroke=False)
     phone(c, 760, 70, 400, 560)
     rect(c, 776, 90, 368, 54, "#24365e", r=12); txt(c, "규칙 단톡방", 960, 124, 26, WHITE, stroke=False)

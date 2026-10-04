@@ -18,3 +18,12 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/696a2303-
 ### 음성 포함 버전 (5분 5초)
 https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/d78e4e57-3c03-473b-aba9-191f5d80d5db.mp4
 - 대사·내레이션 44컷에 한국어 음성(edge-tts) 추가. 화자: 내레이터 / 너굴 / 몰빵 / 저승사자·직원 / 미래의 너굴
+
+## 대본 충실판 모션코믹 (전 5편, 약 30분 44초)
+대본(`src/script_body_c.txt`)의 `@`대사 313줄 + 화면 자막(`^`) + 퀘스트창(`~[`)을 순서 그대로 사용. 막별 1편.
+1. 제1막 (7:35) https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/c1a84763-44a7-45e1-b5be-25b1eb3473e0.mp4
+2. 제2막 (3:08) https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/c12cac95-c94f-4e28-9ac9-3c6c908978f1.mp4
+3. 제3막 (7:28) https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/a23cbb53-5cee-445f-b29d-26288e5a337a.mp4
+4. 제4막 (4:55) https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/ef59c25f-c64f-41b2-90cd-3a1715b17f13.mp4
+5. 제5막 (7:38) https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/9abd09e7-f8ee-4d07-bf8c-05fe83ca2be7.mp4
+- 재생성: `assets/motioncomic/build2.py <막번호>`

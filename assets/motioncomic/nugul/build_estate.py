@@ -49,7 +49,7 @@ def art_florida(c, x):
     rect(c, -600, 520, W + 1200, 600, "#2f7a64" if not hur else "#243a3a")
     for i in range(14):
         wx = (i * 120 + x.st * (30 if not hur else 160)) % 1500 - 100
-        line(c, wx, 580 + (i % 3) * 20, wx + 60, 580 + (i % 3) * 20, "#9fe8d0" if not hur else "#8aa", 3, 140)
+        line(c, wx, 580 + (i % 3) * 20, wx + 60, 580 + (i % 3) * 20, "#9fe8d0" if not hur else "#88aaaa", 3, 140)
     for px in (140, 1130):
         line(c, px, 520, px + 10, 300, "#6a4a2a", 14)
         for a in (-70, -30, 10, 50, 90):
@@ -80,8 +80,8 @@ def art_bank(c, x):
     grad_bg(c, "#2a2230", "#4a3a3a"); rect(c, -600, 560, W + 1200, 600, "#2a1f24")
     rect(c, 360, 420, 560, 28, "#6a4a2a", r=6); rect(c, 390, 448, 24, 120, "#4a321a"); rect(c, 870, 448, 24, 120, "#4a321a")
     rect(c, 490, 340, 300, 84, "#fffdf2", r=6)
-    txt(c, "주택담보대출 신청서", 640, 372, 24, "#222", stroke=False); txt(c, "집값 100% · 소득 확인 안 함", 640, 408, 26, "#a31d2b", stroke=False)
-    rect(c, 810, 380, 90, 44, "#e9f2ff", r=4); txt(c, "병원비 할부", 855, 408, 18, "#223", stroke=False)
+    txt(c, "주택담보대출 신청서", 640, 372, 24, "#222222", stroke=False); txt(c, "집값 100% · 소득 확인 안 함", 640, 408, 26, "#a31d2b", stroke=False)
+    rect(c, 810, 380, 90, 44, "#e9f2ff", r=4); txt(c, "병원비 할부", 855, 408, 18, "#222233", stroke=False)
     human(c, 1060, 570, 0.95, "pro", "smile", x.st, facing=-1, coat_c="#7a5a2a", tie_c="#ffd866")
     pen = ease(seg(x.lt, 0, 1.2)) if k == 2 else (1.0 if k >= 3 else 0)
     raccoon(c, 190, 640, 1.0, "shock" if k >= 3 else "tired", x.st, hand_r=(120 + 140 * pen, -120 - 10 * pen))
@@ -113,7 +113,7 @@ def art_basement(c, x):
     for i in range(3):
         fx = 920 + ((x.st * 90 + i * 100) % 240); rect(c, fx, 150, 20, 60, "#2a2a30"); rect(c, fx - 6, 205, 32, 10, "#101010", r=4)
     rect(c, 300, 450, 480, 26, "#6a4a2a", r=6); rect(c, 330, 476, 22, 114, "#4a321a"); rect(c, 730, 476, 22, 114, "#4a321a")
-    rect(c, 480, 380, 200, 70, "#fffdf2", r=4); txt(c, "대출 계약서", 580, 425, 30, "#222", stroke=False)
+    rect(c, 480, 380, 200, 70, "#fffdf2", r=4); txt(c, "대출 계약서", 580, 425, 30, "#222222", stroke=False)
     line(c, 650, 400, 700, 370, "#c4373d", 6)
     human(c, 400, 600, 0.9, "pro", "worry", x.st)
     raccoon(c, 820, 620, 0.9, "grit" if k < 3 else "smile", x.st, facing=-1, hand_r=(-80, -150))

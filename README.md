@@ -27,3 +27,8 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/d78e4e57-
 4. 제4막 (4:55) https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/ef59c25f-c64f-41b2-90cd-3a1715b17f13.mp4
 5. 제5막 (7:38) https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/9abd09e7-f8ee-4d07-bf8c-05fe83ca2be7.mp4
 - 재생성: `assets/motioncomic/build2.py <막번호>`
+
+## 철학 뼈대판 (5분 38초) — 이어서 살을 붙이는 기준본
+https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/05bd9a8d-7b3d-4403-85cc-cc739400980e.mp4
+- 구성: 5막(확신 → 반복 → 가격은 이야기다 → 남의 몸으로 → 곁에 있다는 것). 내레이션은 새로 쓴 글, 대사는 대본 원문(자동 검증).
+- 비트시트: `assets/motioncomic/beats.json`, 클립 슬롯: `assets/motioncomic/SLOTS.md`, 빌드: `build3.py`

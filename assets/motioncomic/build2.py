@@ -206,4 +206,5 @@ def main():
     sh("ffmpeg -y -loglevel error -f concat -safe 0 -i %s/list.txt -c copy %s" % (WORK, final))
     print("FINAL", final, "duration=%.1fs" % dur_of(final), "size=%.1fMB" % (os.path.getsize(final) / 1e6), flush=True)
 
-main()
+if __name__ == "__main__":
+    main()

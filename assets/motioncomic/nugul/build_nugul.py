@@ -96,7 +96,7 @@ def wrap(s, sz, maxw):
 def grad_bg(c, top, bot):
     p = skia.Paint()
     p.setShader(skia.GradientShader.MakeLinear([(0, 0), (0, H)], [hexc(top), hexc(bot)]))
-    c.drawRect(skia.Rect.MakeWH(W, H), p)
+    c.drawRect(skia.Rect.MakeLTRB(-600, -300, W + 600, H + 600), p)
 
 def mix(a, b, t):
     ca = [int(a[i:i + 2], 16) for i in (1, 3, 5)]; cb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
@@ -243,7 +243,7 @@ def art_hook(c, x):
 
 def art_night(c, x):
     grad_bg(c, "#06070f", "#141a33")
-    rect(c, 0, 520, W, 200, "#1b1426")
+    rect(c, -600, 520, W + 1200, 500, "#1b1426")
     for i, mx in enumerate((150, 470, 790)): monitor(c, mx, 190, 300, 190, x.st, seed=i * 3, col=[GREEN, CYAN, RED][i])
     rect(c, 90, 505, 1100, 24, "#2b2036", r=6)
     # 시계
@@ -301,7 +301,7 @@ def art_allin(c, x):
 def art_book(c, x):
     grad_bg(c, "#0a0f22", "#1b1530")
     u = x.u
-    rect(c, 0, 600, W, 120, "#1a1424")
+    rect(c, -600, 600, W + 1200, 500, "#1a1424")
     drop = ease(seg(u, 0.0, 0.18)); by = -300 + (600 - -300) * drop
     bounce = 0 if u > 0.22 else 0
     if u < 0.3:
@@ -371,8 +371,11 @@ def art_sleep(c, x):
     grad_bg(c, sky_top, sky_bot)
     if u < 0.75: circ(c, 1080, 120 + 200 * ease(seg(u, 0.5, 0.75)), 46, "#f2efd0", int(255 * (1 - seg(u, 0.5, 0.75))))
     else: circ(c, 1080, 400 - 280 * ease(seg(u, 0.75, 0.95)), 60, "#fff0a0")
-    rect(c, 0, 560, W, 160, "#20182c"); rect(c, 180, 470, 560, 110, "#d8dbe8", r=18); rect(c, 180, 520, 560, 70, "#4a5aa0", r=12)
-    raccoon(c, 460, 520, 0.7, "sleep" if u < 0.62 else "smile", x.st)
+    rect(c, -600, 560, W + 1200, 500, "#20182c"); rect(c, 180, 470, 560, 110, "#d8dbe8", r=18); rect(c, 180, 520, 560, 70, "#4a5aa0", r=12)
+    if u < 0.62:
+        c.save(); c.translate(580, 585); c.rotate(-90); raccoon(c, 0, 0, 0.7, "sleep", x.st, bob=False); c.restore()
+    else:
+        raccoon(c, 460, 520, 0.7, "smile", x.st)
     chart_panel(c, 780, 150, 440, 300)
     rect(c, 790, 150 + 300 * 0.7, 420, 300 * 0.3, "#143a2a", 160); line(c, 790, 150 + 300 * 0.7, 1210, 150 + 300 * 0.7, GREEN, 3)
     txt(c, "RSI 30", 1160, 150 + 300 * 0.7 - 8, 22, GREEN, stroke=False)
@@ -423,7 +426,7 @@ def art_article(c, x):
 def art_ending(c, x):
     u = x.u
     grad_bg(c, "#7fc8ff", "#ffe7b0")
-    circ(c, 1100, 130, 64, "#fff0a0"); rect(c, 0, 600, W, 120, "#e2c58c")
+    circ(c, 1100, 130, 64, "#fff0a0"); rect(c, -600, 600, W + 1200, 500, "#e2c58c")
     raccoon(c, 360, 640, 1.2, "smile", x.st, hand_r=(86, -150))
     rect(c, 470, 470, 40, 44, "#ffffff", r=6)
     for i in range(3): txt(c, "~", 490 + math.sin(x.st * 3 + i) * 6, 450 - i * 22 - (x.st * 12 % 20), 28, "#ffffff", a=160, stroke=False)
@@ -575,7 +578,9 @@ def main():
         c.save()
         if "shake" in fx and x.lt < 0.6:
             a = 14 * (1 - x.lt / 0.6); c.translate(random.uniform(-a, a), random.uniform(-a, a))
+        c.save(); c.translate(W / 2, 0); c.scale(0.88, 0.88); c.translate(-W / 2, 0)
         art[sc](c, x)
+        c.restore()
         if kw:
             p = back(x.lt / 0.32); al = int(255 * clamp01(x.lt / 0.12))
             cy = 150 if sc not in ("hook", "recap", "end") else (H / 2 - 20 if sc == "hook" else 120)
@@ -598,7 +603,7 @@ def main():
         # 진행 바 + 장
         if chap[sc]:
             rect(c, 0, 0, W, 8, "#10142a"); rect(c, 0, 0, W * t / total, 8, GOLD)
-            txt(c, "%d / 10" % chap[sc], 40, 52, 26, "#9fb0d8", align="l", stroke=False)
+            txt(c, ("%d / 10" % chap[sc]) if chap[sc] <= 10 else "정리", 40, 52, 26, "#9fb0d8", align="l", stroke=False)
         if "flash" in fx and x.lt < 0.25: rect(c, 0, 0, W, H, "#ffffff", int(200 * (1 - x.lt / 0.25)))
         return surf.makeImageSnapshot().tobytes()
 

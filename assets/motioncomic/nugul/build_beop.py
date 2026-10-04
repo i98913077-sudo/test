@@ -74,9 +74,9 @@ def art_bridge(c, x):
     rect(c, 508, 318, 38, 64, "#0c0f1a", r=6); rect(c, 513, 324, 28, 50, "#ff5c5c", int(170 + 60 * math.sin(x.st * 6)), r=4)
     human(c, 1040, 610, 0.62, "pro", "worry", x.st)
     v = int(84_000_000 * ease(seg(u, 0.15, 0.7)))
-    rect(c, 640, 80, 540, 120, "#0c0f1a", 215, r=18)
-    txt(c, "계좌", 700, 125, 26, "#9fb0d8", align="l", stroke=False)
-    txt(c, "-{:,}원".format(v), 910, 180, 54, RED)
+    rect(c, 600, 250, 580, 120, "#0c0f1a", 225, r=18)
+    txt(c, "계좌", 640, 296, 26, "#9fb0d8", align="l", stroke=False)
+    txt(c, "-{:,}원".format(v), 890, 352, 54, RED)
 
 def art_reaper(c, x):
     u = x.u

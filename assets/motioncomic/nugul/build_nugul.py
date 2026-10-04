@@ -605,7 +605,7 @@ def main():
         # 진행 바 + 장
         if chap[sc]:
             rect(c, 0, 0, W, 8, "#10142a"); rect(c, 0, 0, W * t / total, 8, GOLD)
-            txt(c, ("%d / %d" % (chap[sc], CH_TOTAL)) if chap[sc] <= CH_TOTAL else "정리", 40, 52, 26, "#9fb0d8", align="l", stroke=False)
+            txt(c, ("%d / %d" % (chap[sc], CH_TOTAL)) if chap[sc] <= CH_TOTAL else "정리", 40, 52, 26, "#cfd8f5", align="l", stroke=True)
         if "flash" in fx and x.lt < 0.25: rect(c, 0, 0, W, H, "#ffffff", int(200 * (1 - x.lt / 0.25)))
         return surf.makeImageSnapshot().tobytes()
 

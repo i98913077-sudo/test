@@ -67,7 +67,8 @@ def drawtext(tf, size, y):
     return ("drawtext=fontfile=%s:textfile=%s:fontsize=%d:fontcolor=white:borderw=3:bordercolor=black:"
             "x=(w-text_w)/2:y=%s:line_spacing=8" % (FONT, tf, size, y))
 
-AUD = "-f lavfi -t %s -i anullsrc=r=44100:cl=stereo -c:a aac -b:a 96k -shortest" % D
+AUDIN = "-f lavfi -t %s -i anullsrc=r=44100:cl=stereo" % D
+AUDOUT = "-c:a aac -b:a 96k -shortest"
 ENC = "-c:v libx264 -preset veryfast -crf 24 -pix_fmt yuv420p -r %d" % FPS
 
 def shot(args):
@@ -79,8 +80,8 @@ def shot(args):
     vf = ("zoompan=z='%s':x='%s':y='%s':d=%d:s=%dx%d:fps=%d,%s,"
           "fade=t=in:st=0:d=0.3,fade=t=out:st=%s:d=0.3,format=yuv420p"
           % (z, x, y, FRAMES, W, H, FPS, drawtext(tf, 40, "h-text_h-46"), D - 0.3))
-    sh("ffmpeg -y -loglevel error -i %s/%s.png -vf \"%s\" -frames:v %d %s %s %s"
-       % (WORK, key, vf, FRAMES, AUD, ENC, out))
+    sh("ffmpeg -y -loglevel error -i %s/%s.png %s -vf \"%s\" -frames:v %d %s %s %s"
+       % (WORK, key, AUDIN, vf, FRAMES, AUDOUT, ENC, out))
     return out
 
 def card(name, secs, lines, size):
@@ -89,9 +90,9 @@ def card(name, secs, lines, size):
     open(tf, "w", encoding="utf-8").write("\n".join(lines))
     vf = ("%s,fade=t=in:st=0:d=0.5,fade=t=out:st=%s:d=0.5,format=yuv420p"
           % (drawtext(tf, size, "(h-text_h)/2"), secs - 0.5))
-    sh("ffmpeg -y -loglevel error -f lavfi -t %s -i color=c=0x101820:s=%dx%d:r=%d -vf \"%s\" "
-       "-f lavfi -t %s -i anullsrc=r=44100:cl=stereo -c:a aac -b:a 96k -shortest %s %s"
-       % (secs, W, H, FPS, vf, secs, ENC, out))
+    sh("ffmpeg -y -loglevel error -f lavfi -t %s -i color=c=0x101820:s=%dx%d:r=%d "
+       "-f lavfi -t %s -i anullsrc=r=44100:cl=stereo -vf \"%s\" -c:a aac -b:a 96k -shortest %s %s"
+       % (secs, W, H, FPS, secs, vf, ENC, out))
     return out
 
 def main():

@@ -79,7 +79,7 @@ def art_bank(c, x):
     k = x.k
     grad_bg(c, "#2a2230", "#4a3a3a"); rect(c, -600, 560, W + 1200, 600, "#2a1f24")
     rect(c, 360, 420, 560, 28, "#6a4a2a", r=6); rect(c, 390, 448, 24, 120, "#4a321a"); rect(c, 870, 448, 24, 120, "#4a321a")
-    rect(c, 490, 340, 300, 84, "#fffdf2", r=6)
+    rect(c, 440, 340, 400, 84, "#fffdf2", r=6)
     txt(c, "주택담보대출 신청서", 640, 372, 24, "#222222", stroke=False); txt(c, "집값 100% · 소득 확인 안 함", 640, 408, 26, "#a31d2b", stroke=False)
     rect(c, 810, 380, 90, 44, "#e9f2ff", r=4); txt(c, "병원비 할부", 855, 408, 18, "#222233", stroke=False)
     human(c, 1060, 570, 0.95, "pro", "smile", x.st, facing=-1, coat_c="#7a5a2a", tie_c="#ffd866")
@@ -130,7 +130,7 @@ def art_calc(c, x):
             yy = 200 + i * 80; txt(c, l, 360, yy, 34, "#3b2a12", align="l", stroke=False)
             line(c, 560, yy + 6, 920, yy + 6, "#9a8a6a", 3)
             m = seg(x.u, t0, t0 + 0.15) if x.k < 1 else 1
-            if m > 0.7: txt(c, "✔", 900, yy, 38, "#2a8a4a", stroke=False)
+            if m > 0.7: polyline(c, [(884, yy - 8), (898, yy + 6), (924, yy - 24)], "#2a8a4a", 7)
     raccoon(c, 220, 690, 0.95, "smile", x.st); human(c, 1090, 690, 0.95, "pro", "smile", x.st, facing=-1)
     if x.k >= 2: txt(c, "주식법전(우리)", 640, 90, 44, "#3b2a12", stroke=False)
 
@@ -162,7 +162,7 @@ SHOTS = [
     ("intro", "너굴이", "마이너스 8천4백만 원이 병원비 320만 원이 되었네요.", "", "pop", ""),
     ("intro", "몰빵이", "개선입니다.", "", "pop", ""),
     ("intro", "N", "그때, 낡은 갓 하나가 굴러왔다.", "", "whoosh", ""),
-    ("intro", "몰빵이", "싫습니다.", "새 퀘스트\n{부동산 편}", "ding", "flash"),
+    ("intro", "몰빵이", "싫습니다.", "", "ding", "flash"),
     ("intro", "너굴이", "같이 가요, 검사님.", "", "pop", ""),
     ("intro", "몰빵이", "싫다고 했습니다.", "", "thud", "shake"),
     ("chat2", "N", "그런데 단톡방은, 이렇게 말하고 있었다.", "", "pop", ""),

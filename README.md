@@ -38,3 +38,5 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/05bd9a8d-
 - 단순 스토리판 (5덩어리, 3:25): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/a6a49f83-db23-4642-b845-3e3813e20add.mp4  (assets/motioncomic/beats5.json, build3.py)
 
 - 단순 스토리판 v2 (자막·음성 싱크 수정, 3:42): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/2c6599f9-14a8-40ef-95e7-e710d3c59199.mp4
+
+- 《주식너굴: 사실 그 가격은 처음부터 없었다》 코드 애니메이션 (4:01, 크레딧 0): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/08ff642b-76e0-422f-ae49-104ec0a105d4.mp4  (assets/motioncomic/nugul/build_nugul.py)

@@ -343,7 +343,7 @@ def art_volume(c, x):
     grad_bg(c, "#0a0f22", "#1a2447")
     u = x.u
     base = 620
-    rect(c, 60, base, 1160, 6, "#334", r=3)
+    rect(c, 60, base, 1160, 6, "#333344", r=3)
     random.seed(4)
     for i in range(16):
         h = random.uniform(18, 70) * ease(seg(u, 0.05, 0.3))

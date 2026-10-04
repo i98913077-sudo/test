@@ -15,7 +15,7 @@ SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", ".
 def qp(c, a, b, d, color, w):
     path = skia.Path(); path.moveTo(*a); path.quadTo(*b, *d); c.drawPath(path, P(color, stroke=w))
 
-def human(c, x, y, s, kind="pro", mood="normal", t=0, facing=1, run=0.0):
+def human(c, x, y, s, kind="pro", mood="normal", t=0, facing=1, run=0.0, coat_c=None, tie_c=None):
     c.save(); c.translate(x, y + math.sin(t * 4) * 2 * s); c.scale(s * facing, s)
     SK = "#f1c9a5"
     if kind == "reaper":
@@ -23,12 +23,13 @@ def human(c, x, y, s, kind="pro", mood="normal", t=0, facing=1, run=0.0):
         coat, hair = "#16161c", "#f4f4f4"
     else:
         coat, hair = "#232c40", "#15151a"
+    if coat_c: coat = coat_c
     sw = math.sin(t * 12) * 14 * run
     rect(c, -38 + sw, -50, 30, 50, "#101420", r=8); rect(c, 8 - sw, -50, 30, 50, "#101420", r=8)
     oval(c, -22 + sw, 2, 26, 9, "#07070a"); oval(c, 24 - sw, 2, 26, 9, "#07070a")
     rect(c, -56, -215, 112, 175, coat, r=26)
     poly(c, [(-18, -215), (18, -215), (0, -160)], "#f2f2f2")
-    if kind == "pro": poly(c, [(0, -205), (8, -180), (0, -130), (-8, -180)], "#2b5fb8")
+    if kind == "pro": poly(c, [(0, -205), (8, -180), (0, -130), (-8, -180)], tie_c or "#2b5fb8")
     line(c, -48, -195, -78, -120 + sw * 0.5, coat, 26); line(c, 48, -195, 80, -120 - sw * 0.5, coat, 26)
     circ(c, -78, -118, 13, SK); circ(c, 80, -118, 13, SK)
     if kind == "reaper":

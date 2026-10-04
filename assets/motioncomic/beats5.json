@@ -4,7 +4,7 @@
   "acts": [
     {"card": ["1", "너굴이가 다 잃는다"], "beats": [
       {"id": "b01", "image": "open", "pre": {"clip": "https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/be7b9b75-46ce-4490-9c2c-cdcf38b4a16b.mp4"}, "post": null,
-       "lines": [["N", "너굴이는 확신 하나로, 전 재산을 한 종목에 걸었다."], ["Q", "미쳤네, 진짜."], ["N", "계좌는 마이너스 8,400만 원이 되었다. 그리고 그는, 한강 다리 난간을 넘었다."]]}
+       "lines": [["N", "너굴이는 확신 하나로, 전 재산을 한 종목에 걸었다."], ["N", "계좌는 마이너스 8,400만 원이 되었다. 그리고 그는, 한강 다리 난간을 넘었다."]]}
     ]},
     {"card": ["2", "그래서 숙제가 주어진다"], "beats": [
       {"id": "b02", "image": "01_void_reaper", "pre": null, "post": null,

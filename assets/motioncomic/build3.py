@@ -10,6 +10,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import build2 as B
 
+CLIP_SUBS = [(0.0, 2.4, "미쳤네, 진짜."), (2.8, 6.4, "당신이 무너지는 걸, 그냥 지켜보겠습니다."), (6.4, 8.4, "아, 진짜 얄밉네, 저 인간."), (8.4, 10.0, "으아아아!")]  # transcribed from the clip audio
 norm = lambda x: re.sub(r"\s+", " ", x).strip()
 
 def script_lines():
@@ -48,14 +49,20 @@ def main():
         for b in a["beats"]:
             if (b["id"], "pre") in clips:
                 items.append(("clip", clips[(b["id"], "pre")]))
+            flat = []
             for kind, text in b["lines"]:
+                if kind == "N":
+                    flat += [("N", t) for t in re.split(r"(?<=[.!?])\s+", text.strip()) if t]
+                else:
+                    flat.append((kind, text))
+            for kind, text in flat:
                 if kind == "N":
                     sp, show, say = "내레이션", text, text
                 else:
                     hit = [x for x in SL if norm(text) in x[1] or norm(text) in x[2]]
                     if not hit:
                         raise SystemExit("QUOTE NOT IN SCRIPT: " + text)
-                    sp, show = hit[0][0], "%s: %s" % (hit[0][0], text)
+                    sp = hit[0][0]; show = ("%s: %s" % (sp, text)) if sp in ("너굴이", "몰빵이", "저승사자", "미래의너굴이", "목소리") else text
                     say = text.replace("(", " ").replace(")", " ")
                 say = re.sub(r"\s+", " ", say.replace("…", " ").strip())
                 out = "%s/n%04d.mp3" % (B.WORK, n)
@@ -71,8 +78,13 @@ def main():
     for it in items:
         if it[0] == "clip":
             out = "%s/c%04d.mp4" % (B.WORK, k)
-            B.sh("ffmpeg -y -loglevel error -i %s -vf \"scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,fps=%d,format=yuv420p\" %s %s"
-                 % (it[1], B.W, B.H, B.W, B.H, B.FPS, B.ENC, out))
+            vf = "scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2,fps=%d" % (B.W, B.H, B.W, B.H, B.FPS)
+            for j, (a, z, tx) in enumerate(CLIP_SUBS if it[1].endswith("clip_b01_pre.src.mp4") else []):
+                tf = "%s/cs%d_%d.txt" % (B.WORK, k, j)
+                open(tf, "w", encoding="utf-8").write(tx)
+                vf += (",drawtext=fontfile=%s:textfile=%s:fontsize=40:fontcolor=white:borderw=3:bordercolor=black:"
+                       "x=(w-text_w)/2:y=h-text_h-48:enable='between(t,%s,%s)'") % (B.FONT, tf, a, z)
+            B.sh("ffmpeg -y -loglevel error -i %s -vf \"%s,format=yuv420p\" %s %s" % (it[1], vf, B.ENC, out))
             order.append(("file", out)); k += 1
             continue
         if it[0] == "card":

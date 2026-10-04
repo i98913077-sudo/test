@@ -42,3 +42,5 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/05bd9a8d-
 - 《주식너굴: 사실 그 가격은 처음부터 없었다》 코드 애니메이션 (4:01, 크레딧 0): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/08ff642b-76e0-422f-ae49-104ec0a105d4.mp4  (assets/motioncomic/nugul/build_nugul.py)
 
 - 《주식법전 스피드런》 코드 애니메이션 (3:47, 크레딧 0): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/8d813105-6f91-4aa4-8701-20b824fa941c.mp4  (assets/motioncomic/nugul/build_beop.py)
+
+- 《주식법전 스피드런 2: 부동산 편》 코드 애니메이션 (3:30, 크레딧 0): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/e2c851dc-5785-4910-8594-a377f8bff8af.mp4

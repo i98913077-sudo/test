@@ -34,3 +34,5 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/05bd9a8d-
 - 비트시트: `assets/motioncomic/beats.json`, 클립 슬롯: `assets/motioncomic/SLOTS.md`, 빌드: `build3.py`
 
 - 웹소설 연재판 (11화, 9:39, 효과음·조문카드·독자댓글·다음화 예고): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/f3b2e9c6-b74e-4207-9f88-9c04e9df2d8b.mp4  (assets/motioncomic/beats4.json, build4.py)
+
+- 단순 스토리판 (5덩어리, 3:25): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/a6a49f83-db23-4642-b845-3e3813e20add.mp4  (assets/motioncomic/beats5.json, build3.py)

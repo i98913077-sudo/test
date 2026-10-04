@@ -36,3 +36,5 @@ https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/05bd9a8d-
 - 웹소설 연재판 (11화, 9:39, 효과음·조문카드·독자댓글·다음화 예고): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/f3b2e9c6-b74e-4207-9f88-9c04e9df2d8b.mp4  (assets/motioncomic/beats4.json, build4.py)
 
 - 단순 스토리판 (5덩어리, 3:25): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/a6a49f83-db23-4642-b845-3e3813e20add.mp4  (assets/motioncomic/beats5.json, build3.py)
+
+- 단순 스토리판 v2 (자막·음성 싱크 수정, 3:42): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/2c6599f9-14a8-40ef-95e7-e710d3c59199.mp4

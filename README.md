@@ -14,3 +14,7 @@
 https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/696a2303-37ff-4c42-aa57-036de9a8fccd.mp4
 - 구성: 타이틀 → 한국어 음성 클립(10초) → 키프레임 16장 × 컷 48개(줌/팬 + 한글 자막) → 엔딩
 - 재생성: `assets/motioncomic/build.py` (키프레임 URL은 `manifest.tsv`, 24시간 후 만료)
+
+### 음성 포함 버전 (5분 5초)
+https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/d78e4e57-3c03-473b-aba9-191f5d80d5db.mp4
+- 대사·내레이션 44컷에 한국어 음성(edge-tts) 추가. 화자: 내레이터 / 너굴 / 몰빵 / 저승사자·직원 / 미래의 너굴

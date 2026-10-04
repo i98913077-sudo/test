@@ -21,7 +21,7 @@ def script_lines():
     return out
 
 def main():
-    beats = json.load(open(os.path.join(HERE, "beats.json"), encoding="utf-8"))
+    beats = json.load(open(os.path.join(HERE, sys.argv[1] if len(sys.argv) > 1 else "beats.json"), encoding="utf-8"))
     SL = script_lines()
     urls = {r[0]: r[1] for r in csv.reader(open(os.path.join(HERE, "manifest.tsv"), encoding="utf-8"), delimiter="\t") if len(r) == 2}
     imgs = {b["image"] for a in beats["acts"] for b in a["beats"]}
@@ -42,7 +42,7 @@ def main():
     items, jobs, n = [], [], 0
     def card(img, lines, secs, size=60):
         items.append(("card", img, "\n".join(lines), secs, size))
-    card("open", [beats["title"].split(" — ")[0], "뼈대판 · 철학 편"], 3.2, 56)
+    card("open", [beats["title"].split(" — ")[0], beats.get("sub", "뼈대판 · 철학 편")], 3.2, 52)
     for a in beats["acts"]:
         card(a["beats"][0]["image"], [a["card"][0], a["card"][1]], 3.0, 60)
         for b in a["beats"]:
@@ -90,7 +90,7 @@ def main():
         outs = list(ex.map(B.render, segs))
     files = [o[1] if o[0] == "file" else outs[o[1]] for o in order]
     open("%s/list3.txt" % B.WORK, "w").write("".join("file '%s'\n" % f for f in files))
-    final = "/home/user/skeleton.mp4"
+    final = sys.argv[2] if len(sys.argv) > 2 else "/home/user/skeleton.mp4"
     B.sh("ffmpeg -y -loglevel error -f concat -safe 0 -i %s/list3.txt -c copy %s" % (B.WORK, final))
     print("FINAL", final, "duration=%.1fs" % B.dur_of(final), "size=%.1fMB" % (os.path.getsize(final) / 1e6), flush=True)
 

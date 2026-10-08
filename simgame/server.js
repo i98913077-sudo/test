@@ -214,6 +214,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     volatility: Number(process.env.DEMO_VOLATILITY ?? 1),
   });
   server.listen(port, () => {
-    console.log(`SAFE INVEST (DEMO MODE) 실행 중 → 학생: http://localhost:${port}/  순위화면: /ranking  교사용: /admin`);
+    console.log(`SAFE INVEST (DEMO MODE) 실행 중 → 너굴이: http://localhost:${port}/  순위화면: /ranking  너굴 관리자: /admin`);
   });
 }

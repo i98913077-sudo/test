@@ -124,7 +124,7 @@ export function createGame({ db, market, now = Date.now }) {
   function createEvent(input = {}) {
     const cur = currentEvent();
     if (cur && cur.status !== 'ended') throw new GameError('아직 종료되지 않은 이벤트가 있습니다. 먼저 종료하거나 초기화하세요.', 409);
-    const name = validateName(input.name ?? '우리 반 모의투자 챌린지');
+    const name = validateName(input.name ?? '너굴이들 모의투자 챌린지');
     const info = q(`INSERT INTO events (name, status, initial_balance, tickers, duration_min, reason_reveal_mode, sell_reason_required, created_at)
       VALUES (?, 'ready', ?, ?, ?, ?, ?, ?)`).run(
       name,
@@ -228,7 +228,7 @@ export function createGame({ db, market, now = Date.now }) {
   // ---------- 참가 / 인증 ----------
   function join(rawNickname) {
     const ev = currentEvent();
-    if (!ev) throw new GameError('진행 중인 이벤트가 없습니다. 선생님께 문의하세요.', 404);
+    if (!ev) throw new GameError('진행 중인 이벤트가 없습니다. 너굴(운영자)에게 문의하세요.', 404);
     if (ev.status === 'ended') throw new GameError('이미 종료된 이벤트입니다.', 409);
     if (typeof rawNickname !== 'string') throw new GameError('닉네임을 입력하세요.');
     const nickname = clean(rawNickname);
@@ -375,7 +375,7 @@ export function createGame({ db, market, now = Date.now }) {
     return tx(() => {
       const ev = currentEvent(); // 트랜잭션 안에서 최신 상태 확인
       if (!ev || ev.id !== auth.ev.id) throw new GameError('이벤트가 변경되었습니다. 다시 접속해주세요.', 409);
-      if (ev.status === 'ready') throw new GameError('아직 게임이 시작되지 않았습니다. 선생님의 시작 신호를 기다려주세요.', 409);
+      if (ev.status === 'ready') throw new GameError('아직 게임이 시작되지 않았습니다. 너굴의 시작 신호를 기다려주세요.', 409);
       if (ev.status === 'ended') throw new GameError('게임이 종료되어 더 이상 거래할 수 없습니다.', 409);
       const { ticker, side } = input;
       if (!ev.tickers.includes(ticker)) throw new GameError('이 게임에서 거래할 수 없는 종목입니다.');

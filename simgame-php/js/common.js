@@ -54,12 +54,18 @@ export const store = {
   set token(v) { try { v ? localStorage.setItem(TOKEN_KEY, v) : localStorage.removeItem(TOKEN_KEY); } catch { /* 저장 불가 환경 */ } },
 };
 
+// '/api/state?x=1' → 'api.php?r=state&x=1' (서버 리라이트 설정 없이 어느 호스팅에서나 동작)
+export function apiUrl(path) {
+  const [route, query] = path.replace(/^\/api\//, '').split('?');
+  return new URL(`api.php?r=${route}${query ? `&${query}` : ''}`, document.baseURI).href;
+}
+
 export async function api(path, { method = 'GET', body, token } = {}) {
   const headers = {};
   if (body) headers['Content-Type'] = 'application/json';
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) headers['X-Auth-Token'] = token; // Authorization 헤더는 일부 PHP 호스팅이 걸러내서 커스텀 헤더 사용
   let res;
-  try { res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined }); }
+  try { res = await fetch(apiUrl(path), { method, headers, body: body ? JSON.stringify(body) : undefined }); }
   catch { throw Object.assign(new Error('네트워크 연결을 확인해주세요.'), { status: 0 }); }
   let data = {};
   try { data = await res.json(); } catch { /* 본문 없음 */ }

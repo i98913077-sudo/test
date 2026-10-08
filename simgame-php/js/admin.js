@@ -1,4 +1,4 @@
-import { el, $, clear, fmt, fmtP, fmtPct, fmtSigned, dir, fmtTime, fmtDuration, api, banner, disclaimerBlock, toast } from './common.js';
+import { el, $, clear, fmt, fmtP, fmtPct, fmtSigned, dir, fmtTime, fmtDuration, api, apiUrl, banner, disclaimerBlock, toast } from './common.js';
 
 const app = $('#app');
 const KEY = 'safeinvest.admin';
@@ -22,7 +22,7 @@ function login(msg) {
   };
   clear(app).append(banner(), el('main', { class: 'wrap' }, el('h1', {}, '너굴 관리자'),
     el('form', { class: 'card', onsubmit: go }, el('label', { class: 'field', for: 'pw' }, '관리자 비밀번호'), pw, el('button', { class: 'btn primary block', type: 'submit' }, '로그인'), err),
-    el('p', { class: 'muted small' }, '비밀번호는 서버 실행 시 ADMIN_PASSWORD 환경변수로 설정합니다. 설정하지 않으면 서버 콘솔에 임시 비밀번호가 출력됩니다.'), disclaimerBlock()));
+    el('p', { class: 'muted small' }, '비밀번호는 서버에 올린 config.php 의 admin_password 에서 설정합니다.'), disclaimerBlock()));
 }
 
 async function dashboard() {
@@ -42,7 +42,7 @@ async function draw() {
   const root = el('main', { class: 'wrap wide', id: 'admin-root' });
   root.append(
     el('div', { class: 'row between' }, el('h1', {}, '너굴 관리자'), el('div', { class: 'row' },
-      el('a', { class: 'btn sm', href: '/ranking', target: '_blank', rel: 'noopener' }, '🏆 수업용 순위 화면'),
+      el('a', { class: 'btn sm', href: 'ranking.html', target: '_blank', rel: 'noopener' }, '🏆 수업용 순위 화면'),
       el('button', { class: 'btn sm', onclick: () => { tok.v = null; login(); } }, '로그아웃'))),
     studentLink(),
     ev ? eventCard(ev) : null,
@@ -55,7 +55,7 @@ async function draw() {
 }
 
 function studentLink() {
-  const url = `${location.origin}/`;
+  const url = new URL('./', location.href).href;
   return el('div', { class: 'card' }, el('b', {}, '너굴이 접속 주소'), el('div', { class: 'row' },
     el('code', { class: 'grow' }, url), el('button', { class: 'btn sm', onclick: async () => { try { await navigator.clipboard.writeText(url); toast('주소를 복사했어요'); } catch { toast('복사 실패: 직접 선택해 복사해주세요'); } } }, '복사')),
     el('p', { class: 'muted small' }, '이 주소를 QR코드 생성기(무료 사이트 등)에 넣어 화면에 띄우면 너굴이들이 휴대폰으로 스캔해 접속할 수 있어요.'));
@@ -114,7 +114,7 @@ function eventCard(ev) {
     ev.status !== 'ended' ? el('div', {},
       field('매수 이유 공개 시점', mode), el('label', { class: 'check' }, sellReq, el('span', {}, '매도 이유도 필수로 받기')),
       ev.status === 'running' ? field('종료 시간 조정', extend, '비워두고 저장하면 변경하지 않아요.') : null,
-      el('button', { class: 'btn sm', onclick: run(() => call('/api/admin/event', { method: 'PATCH', body: { reason_reveal_mode: mode.value, sell_reason_required: sellReq.checked, ...(extend.value ? { end_in_min: Number(extend.value) } : {}) } }), '설정을 저장했어요') }, '설정 저장')) : null,
+      el('button', { class: 'btn sm', onclick: run(() => call('/api/admin/event/update', { method: 'POST', body: { reason_reveal_mode: mode.value, sell_reason_required: sellReq.checked, ...(extend.value ? { end_in_min: Number(extend.value) } : {}) } }), '설정을 저장했어요') }, '설정 저장')) : null,
     err);
 }
 
@@ -139,7 +139,7 @@ function boardCard(ov) {
 function txCard(txs) {
   const csv = el('button', { class: 'btn sm', onclick: async () => {
     try {
-      const res = await fetch('/api/admin/export.csv', { headers: { Authorization: `Bearer ${tok.v}` } });
+      const res = await fetch(apiUrl('/api/admin/export.csv'), { headers: { 'X-Auth-Token': tok.v } });
       if (!res.ok) throw new Error('내보내기에 실패했어요.');
       const url = URL.createObjectURL(await res.blob());
       const a = el('a', { href: url, download: 'transactions.csv' }); document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);

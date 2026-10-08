@@ -6,7 +6,8 @@
 - `screenplay/` 영화대본 PDF (정식본, 병맛 B급본, 완결본 + 41컷 컷리스트)
 - `src/` 대본 원본 텍스트와 PDF 제작 스크립트
 - `assets/` 영상 링크 등
-- `simgame/` 공개수업용 교육 모의투자 게임 웹앱 (가상 포인트 1억 P, 매수 이유 입력, 랭킹·수익률 비교) — 사용법은 `simgame/README.md`
+- `simgame-php/` 같은 게임의 **PHP 호스팅용** 버전 (폴더째 FTP로 올리면 동작) — `simgame-php/README.md`
+- `simgame/` 교육 모의투자 게임 웹앱(Node 서버판) (가상 포인트 1억 P, 매수 이유 입력, 랭킹·수익률 비교) — 사용법은 `simgame/README.md`
 
 ## 영상
 - 20초 연결본(한글 자막): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/e1848dc9-5fe4-4441-956f-6a343f6a30f1.mp4

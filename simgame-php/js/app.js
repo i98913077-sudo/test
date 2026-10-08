@@ -79,7 +79,7 @@ async function renderIntro(message) {
       nick,
       el('p', { class: 'muted small' }, '실명, 전화번호 등 개인정보는 입력하지 마세요. 닉네임만으로 참가하고, 참가 코드는 자동으로 만들어져요.'),
       el('label', { class: 'check', for: 'agree' }, agree, el('span', {}, '위 안내를 읽었고, 가상 포인트로 하는 교육용 게임임을 이해했습니다.')),
-      btn, err) : el('div', { class: 'card' }, el('a', { class: 'btn block', href: '/ranking' }, '🏆 최종 순위 보기')),
+      btn, err) : el('div', { class: 'card' }, el('a', { class: 'btn block', href: 'ranking.html' }, '🏆 최종 순위 보기')),
     el('p', { class: 'muted small' }, '※ 브라우저 저장소를 지우면 참가 정보가 사라져 같은 계정으로 돌아올 수 없어요.'),
     disclaimerBlock()));
   if (canJoin) nick.focus();
@@ -373,7 +373,7 @@ async function renderRank(silent) {
   if (S.tab !== 'rank' || S.compareCode) return;
   const me = S.state.me;
   clear(ui.content).append(
-    el('div', { class: 'card' }, el('div', { class: 'row between' }, el('h2', {}, '🏆 너굴이들 모의투자 랭킹'), el('a', { class: 'btn sm', href: '/ranking', target: '_blank', rel: 'noopener' }, '큰 화면')),
+    el('div', { class: 'card' }, el('div', { class: 'row between' }, el('h2', {}, '🏆 너굴이들 모의투자 랭킹'), el('a', { class: 'btn sm', href: 'ranking.html', target: '_blank', rel: 'noopener' }, '큰 화면')),
       el('p', { class: 'muted small' }, '순위는 게임 내 총자산 기준이며, 실제 투자 성과나 미래 수익을 의미하지 않습니다. 참가자를 누르면 나와 비교할 수 있어요.'),
       data.rows.length ? null : el('p', { class: 'muted' }, '아직 참가자가 없어요.'),
       ...data.rows.map((r) => el('button', { class: `rank-row${r.code === me.code ? ' me' : ''}`, onclick: () => openCompare(r.code) },
@@ -426,7 +426,7 @@ async function renderReport() {
     el('div', { class: 'card card-edu' }, el('h3', {}, '💡 이번 게임에서 살펴볼 점'), ...r.insights.map((t) => el('p', {}, t))),
     el('div', { class: 'card' }, el('h3', {}, '내가 적은 거래 이유'),
       r.reasons.length ? el('div', {}, ...r.reasons.map((t) => el('div', { class: 'reason-item' }, `${t.type === 'buy' ? '매수' : '매도'} · ${t.name} ${fmt(t.quantity)}주 @ ${fmtP(t.price)}\n${t.reason}`))) : el('p', { class: 'muted' }, '기록된 이유가 없어요.')),
-    el('a', { class: 'btn block', href: '/ranking' }, '🏆 너굴이들 전체 순위 보기'));
+    el('a', { class: 'btn block', href: 'ranking.html' }, '🏆 너굴이들 전체 순위 보기'));
 }
 function weightsBar(weights) {
   const bar = el('div', { class: 'bar', role: 'img', 'aria-label': '자산 구성 비율' });

@@ -1,0 +1,137 @@
+:root {
+  --bg: #f4f6fa; --card: #ffffff; --text: #1b2330; --muted: #5b6678; --line: #e1e6ee;
+  --brand: #2b5fd9; --brand-dark: #1f48a8; --up: #d6342c; --down: #1c6fd1; --ok: #16794a; --warn-bg: #fff6e0; --warn-line: #f0c36b;
+  --radius: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f141c; --card: #182030; --text: #eaeff7; --muted: #9aa6bb; --line: #2a3447; --brand: #6c97ff; --brand-dark: #8fb0ff;
+    --up: #ff6b62; --down: #5da3ff; --ok: #4cc58b; --warn-bg: #3a3118; --warn-line: #7a6320; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.5 -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; overflow-wrap: anywhere; }
+button, input, textarea, select { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0 0 .4em; line-height: 1.25; }
+h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1.05rem; }
+.hidden { display: none !important; }
+.muted { color: var(--muted); } .small { font-size: .85rem; }
+.up { color: var(--up); } .down { color: var(--down); }
+.num { font-variant-numeric: tabular-nums; }
+
+.edu-banner { position: sticky; top: 0; z-index: 20; background: var(--brand); color: #fff; text-align: center; font-size: .8rem; padding: 6px 10px; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 12px 12px 90px; }
+.wrap.wide { max-width: 1100px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; margin: 0 0 12px; }
+.notice { background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 12px; font-size: .92rem; }
+.disclaimer { color: var(--muted); font-size: .78rem; text-align: center; padding: 14px 8px 4px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 14px; border-radius: 12px; white-space: nowrap; border: 1px solid var(--line); background: var(--card); cursor: pointer; font-weight: 700; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.btn.buy { background: var(--up); border-color: var(--up); color: #fff; }
+.btn.sell { background: var(--down); border-color: var(--down); color: #fff; }
+.btn.danger { background: #b3261e; border-color: #b3261e; color: #fff; }
+.btn.block { width: 100%; }
+.btn.sm { min-height: 40px; padding: 0 12px; font-size: .9rem; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+.grow { flex: 1 1 0; min-width: 0; }
+.input { width: 100%; min-height: 48px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+textarea.input { min-height: 84px; resize: vertical; }
+label.field { display: block; font-weight: 700; margin: 10px 0 4px; font-size: .92rem; }
+.check { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; cursor: pointer; }
+.check input { width: 22px; height: 22px; flex: none; margin-top: 2px; }
+.err { color: #b3261e; font-weight: 700; margin: 8px 0 0; min-height: 1.2em; }
+@media (prefers-color-scheme: dark) { .err { color: #ff8b84; } }
+
+/* 인트로 */
+.hero { text-align: center; padding: 22px 8px 8px; }
+.hero .logo { font-size: 2rem; font-weight: 900; letter-spacing: .04em; color: var(--brand); }
+.hero p { margin: .2em 0; }
+
+/* 요약 헤더 */
+.summary .who { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.summary .total { font-size: clamp(1.45rem, 7vw, 1.9rem); font-weight: 900; line-height: 1.2; }
+.stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.stat-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.stat-grid.three .stat { padding: 6px 8px; }
+.stat { background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+.stat .k { font-size: .72rem; color: var(--muted); } .stat .v { font-weight: 800; font-size: clamp(.78rem, 3.5vw, 1rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-grid.wrapv .stat .v { white-space: normal; }
+.timer { font-weight: 800; }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: .78rem; font-weight: 800; background: var(--bg); border: 1px solid var(--line); }
+.pill.live { background: #ffe3e1; border-color: #f2a39d; color: #a3231b; }
+
+/* 탭 */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, 1fr); background: var(--card); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+.tabbar button { min-height: 56px; border: 0; background: none; font-weight: 700; color: var(--muted); cursor: pointer; font-size: .85rem; }
+.tabbar button .ic { display: block; font-size: 1.25rem; line-height: 1.1; }
+.tabbar button.active { color: var(--brand); }
+
+/* 종목 목록 */
+.stock { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 8px; min-height: 60px; cursor: pointer; }
+.stock .name { font-weight: 800; } .stock .sub { font-size: .78rem; color: var(--muted); }
+.stock .px { text-align: right; flex: none; }
+.chips { display: flex; gap: 6px; margin: 8px 0; }
+.chip { flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-weight: 700; cursor: pointer; }
+.chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+.chart-box { position: relative; width: 100%; height: 280px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; touch-action: pan-y; }
+.chart-box canvas { width: 100%; height: 100%; display: block; }
+.ohlc { min-height: 1.4em; font-size: .8rem; color: var(--muted); margin: 4px 0 8px; }
+.card-edu { border-left: 5px solid var(--brand); }
+.mission { border-left: 5px solid #e8a317; }
+
+/* 포지션 / 거래 */
+.pos { border-bottom: 1px solid var(--line); padding: 10px 0; } .pos:last-child { border-bottom: 0; }
+details.reasons { margin-top: 6px; font-size: .88rem; } details.reasons summary { cursor: pointer; color: var(--brand); font-weight: 700; min-height: 32px; }
+.reason-item { background: var(--bg); border-radius: 8px; padding: 6px 10px; margin: 4px 0; white-space: pre-wrap; }
+
+/* 랭킹 */
+.rank-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 6px; text-align: left; cursor: pointer; min-height: 56px; }
+.rank-row.me { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand) inset; }
+.rank-no { font-weight: 900; font-size: 1.15rem; text-align: center; }
+.rank-name { font-weight: 800; } .rank-right { text-align: right; }
+
+/* 비교 */
+.cmp { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cmp .col { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+
+/* 모달 */
+.overlay { position: fixed; inset: 0; z-index: 50; background: rgba(10, 15, 25, .55); display: flex; align-items: flex-end; justify-content: center; }
+.sheet { width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; background: var(--card); border-radius: 18px 18px 0 0; padding: 16px 16px 24px; }
+.sheet.center { border-radius: 18px; margin: auto 12px; max-height: 88vh; }
+.overlay.center { align-items: center; }
+.qty-row { display: flex; gap: 6px; align-items: center; }
+.qty-row .input { text-align: center; font-weight: 800; }
+.qty-btn { min-width: 52px; min-height: 48px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); font-weight: 800; cursor: pointer; }
+.sum-line { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
+.toast { position: fixed; left: 50%; bottom: 80px; transform: translateX(-50%); z-index: 60; background: #222b3a; color: #fff; padding: 12px 18px; border-radius: 12px; max-width: 92vw; font-weight: 700; }
+.bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--bg); margin: 6px 0; }
+.bar span { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .82rem; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.tbl th, .tbl td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl th { color: var(--muted); font-size: .78rem; }
+.scroll-x { overflow-x: auto; }
+
+/* 수업 화면 */
+.board-body { background: #0c1220; color: #f3f6fc; min-height: 100vh; }
+.board-body .card { background: #151d30; border-color: #26334f; }
+.board-body .muted { color: #9fb0cf; }
+.board-body .up { color: #ff7a72; } .board-body .down { color: #6aaeff; }
+.board-body .disclaimer { color: #8fa1c4; }
+.board-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.board-head h1 { font-size: clamp(1.4rem, 4vw, 2.6rem); margin: 0; }
+.big-rank { display: grid; grid-template-columns: clamp(52px, 8vw, 90px) minmax(0, 1fr) auto auto; gap: 10px 18px; align-items: center; padding: 10px 16px; border-radius: 14px; background: #151d30; border: 1px solid #26334f; margin-bottom: 8px; font-size: clamp(1rem, 2.4vw, 1.7rem); }
+.big-rank.top1 { background: linear-gradient(90deg, #5d4600, #151d30); border-color: #f2c14e; }
+.big-rank.top2 { border-color: #c0c8d8; } .big-rank.top3 { border-color: #c98a4b; }
+.big-rank .no { font-weight: 900; text-align: center; font-size: 1.3em; }
+.big-rank .nick { font-weight: 800; }
+@media (max-width: 560px) { .big-rank { grid-template-columns: 44px minmax(0, 1fr) auto; } .big-rank .tot { display: none; } }
+
+.summary.compact .sumstats, .summary.compact .retline { display: none; }
+.summary.compact .total { font-size: 1.15rem; }
+.summary.compact { padding: 8px 14px; margin-bottom: 8px; }
+.actions .btn { flex: 1 1 0; }
+@media (max-height: 720px) { .chart-box { height: 230px; } }

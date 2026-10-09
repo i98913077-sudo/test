@@ -45,6 +45,7 @@ export function openDb(path = ':memory:') {
       ticker TEXT NOT NULL,
       quantity INTEGER NOT NULL CHECK (quantity > 0),
       average_price REAL NOT NULL,
+      leverage INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (user_id, ticker)
     );
     CREATE TABLE IF NOT EXISTS transactions (
@@ -57,11 +58,17 @@ export function openDb(path = ':memory:') {
       price INTEGER NOT NULL,
       reason TEXT,
       realized_pl INTEGER,
+      leverage INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_tx_event ON transactions(event_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id, created_at);
   `);
+  // 이미 만들어진 DB(레버리지 도입 전)에는 컬럼을 안전하게 추가한다.
+  for (const table of ['holdings', 'transactions']) {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+    if (!cols.includes('leverage')) db.exec(`ALTER TABLE ${table} ADD COLUMN leverage INTEGER NOT NULL DEFAULT 1`);
+  }
   return db;
 }
 

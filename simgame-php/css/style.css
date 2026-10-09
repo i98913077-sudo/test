@@ -139,3 +139,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .chips.wrap-chips { flex-wrap: wrap; }
 .chips.wrap-chips .chip { flex: 1 1 auto; padding: 0 10px; white-space: nowrap; }
 .ticker-group { border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px; margin: 8px 0; }
+
+.sum-line .num { white-space: nowrap; flex: none; }
+.sum-line .muted { min-width: 0; }

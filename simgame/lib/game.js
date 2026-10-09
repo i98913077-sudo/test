@@ -30,6 +30,10 @@ const clean = (s) => String(s).replace(CONTROL_RE, ' ').replace(/\s+/g, ' ').tri
 // 종목 표시 이름·단위(주/계약/배럴 등)
 const tinfo = (t) => ({ name: TICKER_MAP.get(t)?.name ?? t, unit: TICKER_MAP.get(t)?.unit ?? '주' });
 
+const levOf = (t) => TICKER_MAP.get(t)?.leverage ?? 1;
+// 포지션 평가액 = 증거금 + 평가손익. 레버리지 1배면 가격×수량과 같고, 0 아래로는 내려가지 않는다(강제청산).
+const equityOf = (qty, avg, lev, price) => Math.max(0, Math.round(qty * (price - avg * (1 - 1 / lev))));
+
 export function createGame({ db, market, now = Date.now }) {
   const q = (sql) => db.prepare(sql);
 
@@ -218,7 +222,7 @@ export function createGame({ db, market, now = Date.now }) {
       const price = priceOf(ev, ticker);
       const prev = market.prevClose(ticker, at);
       return {
-        ticker, name: meta.name, group: meta.group, unit: meta.unit, sector: meta.sector, info: meta.info,
+        ticker, name: meta.name, group: meta.group, unit: meta.unit, leverage: meta.leverage ?? 1, sector: meta.sector, info: meta.info,
         price, prev_close: prev, change: price - prev, change_rate: (price - prev) / prev,
         volume: market.todayVolume(ticker, at),
       };
@@ -265,15 +269,15 @@ export function createGame({ db, market, now = Date.now }) {
 
   // ---------- 평가 / 순위 ----------
   function positionsFor(ev, userId) {
-    const rows = q('SELECT ticker, quantity, average_price FROM holdings WHERE user_id=? ORDER BY ticker').all(userId);
+    const rows = q('SELECT ticker, quantity, average_price, leverage FROM holdings WHERE user_id=? ORDER BY ticker').all(userId);
     return rows.map((h) => {
       const price = priceOf(ev, h.ticker);
-      const value = price * h.quantity;
-      const cost = h.average_price * h.quantity;
+      const value = equityOf(h.quantity, h.average_price, h.leverage, price);
+      const margin = Math.round((h.quantity * h.average_price) / h.leverage); // 증거금(레버리지 1배면 매수금액)
       return {
-        ticker: h.ticker, ...tinfo(h.ticker), quantity: h.quantity,
+        ticker: h.ticker, ...tinfo(h.ticker), quantity: h.quantity, leverage: h.leverage, margin,
         average_price: Math.round(h.average_price), price, value,
-        profit: Math.round(value - cost), return_rate: h.average_price ? (price - h.average_price) / h.average_price : 0,
+        profit: value - margin, return_rate: margin ? (value - margin) / margin : 0, // 레버리지 상품은 증거금 대비 수익률
       };
     });
   }
@@ -291,18 +295,38 @@ export function createGame({ db, market, now = Date.now }) {
   }
 
   // 순위표 계산. 진행 중에는 최고/최저 총자산을 갱신한다(리포트의 최대 평가손익용).
+  // 레버리지 포지션이 증거금을 모두 잃었는지(평가액 0) 찾는다.
+  function findLiquidations(ev, userId) {
+    if (ev.status !== 'running') return [];
+    const rows = userId
+      ? q('SELECT user_id, ticker, quantity, average_price, leverage FROM holdings WHERE event_id=? AND leverage>1 AND user_id=?').all(ev.id, userId)
+      : q('SELECT user_id, ticker, quantity, average_price, leverage FROM holdings WHERE event_id=? AND leverage>1').all(ev.id);
+    return rows.filter((h) => equityOf(h.quantity, h.average_price, h.leverage, priceOf(ev, h.ticker)) === 0);
+  }
+  // 강제청산: 포지션을 지우고 증거금을 잃은 것으로 기록한다. (트랜잭션 안에서 호출)
+  function applyLiquidations(list, ev) {
+    for (const h of list) {
+      const margin = Math.round((h.quantity * h.average_price) / h.leverage);
+      q('DELETE FROM holdings WHERE user_id=? AND ticker=?').run(h.user_id, h.ticker);
+      q(`INSERT INTO transactions (user_id, event_id, ticker, type, quantity, price, reason, realized_pl, leverage, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?)`).run(h.user_id, ev.id, h.ticker, 'sell', h.quantity, priceOf(ev, h.ticker),
+        '강제청산: 가격이 반대로 크게 움직여 증거금이 모두 소진되었어요.', -margin, h.leverage, now());
+    }
+  }
+
   function board(ev) {
+    if (ev.status === 'running' && findLiquidations(ev).length) tx(() => applyLiquidations(findLiquidations(ev), ev));
     const users = q(`SELECT u.id, u.nickname, u.participant_code AS code, u.created_at, a.cash, a.peak_total, a.low_total
       FROM users u JOIN accounts a ON a.user_id=u.id WHERE u.event_id=?`).all(ev.id);
     const hold = new Map();
-    for (const h of q('SELECT user_id, ticker, quantity FROM holdings WHERE event_id=?').all(ev.id)) {
+    for (const h of q('SELECT user_id, ticker, quantity, average_price, leverage FROM holdings WHERE event_id=?').all(ev.id)) {
       if (!hold.has(h.user_id)) hold.set(h.user_id, []);
       hold.get(h.user_id).push(h);
     }
     const price = new Map(ev.tickers.map((t) => [t, priceOf(ev, t)]));
     const rows = users.map((u) => {
       const hs = hold.get(u.id) ?? [];
-      const stockValue = hs.reduce((s, h) => s + h.quantity * (price.get(h.ticker) ?? 0), 0);
+      const stockValue = hs.reduce((s, h) => s + equityOf(h.quantity, h.average_price, h.leverage, price.get(h.ticker) ?? 0), 0);
       const total = u.cash + stockValue;
       return {
         user_id: u.id, nickname: u.nickname, code: u.code, created_at: u.created_at,
@@ -393,33 +417,45 @@ export function createGame({ db, market, now = Date.now }) {
       }
       const reason = validateReason(input.reason, side === 'buy' || ev.sell_reason_required);
 
+      // 증거금이 모두 소진된 레버리지 포지션은 먼저 강제청산한다.
+      applyLiquidations(findLiquidations(ev, user.id), ev);
+
       // 체결가는 항상 서버가 정한다. 클라이언트가 보낸 가격은 사용하지 않는다.
       const price = priceOf(ev, ticker);
-      const amount = price * qty;
+      const amount = price * qty; // 명목 거래금액
+      const lev = levOf(ticker);
       const acc = q('SELECT cash FROM accounts WHERE user_id=?').get(user.id);
-      const h = q('SELECT quantity, average_price FROM holdings WHERE user_id=? AND ticker=?').get(user.id, ticker);
+      const h = q('SELECT quantity, average_price, leverage FROM holdings WHERE user_id=? AND ticker=?').get(user.id, ticker);
       let realized = null;
+      let cashChange; // 현금 증감: 매수는 -증거금, 매도는 +정산금
 
       if (side === 'buy') {
-        if (amount > acc.cash) throw new GameError('가상현금이 부족합니다.');
-        q('UPDATE accounts SET cash = cash - ? WHERE user_id=?').run(amount, user.id);
+        if (h && h.leverage !== lev) throw new GameError('이 종목은 거래 방식이 바뀌었어요. 기존 보유를 먼저 매도해주세요.', 409);
+        const margin = Math.ceil(amount / lev); // 필요한 증거금(레버리지 1배면 매수금액)
+        if (margin > acc.cash) throw new GameError(lev > 1 ? '가상현금(증거금)이 부족합니다.' : '가상현금이 부족합니다.');
+        cashChange = -margin;
+        q('UPDATE accounts SET cash = cash - ? WHERE user_id=?').run(margin, user.id);
         if (h) {
           const nq = h.quantity + qty;
           const avg = (h.quantity * h.average_price + amount) / nq;
           q('UPDATE holdings SET quantity=?, average_price=? WHERE user_id=? AND ticker=?').run(nq, avg, user.id, ticker);
         } else {
-          q('INSERT INTO holdings (user_id, event_id, ticker, quantity, average_price) VALUES (?,?,?,?,?)').run(user.id, ev.id, ticker, qty, price);
+          q('INSERT INTO holdings (user_id, event_id, ticker, quantity, average_price, leverage) VALUES (?,?,?,?,?,?)').run(user.id, ev.id, ticker, qty, price, lev);
         }
       } else {
         if (!h || h.quantity < qty) throw new GameError('보유한 수량보다 많이 매도할 수 없습니다.');
-        realized = Math.round((price - h.average_price) * qty);
-        q('UPDATE accounts SET cash = cash + ? WHERE user_id=?').run(amount, user.id);
+        const marginPart = (qty * h.average_price) / h.leverage;
+        const proceeds = equityOf(qty, h.average_price, h.leverage, price); // 정산금 = 증거금 + 손익 (0 미만이면 0)
+        realized = proceeds - Math.round(marginPart);
+        cashChange = proceeds;
+        q('UPDATE accounts SET cash = cash + ? WHERE user_id=?').run(proceeds, user.id);
         if (h.quantity === qty) q('DELETE FROM holdings WHERE user_id=? AND ticker=?').run(user.id, ticker);
         else q('UPDATE holdings SET quantity = quantity - ? WHERE user_id=? AND ticker=?').run(qty, user.id, ticker);
       }
-      const info = q(`INSERT INTO transactions (user_id, event_id, ticker, type, quantity, price, reason, realized_pl, created_at)
-        VALUES (?,?,?,?,?,?,?,?,?)`).run(user.id, ev.id, ticker, side, qty, price, reason, realized, now());
-      return { id: Number(info.lastInsertRowid), ticker, ...tinfo(ticker), type: side, quantity: qty, price, amount, realized_pl: realized };
+      const info = q(`INSERT INTO transactions (user_id, event_id, ticker, type, quantity, price, reason, realized_pl, leverage, created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?)`).run(user.id, ev.id, ticker, side, qty, price, reason, realized, h?.leverage ?? lev, now());
+      return { id: Number(info.lastInsertRowid), ticker, ...tinfo(ticker), type: side, quantity: qty, price, amount, leverage: h?.leverage ?? lev,
+        cash_change: cashChange, realized_pl: realized };
     });
   }
 

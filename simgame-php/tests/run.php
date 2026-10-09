@@ -24,16 +24,16 @@ function fails(callable $fn, ?int $status = null, string $msg = ''): void {
 function tmpdir(): string { $d = sys_get_temp_dir() . '/simgame_' . bin2hex(random_bytes(6)); mkdir($d); return $d; }
 function rmrf(string $d): void { foreach (glob("$d/*") ?: [] as $f) is_dir($f) ? rmrf($f) : unlink($f); @rmdir($d); }
 
-function fresh(): array {
+function fresh(float $vol = 1.0): array {
     $dir = tmpdir();
     $clock = new class { public int $t; };
     $clock->t = gmmktime(3, 0, 0, 10, 8, 2026) * 1000;
     $db = sim_open_db($dir);
-    $game = new Game($db, new Market(sim_price_seed($db)), fn() => $clock->t);
+    $game = new Game($db, new Market(sim_price_seed($db), $vol), fn() => $clock->t);
     return [$game, $clock, $dir];
 }
-function started(array $in = []): array {
-    [$g, $c, $d] = fresh();
+function started(array $in = [], float $vol = 1.0): array {
+    [$g, $c, $d] = fresh($vol);
     $g->createEvent($in);
     $g->startEvent();
     return [$g, $c, $d];
@@ -233,6 +233,81 @@ t('이미 만든 이벤트에도 종목을 추가할 수 있고, 참가자가 �
     rmrf($d);
 });
 
+t('선물 레버리지 10배: 증거금만 내고, 평가액=증거금+손익(10배), 총자산 정합성, 매도 정산', function () {
+    [$g, $c, $d] = started(['tickers' => ['K200F', '005930']]);
+    [$a] = player($g);
+    $k = array_values(array_filter($g->myState($a)['stocks'], fn($x) => $x['ticker'] === 'K200F'))[0];
+    eq($k['leverage'], 10);
+    $qty = intdiv(200000000, $k['price']);
+    check($qty * $k['price'] > 100000000, '명목금액이 현금보다 큼');
+    $b = $g->trade($a, ['ticker' => 'K200F', 'side' => 'buy', 'quantity' => $qty, 'reason' => REASON]);
+    $margin = (int)ceil($b['price'] * $qty / 10);
+    eq($b['leverage'], 10); eq($b['cash_change'], -$margin);
+    $st = $g->myState($a);
+    eq($st['me']['cash'], 100000000 - $margin);
+    eq($st['me']['positions'][0]['margin'], (int)round($qty * $b['price'] / 10));
+    $c->t += 3 * 3600 * 1000;
+    $s1 = $g->myState($a);
+    $pos = $s1['me']['positions'][0] ?? null;
+    check($pos !== null, '3시간 만에 강제청산될 만큼 변동하지 않는다');
+    {
+        eq($pos['value'], (int)max(0, round($qty * ($pos['price'] - $pos['average_price'] * 0.9))));
+        eq($pos['profit'], $pos['value'] - $pos['margin']);
+        check(abs($pos['return_rate'] - 10 * ($pos['price'] / $pos['average_price'] - 1)) < 1e-3, '증거금 대비 수익률 = 가격 변동률 × 10');
+        eq($s1['me']['total'], $s1['me']['cash'] + $s1['me']['stock_value']);
+        $cashBefore = $s1['me']['cash'];
+        $sell = $g->trade($a, ['ticker' => 'K200F', 'side' => 'sell', 'quantity' => $qty]);
+        eq($sell['cash_change'], $pos['value']);
+        eq($g->myState($a)['me']['cash'], $cashBefore + $pos['value']);
+        eq($sell['realized_pl'], $pos['value'] - $pos['margin']);
+        eq(count($g->myState($a)['me']['positions']), 0);
+    }
+    fails(fn() => $g->trade($a, ['ticker' => 'K200F', 'side' => 'buy', 'quantity' => intdiv(1500000000, $k['price']), 'reason' => REASON]), 400);
+    rmrf($d);
+});
+
+t('강제청산: 가격이 크게 반대로 움직이면 증거금을 잃고 포지션이 사라진다 (현금은 음수가 되지 않는다)', function () {
+    [$g, $c, $d] = started(['tickers' => ['K200F']], 30.0);
+    [$a] = player($g);
+    $b = $g->trade($a, ['ticker' => 'K200F', 'side' => 'buy', 'quantity' => 1000, 'reason' => REASON]);
+    $cashAfterBuy = $g->myState($a)['me']['cash'];
+    $liquidated = false;
+    for ($i = 0; $i < 600 && !$liquidated; $i++) {
+        $c->t += 3600 * 1000;
+        $st = $g->myState($a);
+        check($st['me']['cash'] >= 0, '현금 음수');
+        foreach ($st['me']['positions'] as $p) check($p['value'] >= 0);
+        eq($st['me']['total'], $st['me']['cash'] + $st['me']['stock_value']);
+        if (count($st['me']['positions']) === 0) {
+            $liquidated = true;
+            eq($st['me']['cash'], $cashAfterBuy, '강제청산으로 현금이 늘지 않는다');
+        }
+    }
+    check($liquidated, '강제청산이 일어나야 함');
+    $tx = $g->myTransactions($a);
+    $liq = array_values(array_filter($tx, fn($x) => $x['type'] === 'sell'))[0];
+    check(str_contains($liq['reason'], '강제청산'));
+    eq((int)$liq['realized_pl'], -(int)round(1000 * $b['price'] / 10));
+    eq($g->ranking($g->currentEvent())['rows'][0]['total'], $cashAfterBuy);
+    rmrf($d);
+});
+
+t('기존 DB(레버리지 컬럼 없는 옛 버전)도 열어서 컬럼을 자동 추가한다', function () {
+    $dir = tmpdir();
+    $file = $dir . '/g_oldtest.sqlite';
+    $old = new PDO('sqlite:' . $file);
+    $old->exec("CREATE TABLE holdings (user_id INTEGER NOT NULL, event_id INTEGER NOT NULL, ticker TEXT NOT NULL, quantity INTEGER NOT NULL, average_price REAL NOT NULL, PRIMARY KEY (user_id, ticker));
+        CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, event_id INTEGER NOT NULL, ticker TEXT NOT NULL, type TEXT NOT NULL, quantity INTEGER NOT NULL, price INTEGER NOT NULL, reason TEXT, realized_pl INTEGER, created_at INTEGER NOT NULL);
+        INSERT INTO holdings VALUES (1,1,'005930',5,70000);");
+    $old = null;
+    $db = sim_open_db($dir);
+    $row = $db->query('SELECT leverage FROM holdings')->fetch();
+    eq((int)$row['leverage'], 1, '기존 보유는 1배');
+    $has = false; foreach ($db->query('PRAGMA table_info(transactions)')->fetchAll() as $c) if ($c['name'] === 'leverage') $has = true;
+    check($has, 'transactions.leverage');
+    $db = null; rmrf($dir);
+});
+
 t('입력 검증: 시작자금/종목/진행시간/이름/중복 이벤트', function () {
     [$g, $c, $d] = fresh();
     foreach ([['initial_balance' => -1], ['initial_balance' => 1.5], ['tickers' => ['abc']], ['tickers' => []], ['duration_min' => 0],
@@ -278,7 +353,7 @@ t('기본 종목(국내·미국 시총 상위, 지수선물, 달러, 원유) 전
     $names = array_column($st['stocks'], 'name');
     foreach (['삼성전자', 'SK하이닉스', 'LG에너지솔루션', '삼성바이오로직스', '현대차', '기아', '셀트리온', 'KB금융', 'NAVER',
         '엔비디아', '마이크로소프트', '애플', '알파벳(구글)', '아마존', '메타', '브로드컴', '테슬라', '버크셔 해서웨이',
-        '코스피200 선물', 'S&P500 선물', '나스닥100 선물', '다우존스 선물', '원/달러 환율', '달러인덱스', 'WTI 원유', '브렌트유'] as $n) {
+        '코스피200 선물', '코스닥150 선물', 'S&P500 선물', '나스닥100 선물', '다우존스 선물', '달러 선물(원/달러)', '달러인덱스 선물', 'WTI 원유 선물', '브렌트유 선물', '스페이스엑스(SpaceX)'] as $n) {
         check(in_array($n, $names, true), "$n 누락");
     }
     $groups = array_values(array_unique(array_column($st['stocks'], 'group'))); sort($groups);

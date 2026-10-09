@@ -39,18 +39,25 @@ function sim_open_db(string $dataDir): PDO {
     CREATE TABLE IF NOT EXISTS holdings (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, event_id INTEGER NOT NULL,
       ticker TEXT NOT NULL, quantity INTEGER NOT NULL CHECK (quantity > 0), average_price REAL NOT NULL,
+      leverage INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (user_id, ticker)
     );
     CREATE TABLE IF NOT EXISTS transactions (
       id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       event_id INTEGER NOT NULL, ticker TEXT NOT NULL, type TEXT NOT NULL CHECK (type IN ('buy','sell')),
-      quantity INTEGER NOT NULL, price INTEGER NOT NULL, reason TEXT, realized_pl INTEGER, created_at INTEGER NOT NULL
+      quantity INTEGER NOT NULL, price INTEGER NOT NULL, reason TEXT, realized_pl INTEGER, leverage INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_tx_event ON transactions(event_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id, created_at);
     CREATE TABLE IF NOT EXISTS admin_sessions (token_hash TEXT PRIMARY KEY, expires INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS rate_limits (k TEXT PRIMARY KEY, n INTEGER NOT NULL, reset INTEGER NOT NULL);
     ");
+    // 이미 만들어진 DB(레버리지 도입 전)에는 컬럼을 안전하게 추가한다.
+    foreach (['holdings', 'transactions'] as $table) {
+        $has = false;
+        foreach ($db->query("PRAGMA table_info($table)")->fetchAll() as $c) if ($c['name'] === 'leverage') $has = true;
+        if (!$has) $db->exec("ALTER TABLE $table ADD COLUMN leverage INTEGER NOT NULL DEFAULT 1");
+    }
     return $db;
 }
 

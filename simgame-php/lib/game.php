@@ -56,6 +56,11 @@ final class Game {
     private static function len(string $s): int { return mb_strlen($s, 'UTF-8'); }
     private static function name(string $ticker): string { return Market::TICKERS[$ticker]['name'] ?? $ticker; }
     private static function unit(string $ticker): string { return Market::TICKERS[$ticker]['unit'] ?? '주'; }
+    private static function levOf(string $ticker): int { return (int)(Market::TICKERS[$ticker]['leverage'] ?? 1); }
+    // 포지션 평가액 = 증거금 + 평가손익. 레버리지 1배면 가격×수량과 같고, 0 아래로는 내려가지 않는다(강제청산).
+    private static function equityOf(int $qty, float $avg, int $lev, int $price): int {
+        return (int)max(0, round($qty * ($price - $avg * (1 - 1 / $lev))));
+    }
     private static function toInt($v): ?int {
         if (is_int($v)) return $v;
         if (is_float($v) && is_finite($v) && floor($v) == $v && abs($v) < 9007199254740992) return (int)$v;
@@ -232,7 +237,7 @@ final class Game {
             $price = $this->priceOf($ev, $ticker);
             $prev = $this->market->prevClose($ticker, $at);
             $out[] = [
-                'ticker' => $ticker, 'name' => $meta['name'], 'group' => $meta['group'], 'unit' => $meta['unit'], 'sector' => $meta['sector'], 'info' => $meta['info'],
+                'ticker' => $ticker, 'name' => $meta['name'], 'group' => $meta['group'], 'unit' => $meta['unit'], 'leverage' => (int)($meta['leverage'] ?? 1), 'sector' => $meta['sector'], 'info' => $meta['info'],
                 'price' => $price, 'prev_close' => $prev, 'change' => $price - $prev, 'change_rate' => ($price - $prev) / $prev,
                 'volume' => $this->market->todayVolume($ticker, $at),
             ];
@@ -282,14 +287,16 @@ final class Game {
     // ---------- 평가 / 순위 ----------
     private function positionsFor(array $ev, int $userId): array {
         $out = [];
-        foreach ($this->all('SELECT ticker, quantity, average_price FROM holdings WHERE user_id=? ORDER BY ticker', [$userId]) as $h) {
+        foreach ($this->all('SELECT ticker, quantity, average_price, leverage FROM holdings WHERE user_id=? ORDER BY ticker', [$userId]) as $h) {
             $price = $this->priceOf($ev, $h['ticker']);
-            $qty = (int)$h['quantity']; $avg = (float)$h['average_price'];
-            $value = $price * $qty;
+            $qty = (int)$h['quantity']; $avg = (float)$h['average_price']; $lev = (int)$h['leverage'];
+            $value = self::equityOf($qty, $avg, $lev, $price);
+            $margin = (int)round($qty * $avg / $lev); // 증거금(레버리지 1배면 매수금액)
             $out[] = [
                 'ticker' => $h['ticker'], 'name' => self::name($h['ticker']), 'unit' => self::unit($h['ticker']), 'quantity' => $qty,
+                'leverage' => $lev, 'margin' => $margin,
                 'average_price' => (int)round($avg), 'price' => $price, 'value' => $value,
-                'profit' => (int)round($value - $avg * $qty), 'return_rate' => $avg ? ($price - $avg) / $avg : 0.0,
+                'profit' => $value - $margin, 'return_rate' => $margin ? ($value - $margin) / $margin : 0.0, // 레버리지 상품은 증거금 대비 수익률
             ];
         }
         return $out;
@@ -309,18 +316,37 @@ final class Game {
     }
 
     // 순위표 계산. 진행 중에는 최고/최저 총자산을 갱신한다(리포트의 최대 평가손익용).
+    // 레버리지 포지션이 증거금을 모두 잃었는지(평가액 0) 찾는다.
+    private function findLiquidations(array $ev, ?int $userId = null): array {
+        if ($ev['status'] !== 'running') return [];
+        $sql = 'SELECT user_id, ticker, quantity, average_price, leverage FROM holdings WHERE event_id=? AND leverage>1' . ($userId !== null ? ' AND user_id=?' : '');
+        $rows = $this->all($sql, $userId !== null ? [$ev['id'], $userId] : [$ev['id']]);
+        return array_values(array_filter($rows, fn($h) => self::equityOf((int)$h['quantity'], (float)$h['average_price'], (int)$h['leverage'], $this->priceOf($ev, $h['ticker'])) === 0));
+    }
+    // 강제청산: 포지션을 지우고 증거금을 잃은 것으로 기록한다. (트랜잭션 안에서 호출)
+    private function applyLiquidations(array $list, array $ev): void {
+        foreach ($list as $h) {
+            $margin = (int)round((int)$h['quantity'] * (float)$h['average_price'] / (int)$h['leverage']);
+            $this->q('DELETE FROM holdings WHERE user_id=? AND ticker=?', [$h['user_id'], $h['ticker']]);
+            $this->q('INSERT INTO transactions (user_id, event_id, ticker, type, quantity, price, reason, realized_pl, leverage, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                [$h['user_id'], $ev['id'], $h['ticker'], 'sell', $h['quantity'], $this->priceOf($ev, $h['ticker']),
+                 '강제청산: 가격이 반대로 크게 움직여 증거금이 모두 소진되었어요.', -$margin, $h['leverage'], $this->now()]);
+        }
+    }
+
     public function board(array $ev): array {
+        if ($ev['status'] === 'running' && $this->findLiquidations($ev)) $this->tx(fn() => $this->applyLiquidations($this->findLiquidations($ev), $ev));
         $users = $this->all('SELECT u.id, u.nickname, u.participant_code AS code, u.created_at, a.cash, a.peak_total, a.low_total
             FROM users u JOIN accounts a ON a.user_id=u.id WHERE u.event_id=?', [$ev['id']]);
         $hold = [];
-        foreach ($this->all('SELECT user_id, ticker, quantity FROM holdings WHERE event_id=?', [$ev['id']]) as $h) $hold[$h['user_id']][] = $h;
+        foreach ($this->all('SELECT user_id, ticker, quantity, average_price, leverage FROM holdings WHERE event_id=?', [$ev['id']]) as $h) $hold[$h['user_id']][] = $h;
         $price = [];
         foreach ($ev['tickers'] as $t) $price[$t] = $this->priceOf($ev, $t);
         $init = (int)$ev['initial_balance'];
         $rows = [];
         foreach ($users as $u) {
             $stockValue = 0;
-            foreach ($hold[$u['id']] ?? [] as $h) $stockValue += (int)$h['quantity'] * ($price[$h['ticker']] ?? 0);
+            foreach ($hold[$u['id']] ?? [] as $h) $stockValue += self::equityOf((int)$h['quantity'], (float)$h['average_price'], (int)$h['leverage'], (int)($price[$h['ticker']] ?? 0));
             $total = (int)$u['cash'] + $stockValue;
             $rows[] = [
                 'user_id' => (int)$u['id'], 'nickname' => $u['nickname'], 'code' => $u['code'], 'created_at' => (int)$u['created_at'],
@@ -428,34 +454,46 @@ final class Game {
             if ($qty === null || $qty < 1 || $qty > self::MAX_QTY) throw new GameError('수량은 1 ~ ' . number_format(self::MAX_QTY) . ' 사이의 정수여야 합니다.');
             $reason = $this->validateReason($in['reason'] ?? null, $side === 'buy' || $ev['sell_reason_required']);
 
+            // 증거금이 모두 소진된 레버리지 포지션은 먼저 강제청산한다.
+            $this->applyLiquidations($this->findLiquidations($ev, (int)$user['id']), $ev);
+
             // 체결가는 항상 서버가 정한다. 클라이언트가 보낸 가격은 사용하지 않는다.
             $price = $this->priceOf($ev, $ticker);
-            $amount = $price * $qty;
+            $amount = $price * $qty; // 명목 거래금액
+            $lev = self::levOf($ticker);
             $uid = (int)$user['id'];
             $acc = $this->one('SELECT cash FROM accounts WHERE user_id=?', [$uid]);
-            $h = $this->one('SELECT quantity, average_price FROM holdings WHERE user_id=? AND ticker=?', [$uid, $ticker]);
+            $h = $this->one('SELECT quantity, average_price, leverage FROM holdings WHERE user_id=? AND ticker=?', [$uid, $ticker]);
             $realized = null;
             if ($side === 'buy') {
-                if ($amount > (int)$acc['cash']) throw new GameError('가상현금이 부족합니다.');
-                $this->q('UPDATE accounts SET cash = cash - ? WHERE user_id=?', [$amount, $uid]);
+                if ($h && (int)$h['leverage'] !== $lev) throw new GameError('이 종목은 거래 방식이 바뀌었어요. 기존 보유를 먼저 매도해주세요.', 409);
+                $margin = (int)ceil($amount / $lev); // 필요한 증거금(레버리지 1배면 매수금액)
+                if ($margin > (int)$acc['cash']) throw new GameError($lev > 1 ? '가상현금(증거금)이 부족합니다.' : '가상현금이 부족합니다.');
+                $cashChange = -$margin;
+                $this->q('UPDATE accounts SET cash = cash - ? WHERE user_id=?', [$margin, $uid]);
                 if ($h) {
                     $nq = (int)$h['quantity'] + $qty;
                     $avg = ((int)$h['quantity'] * (float)$h['average_price'] + $amount) / $nq;
                     $this->q('UPDATE holdings SET quantity=?, average_price=? WHERE user_id=? AND ticker=?', [$nq, $avg, $uid, $ticker]);
                 } else {
-                    $this->q('INSERT INTO holdings (user_id, event_id, ticker, quantity, average_price) VALUES (?,?,?,?,?)', [$uid, $ev['id'], $ticker, $qty, $price]);
+                    $this->q('INSERT INTO holdings (user_id, event_id, ticker, quantity, average_price, leverage) VALUES (?,?,?,?,?,?)', [$uid, $ev['id'], $ticker, $qty, $price, $lev]);
                 }
             } else {
                 if (!$h || (int)$h['quantity'] < $qty) throw new GameError('보유한 수량보다 많이 매도할 수 없습니다.');
-                $realized = (int)round(($price - (float)$h['average_price']) * $qty);
-                $this->q('UPDATE accounts SET cash = cash + ? WHERE user_id=?', [$amount, $uid]);
+                $hl = (int)$h['leverage'];
+                $marginPart = $qty * (float)$h['average_price'] / $hl;
+                $proceeds = self::equityOf($qty, (float)$h['average_price'], $hl, $price); // 정산금 = 증거금 + 손익 (0 미만이면 0)
+                $realized = $proceeds - (int)round($marginPart);
+                $cashChange = $proceeds;
+                $this->q('UPDATE accounts SET cash = cash + ? WHERE user_id=?', [$proceeds, $uid]);
                 if ((int)$h['quantity'] === $qty) $this->q('DELETE FROM holdings WHERE user_id=? AND ticker=?', [$uid, $ticker]);
                 else $this->q('UPDATE holdings SET quantity = quantity - ? WHERE user_id=? AND ticker=?', [$qty, $uid, $ticker]);
             }
-            $this->q('INSERT INTO transactions (user_id, event_id, ticker, type, quantity, price, reason, realized_pl, created_at) VALUES (?,?,?,?,?,?,?,?,?)',
-                [$uid, $ev['id'], $ticker, $side, $qty, $price, $reason, $realized, $this->now()]);
+            $txLev = $h ? (int)$h['leverage'] : $lev;
+            $this->q('INSERT INTO transactions (user_id, event_id, ticker, type, quantity, price, reason, realized_pl, leverage, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                [$uid, $ev['id'], $ticker, $side, $qty, $price, $reason, $realized, $txLev, $this->now()]);
             return ['id' => (int)$this->db->lastInsertId(), 'ticker' => $ticker, 'name' => self::name($ticker), 'unit' => self::unit($ticker), 'type' => $side,
-                'quantity' => $qty, 'price' => $price, 'amount' => $amount, 'realized_pl' => $realized];
+                'quantity' => $qty, 'price' => $price, 'amount' => $amount, 'leverage' => $txLev, 'cash_change' => $cashChange, 'realized_pl' => $realized];
         });
     }
 

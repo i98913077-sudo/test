@@ -375,7 +375,7 @@ test('기본 종목: 국내·미국 시총 상위, 지수선물, 달러, 원유�
   const names = st.stocks.map((x) => x.name);
   for (const n of ['삼성전자', 'SK하이닉스', 'LG에너지솔루션', '삼성바이오로직스', '현대차', '기아', '셀트리온', 'KB금융', 'NAVER',
     '엔비디아', '마이크로소프트', '애플', '알파벳(구글)', '아마존', '메타', '브로드컴', '테슬라', '버크셔 해서웨이',
-    '코스피200 선물', 'S&P500 선물', '나스닥100 선물', '다우존스 선물', '원/달러 환율', '달러인덱스', 'WTI 원유', '브렌트유']) {
+    '코스피200 선물', '코스닥150 선물', 'S&P500 선물', '나스닥100 선물', '다우존스 선물', '달러 선물(원/달러)', '달러인덱스 선물', 'WTI 원유 선물', '브렌트유 선물', '스페이스엑스(SpaceX)']) {
     assert.ok(names.includes(n), `${n} 누락`);
   }
   assert.deepEqual([...new Set(st.stocks.map((x) => x.group))].sort(), ['fx', 'idx', 'kr', 'oil', 'us']);
@@ -418,4 +418,97 @@ test('이미 만든 이벤트에도 종목을 추가할 수 있고, 참가자가
   assert.equal((await t.admin('PATCH', '/api/admin/event', { tickers: ['000660', 'NVDA'] })).status, 409);
   assert.equal((await t.call('GET', '/api/state', { token })).stocks.length, 5);
   await t.close();
+});
+
+test('선물 레버리지 10배: 증거금만 내고, 평가액=증거금+손익(10배), 총자산 정합성, 매도 정산', async () => {
+  const t = await setup();
+  await t.admin('POST', '/api/admin/event', { tickers: ['K200F', '005930'] });
+  await t.admin('POST', '/api/admin/event/start');
+  const { token } = await t.call('POST', '/api/join', { body: { nickname: 'A' } });
+  const k = (await t.call('GET', '/api/state', { token })).stocks.find((x) => x.ticker === 'K200F');
+  assert.equal(k.leverage, 10);
+  // 현금(1억)을 넘는 명목금액(약 2억)도 증거금(1/10)만 있으면 살 수 있다
+  const qty = Math.floor(200_000_000 / k.price);
+  assert.ok(qty * k.price > 100_000_000);
+  const b = await t.call('POST', '/api/trade', { token, body: { ticker: 'K200F', side: 'buy', quantity: qty, reason: REASON } });
+  assert.equal(b.status, 200, b.error);
+  const margin = Math.ceil((b.trade.price * qty) / 10);
+  assert.equal(b.trade.leverage, 10);
+  assert.equal(b.trade.cash_change, -margin);
+  assert.equal(b.state.me.cash, 100_000_000 - margin);
+  assert.equal(b.state.me.positions[0].margin, Math.round((qty * b.trade.price) / 10));
+  // 시간이 지나 가격이 움직인 뒤에도 정합성이 유지된다
+  t.advance(3 * 3600 * 1000);
+  const s1 = await t.call('GET', '/api/state', { token });
+  const pos = s1.me.positions[0];
+  assert.ok(pos, '3시간 만에 강제청산될 만큼 변동하지 않는다');
+  {
+    assert.equal(pos.value, Math.max(0, Math.round(qty * (pos.price - pos.average_price * 0.9))));
+    assert.equal(pos.profit, pos.value - pos.margin);
+    assert.ok(Math.abs(pos.return_rate - 10 * (pos.price / pos.average_price - 1)) < 1e-3, '증거금 대비 수익률 = 가격 변동률 × 10');
+    assert.equal(s1.me.total, s1.me.cash + s1.me.stock_value);
+    // 전량 매도하면 정산금(평가액)이 현금으로 들어온다
+    const cashBefore = s1.me.cash;
+    const sell = await t.call('POST', '/api/trade', { token, body: { ticker: 'K200F', side: 'sell', quantity: qty } });
+    assert.equal(sell.status, 200, sell.error);
+    assert.equal(sell.trade.cash_change, pos.value);
+    assert.equal(sell.state.me.cash, cashBefore + pos.value);
+    assert.equal(sell.trade.realized_pl, pos.value - pos.margin);
+    assert.equal(sell.state.me.positions.length, 0);
+  }
+  // 증거금으로도 감당 못 하는 큰 주문은 거부
+  const huge = Math.floor((1_500_000_000) / k.price);
+  assert.equal((await t.call('POST', '/api/trade', { token, body: { ticker: 'K200F', side: 'buy', quantity: huge, reason: REASON } })).status, 400);
+  await t.close();
+});
+
+test('강제청산: 가격이 크게 반대로 움직이면 증거금을 잃고 포지션이 사라진다 (현금은 음수가 되지 않는다)', async () => {
+  const t = await setup({ volatility: 30 });
+  await t.admin('POST', '/api/admin/event', { tickers: ['K200F'] });
+  await t.admin('POST', '/api/admin/event/start');
+  const { token } = await t.call('POST', '/api/join', { body: { nickname: 'A' } });
+  const b = await t.call('POST', '/api/trade', { token, body: { ticker: 'K200F', side: 'buy', quantity: 1000, reason: REASON } });
+  assert.equal(b.status, 200, b.error);
+  const cashAfterBuy = b.state.me.cash;
+  let liquidated = false;
+  for (let i = 0; i < 600 && !liquidated; i++) {
+    t.advance(3600 * 1000);
+    const st = await t.call('GET', '/api/state', { token });
+    assert.ok(st.me.cash >= 0, '현금은 음수가 될 수 없다');
+    assert.ok(st.me.positions.every((p) => p.value >= 0));
+    assert.equal(st.me.total, st.me.cash + st.me.stock_value);
+    if (st.me.positions.length === 0) {
+      liquidated = true;
+      assert.equal(st.me.cash, cashAfterBuy, '강제청산으로 현금이 늘지 않는다 (증거금만 잃는다)');
+      assert.equal(st.me.total, cashAfterBuy);
+    }
+  }
+  assert.ok(liquidated, '변동성이 매우 큰 환경에서는 강제청산이 일어나야 한다');
+  const tx = (await t.call('GET', '/api/transactions', { token })).transactions;
+  const liq = tx.find((x) => x.type === 'sell');
+  assert.ok(liq && liq.reason.includes('강제청산'));
+  assert.equal(liq.realized_pl, -Math.round((1000 * b.trade.price) / 10));
+  // 순위표에도 반영(총자산 = 현금)
+  const rk = await t.call('GET', '/api/ranking');
+  assert.equal(rk.rows[0].total, cashAfterBuy);
+  await t.close();
+});
+
+test('기존 DB(레버리지 컬럼 없는 옛 버전)도 열어서 컬럼을 자동 추가한다', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { openDb } = await import('../lib/db.js');
+  const os = await import('node:os'); const fs = await import('node:fs'); const path = await import('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sg-'));
+  const file = path.join(dir, 'old.db');
+  const old = new DatabaseSync(file);
+  old.exec(`CREATE TABLE holdings (user_id INTEGER NOT NULL, event_id INTEGER NOT NULL, ticker TEXT NOT NULL, quantity INTEGER NOT NULL, average_price REAL NOT NULL, PRIMARY KEY (user_id, ticker));
+            CREATE TABLE transactions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, event_id INTEGER NOT NULL, ticker TEXT NOT NULL, type TEXT NOT NULL, quantity INTEGER NOT NULL, price INTEGER NOT NULL, reason TEXT, realized_pl INTEGER, created_at INTEGER NOT NULL);
+            INSERT INTO holdings VALUES (1,1,'005930',5,70000);`);
+  old.close();
+  const db = openDb(file);
+  const cols = db.prepare('PRAGMA table_info(holdings)').all().map((c) => c.name);
+  assert.ok(cols.includes('leverage'));
+  assert.equal(db.prepare('SELECT leverage FROM holdings').get().leverage, 1, '기존 보유는 1배(레버리지 없음)');
+  assert.ok(db.prepare('PRAGMA table_info(transactions)').all().some((c) => c.name === 'leverage'));
+  db.close();
 });

@@ -3,21 +3,42 @@
 // 시드는 DB에 저장되므로 소스코드(공개 저장소)를 읽어도 미래 가격을 계산할 수 없다.
 
 export const TICKERS = [
-  { ticker: '005930', name: '삼성전자', base: 70000, volFactor: 0.9, baseVolume: 120000, sector: '반도체·전자',
-    info: '반도체, 스마트폰, 가전 등을 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다)' },
-  { ticker: '000660', name: 'SK하이닉스', base: 180000, volFactor: 1.2, baseVolume: 30000, sector: '반도체',
-    info: '메모리 반도체를 주로 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다)' },
-  { ticker: '005380', name: '현대차', base: 240000, volFactor: 0.85, baseVolume: 12000, sector: '자동차',
-    info: '자동차를 설계·생산·판매하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다)' },
-  { ticker: '035420', name: 'NAVER', base: 200000, volFactor: 1.0, baseVolume: 18000, sector: '인터넷·플랫폼',
-    info: '검색, 커머스, 콘텐츠 등 온라인 서비스를 운영하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다)' },
-  { ticker: '035720', name: '카카오', base: 50000, volFactor: 1.25, baseVolume: 60000, sector: '인터넷·플랫폼',
-    info: '메신저를 바탕으로 여러 온라인 서비스를 운영하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다)' },
-  { ticker: '373220', name: 'LG에너지솔루션', base: 400000, volFactor: 1.1, baseVolume: 4000, sector: '2차전지',
-    info: '배터리를 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다)' },
-  { ticker: '068270', name: '셀트리온', base: 180000, volFactor: 1.15, baseVolume: 15000, sector: '바이오',
-    info: '바이오 의약품을 개발·생산하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다)' },
+  { ticker: "005930", name: "삼성전자", group: "kr", unit: "주", base: 70000, volFactor: 0.9, baseVolume: 120000, sector: "반도체·전자", info: "반도체, 스마트폰, 가전 등을 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "000660", name: "SK하이닉스", group: "kr", unit: "주", base: 180000, volFactor: 1.2, baseVolume: 30000, sector: "반도체", info: "메모리 반도체를 주로 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "373220", name: "LG에너지솔루션", group: "kr", unit: "주", base: 400000, volFactor: 1.1, baseVolume: 4000, sector: "2차전지", info: "배터리를 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "207940", name: "삼성바이오로직스", group: "kr", unit: "주", base: 1000000, volFactor: 0.9, baseVolume: 1500, sector: "바이오", info: "바이오의약품 위탁생산(CDMO)을 하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "005380", name: "현대차", group: "kr", unit: "주", base: 240000, volFactor: 0.85, baseVolume: 12000, sector: "자동차", info: "자동차를 설계·생산·판매하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "000270", name: "기아", group: "kr", unit: "주", base: 100000, volFactor: 0.9, baseVolume: 40000, sector: "자동차", info: "자동차를 만들어 파는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "068270", name: "셀트리온", group: "kr", unit: "주", base: 180000, volFactor: 1.15, baseVolume: 15000, sector: "바이오", info: "바이오 의약품을 개발·생산하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "105560", name: "KB금융", group: "kr", unit: "주", base: 100000, volFactor: 0.8, baseVolume: 25000, sector: "금융", info: "은행·보험·증권 등 금융 서비스를 제공하는 금융지주회사입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "035420", name: "NAVER", group: "kr", unit: "주", base: 200000, volFactor: 1.0, baseVolume: 18000, sector: "인터넷·플랫폼", info: "검색, 커머스, 콘텐츠 등 온라인 서비스를 운영하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "012450", name: "한화에어로스페이스", group: "kr", unit: "주", base: 800000, volFactor: 1.2, baseVolume: 3000, sector: "방산·항공", info: "항공우주와 방위산업 관련 제품을 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "034020", name: "두산에너빌리티", group: "kr", unit: "주", base: 60000, volFactor: 1.25, baseVolume: 50000, sector: "에너지설비", info: "발전 설비와 에너지 관련 설비를 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "005935", name: "삼성전자우", group: "kr", unit: "주", base: 58000, volFactor: 0.9, baseVolume: 35000, sector: "반도체·전자", info: "삼성전자의 우선주입니다. 의결권 등 보통주와 권리가 다릅니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "055550", name: "신한지주", group: "kr", unit: "주", base: 55000, volFactor: 0.8, baseVolume: 30000, sector: "금융", info: "은행 등 금융 서비스를 제공하는 금융지주회사입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "035720", name: "카카오", group: "kr", unit: "주", base: 50000, volFactor: 1.25, baseVolume: 60000, sector: "인터넷·플랫폼", info: "메신저를 바탕으로 여러 온라인 서비스를 운영하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "NVDA", name: "엔비디아", group: "us", unit: "주", base: 252000, volFactor: 1.3, baseVolume: 90000, sector: "반도체", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. AI 연산용 반도체(GPU) 등을 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "MSFT", name: "마이크로소프트", group: "us", unit: "주", base: 700000, volFactor: 0.8, baseVolume: 40000, sector: "소프트웨어·클라우드", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 소프트웨어와 클라우드 서비스를 제공하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "AAPL", name: "애플", group: "us", unit: "주", base: 322000, volFactor: 0.85, baseVolume: 60000, sector: "스마트폰·전자", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 스마트폰과 컴퓨터 등 전자제품과 서비스를 제공하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "GOOGL", name: "알파벳(구글)", group: "us", unit: "주", base: 280000, volFactor: 0.95, baseVolume: 50000, sector: "인터넷·광고", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 검색, 광고, 클라우드 등 온라인 서비스를 운영하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "AMZN", name: "아마존", group: "us", unit: "주", base: 308000, volFactor: 1.0, baseVolume: 55000, sector: "전자상거래·클라우드", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 온라인 쇼핑과 클라우드 서비스를 운영하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "META", name: "메타", group: "us", unit: "주", base: 980000, volFactor: 1.1, baseVolume: 25000, sector: "소셜미디어", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 소셜미디어와 메신저 서비스를 운영하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "AVGO", name: "브로드컴", group: "us", unit: "주", base: 420000, volFactor: 1.2, baseVolume: 30000, sector: "반도체", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 통신·데이터센터용 반도체와 소프트웨어를 제공하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "TSLA", name: "테슬라", group: "us", unit: "주", base: 462000, volFactor: 1.6, baseVolume: 80000, sector: "전기차", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 전기차와 에너지 저장장치를 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "BRKB", name: "버크셔 해서웨이", group: "us", unit: "주", base: 672000, volFactor: 0.6, baseVolume: 15000, sector: "지주·보험", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 보험 등 여러 사업에 투자하고 운영하는 지주회사입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "LLY", name: "일라이 릴리", group: "us", unit: "주", base: 1120000, volFactor: 0.9, baseVolume: 8000, sector: "제약", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 의약품을 개발·판매하는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "JPM", name: "JP모건", group: "us", unit: "주", base: 406000, volFactor: 0.8, baseVolume: 20000, sector: "금융", info: "미국 상장 기업이며, 게임 가격은 달러 가격에 샘플 환율(1달러=1,400P)을 곱해 환산한 값입니다. 은행과 투자은행 서비스를 제공하는 금융회사입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)" },
+  { ticker: "K200F", name: "코스피200 선물", group: "idx", unit: "계약", base: 35000, volFactor: 0.7, baseVolume: 20000, tick: 10, sector: "지수선물", info: "코스피200 지수(샘플 350포인트)를 따라가는 단순 모의 상품입니다. 1계약 가격 = 지수 × 100P. 게임용 단순 모의 상품입니다. 실제 선물과 달리 레버리지·증거금·만기·강제청산이 없고 가격 움직임만 따라갑니다. (투자 권유가 아닙니다. 가격은 샘플이며 실제 시세가 아닙니다)" },
+  { ticker: "ESF", name: "S&P500 선물", group: "idx", unit: "계약", base: 670000, volFactor: 0.6, baseVolume: 15000, tick: 100, sector: "지수선물", info: "S&P500 지수(샘플 6,700포인트)를 따라가는 단순 모의 상품입니다. 1계약 가격 = 지수 × 100P. 게임용 단순 모의 상품입니다. 실제 선물과 달리 레버리지·증거금·만기·강제청산이 없고 가격 움직임만 따라갑니다. (투자 권유가 아닙니다. 가격은 샘플이며 실제 시세가 아닙니다)" },
+  { ticker: "NQF", name: "나스닥100 선물", group: "idx", unit: "계약", base: 2400000, volFactor: 0.8, baseVolume: 10000, tick: 500, sector: "지수선물", info: "나스닥100 지수(샘플 24,000포인트)를 따라가는 단순 모의 상품입니다. 1계약 가격 = 지수 × 100P. 게임용 단순 모의 상품입니다. 실제 선물과 달리 레버리지·증거금·만기·강제청산이 없고 가격 움직임만 따라갑니다. (투자 권유가 아닙니다. 가격은 샘플이며 실제 시세가 아닙니다)" },
+  { ticker: "YMF", name: "다우존스 선물", group: "idx", unit: "계약", base: 4500000, volFactor: 0.55, baseVolume: 6000, tick: 500, sector: "지수선물", info: "다우존스 지수(샘플 45,000포인트)를 따라가는 단순 모의 상품입니다. 1계약 가격 = 지수 × 100P. 게임용 단순 모의 상품입니다. 실제 선물과 달리 레버리지·증거금·만기·강제청산이 없고 가격 움직임만 따라갑니다. (투자 권유가 아닙니다. 가격은 샘플이며 실제 시세가 아닙니다)" },
+  { ticker: "USDKRW", name: "원/달러 환율", group: "fx", unit: "100달러", base: 140000, volFactor: 0.25, baseVolume: 80000, tick: 10, sector: "환율", info: "원/달러 환율(샘플 1,400원)을 따라가는 단순 모의 상품입니다. 1단위 가격 = 환율 × 100P(100달러 기준). 게임용이며 실제 환전·외환거래가 아닙니다. (투자 권유가 아닙니다. 가격은 샘플이며 실제 시세가 아닙니다)" },
+  { ticker: "DXY", name: "달러인덱스", group: "fx", unit: "단위", base: 100000, volFactor: 0.2, baseVolume: 30000, tick: 10, sector: "환율", info: "주요 통화 대비 달러의 가치를 나타내는 지수(샘플 100)를 따라가는 단순 모의 상품입니다. 1단위 가격 = 지수 × 1,000P. (투자 권유가 아닙니다. 가격은 샘플이며 실제 시세가 아닙니다)" },
+  { ticker: "WTI", name: "WTI 원유", group: "oil", unit: "배럴", base: 91000, volFactor: 1.3, baseVolume: 50000, tick: 10, sector: "원유", info: "서부텍사스산 원유(WTI, 샘플 65달러)를 따라가는 단순 모의 상품입니다. 게임 가격 = 달러 가격 × 샘플 환율(1,400P). 실제 원유 거래가 아니며 만기·증거금이 없습니다. (투자 권유가 아닙니다. 가격은 샘플이며 실제 시세가 아닙니다)" },
+  { ticker: "BRENT", name: "브렌트유", group: "oil", unit: "배럴", base: 96600, volFactor: 1.25, baseVolume: 45000, tick: 10, sector: "원유", info: "북해 브렌트유(샘플 69달러)를 따라가는 단순 모의 상품입니다. 게임 가격 = 달러 가격 × 샘플 환율(1,400P). 실제 원유 거래가 아니며 만기·증거금이 없습니다. (투자 권유가 아닙니다. 가격은 샘플이며 실제 시세가 아닙니다)" },
 ];
+
+export const GROUPS = [{"id": "kr", "label": "국내주식"}, {"id": "us", "label": "미국주식"}, {"id": "idx", "label": "지수선물"}, {"id": "fx", "label": "달러·환율"}, {"id": "oil", "label": "원유"}];
 
 export const TICKER_MAP = new Map(TICKERS.map((t) => [t.ticker, t]));
 
@@ -50,8 +71,8 @@ function strHash(s) {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return h >>> 0;
 }
-export function roundTick(p) {
-  const tick = p < 2000 ? 1 : p < 5000 ? 5 : p < 20000 ? 10 : p < 50000 ? 50 : p < 200000 ? 100 : p < 500000 ? 500 : 1000;
+export function roundTick(p, fixedTick) {
+  const tick = fixedTick ?? (p < 2000 ? 1 : p < 5000 ? 5 : p < 20000 ? 10 : p < 50000 ? 50 : p < 200000 ? 100 : p < 500000 ? 500 : 1000);
   return Math.max(tick, Math.round(p / tick) * tick);
 }
 const kstDayStartMin = (m) => Math.floor((m + KST_OFFSET_MIN) / DAY_MIN) * DAY_MIN - KST_OFFSET_MIN;
@@ -78,7 +99,7 @@ export function createMarket({ seed, volatility = 1 }) {
     }
     return s.logs[idx];
   }
-  const minutePrice = (ticker, minute) => roundTick(Math.exp(logAt(ticker, minute)));
+  const minutePrice = (ticker, minute) => roundTick(Math.exp(logAt(ticker, minute)), TICKER_MAP.get(ticker).tick);
 
   function priceAt(ticker, ms) {
     const exact = ms / MIN;
@@ -88,7 +109,7 @@ export function createMarket({ seed, volatility = 1 }) {
     let p = a + (b - a) * (exact - m);
     const meta = TICKER_MAP.get(ticker);
     const jitter = (rnd(tSeed(ticker) ^ 0x5bd1e995, Math.floor(ms / 10000)) - 0.5) * BASE_VOL * meta.volFactor * volatility;
-    return roundTick(p * (1 + jitter));
+    return roundTick(p * (1 + jitter), meta.tick);
   }
 
   const minuteVolume = (ticker, minute) => {
@@ -100,11 +121,13 @@ export function createMarket({ seed, volatility = 1 }) {
   function prevClose(ticker, ms) {
     return minutePrice(ticker, kstDayStartMin(Math.floor(ms / MIN)));
   }
+  // 오늘(한국시간 0시~현재) 누적 거래량. 종목이 많아져도 가볍도록 계산식으로 구한다.
   function todayVolume(ticker, ms) {
     const m = Math.floor(ms / MIN);
-    let v = 0;
-    for (let i = kstDayStartMin(m); i <= m; i++) v += minuteVolume(ticker, i);
-    return v;
+    const start = kstDayStartMin(m);
+    const meta = TICKER_MAP.get(ticker);
+    const dayShape = 0.85 + 0.3 * rnd(tSeed(ticker) ^ 0x7a7a7a7a, Math.floor(start / DAY_MIN));
+    return Math.max(1, Math.round(meta.baseVolume * ((m - start + 1) / DAY_MIN) * dayShape));
   }
 
   function candles(ticker, range, ms) {

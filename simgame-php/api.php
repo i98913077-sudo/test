@@ -138,9 +138,9 @@ try {
 
         case $route === 'tickers':
             $must('GET');
-            out(200, ['tickers' => array_map(fn($k) => ['ticker' => $k, 'name' => Market::TICKERS[$k]['name'], 'sector' => Market::TICKERS[$k]['sector']], Market::tickerList())]);
+            out(200, ['tickers' => array_map(fn($k) => ['ticker' => $k, 'name' => Market::TICKERS[$k]['name'], 'sector' => Market::TICKERS[$k]['sector'], 'group' => Market::TICKERS[$k]['group'], 'unit' => Market::TICKERS[$k]['unit']], Market::tickerList()), 'groups' => Market::GROUPS]);
 
-        case (bool)preg_match('#^stocks/(\d{6})/candles$#', $route, $m):
+        case (bool)preg_match('#^stocks/([A-Za-z0-9._-]{1,12})/candles$#', $route, $m):
             $must('GET');
             $ev = $game->currentEvent();
             if (!$ev) throw new GameError('진행 중인 이벤트가 없습니다.', 404);

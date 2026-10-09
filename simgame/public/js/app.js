@@ -2,7 +2,8 @@ import { el, $, clear, fmtCompact, fmt, fmtP, fmtPct, fmtSigned, dir, arrow, fmt
 import { drawCandles } from './chart.js';
 
 const app = $('#app');
-const S = { state: null, tab: 'market', selected: null, range: '1d', query: '', candles: null, compareCode: null, clockOffset: 0, tradeCtx: null };
+const GROUP_FILTERS = [['all', '전체', null], ['kr', '국내', ['kr']], ['us', '미국', ['us']], ['etc', '선물·환율·원유', ['idx', 'fx', 'oil']]];
+const S = { group: 'all', state: null, tab: 'market', selected: null, range: '1d', query: '', candles: null, compareCode: null, clockOffset: 0, tradeCtx: null };
 let pollTimer, clockTimer, candleTimer;
 
 const EDU_CARDS = [
@@ -171,13 +172,15 @@ function renderMarket() {
   const search = el('input', { class: 'input', type: 'search', id: 'q', placeholder: '🔍 종목 검색 (예: 삼성전자)', value: S.query, 'aria-label': '종목 검색' });
   search.addEventListener('input', () => { S.query = search.value; updateStockList(); });
   ui.list = el('div', { id: 'stock-list' });
+  const groupChips = el('div', { class: 'chips wrap-chips', role: 'tablist', 'aria-label': '종목 구분' }, ...GROUP_FILTERS.map(([k, label]) =>
+    el('button', { class: `chip${k === S.group ? ' active' : ''}`, 'data-g': k, onclick: () => { S.group = k; groupChips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c.dataset.g === k)); updateStockList(); } }, label)));
   ui.content.append(
     el('div', { class: 'card mission' }, el('b', {}, MISSIONS[missionIdx % MISSIONS.length]),
       el('div', {}, el('button', { class: 'btn sm', onclick: () => { missionIdx++; renderMarket2(); } }, '다른 미션 보기'))),
     el('div', { class: 'card card-edu' }, el('b', {}, `💡 ${eduT}`), el('div', {}, eduB),
       el('div', {}, el('button', { class: 'btn sm', onclick: () => { eduIdx = (eduIdx + 1) % EDU_CARDS.length; renderMarket2(); } }, '다음 카드'))),
     el('div', { class: 'notice small' }, '표시되는 가격은 수업을 위한 샘플(DEMO) 가격이며 실제 시세가 아닙니다. 종목 설명은 교육용 정보이며 투자 권유가 아닙니다.'),
-    search, ui.list);
+    groupChips, search, ui.list);
   updateStockList();
 }
 function renderMarket2() { const q = S.query; clear(ui.content); renderMarket(); S.query = q; }
@@ -185,13 +188,14 @@ function renderMarket2() { const q = S.query; clear(ui.content); renderMarket();
 function updateStockList() {
   if (!ui.list || !ui.list.isConnected) return;
   const q = S.query.trim().toLowerCase();
-  const items = S.state.stocks.filter((s) => !q || s.name.toLowerCase().includes(q) || s.ticker.includes(q));
+  const allowed = GROUP_FILTERS.find((g) => g[0] === S.group)?.[2];
+  const items = S.state.stocks.filter((s) => (!allowed || allowed.includes(s.group)) && (!q || s.name.toLowerCase().includes(q) || s.ticker.toLowerCase().includes(q)));
   clear(ui.list);
   if (!items.length) ui.list.append(el('p', { class: 'muted' }, '검색 결과가 없어요.'));
   for (const s of items) {
     const held = S.state.me.positions.find((p) => p.ticker === s.ticker);
     ui.list.append(el('button', { class: 'stock', onclick: () => { S.selected = s.ticker; S.range = '1d'; setCompact(true); clear(ui.content); renderDetail(); window.scrollTo({ top: 0 }); } },
-      el('div', {}, el('div', { class: 'name' }, s.name), el('div', { class: 'sub' }, `${s.ticker} · ${s.sector}${held ? ` · 보유 ${fmt(held.quantity)}주` : ''}`)),
+      el('div', {}, el('div', { class: 'name' }, s.name), el('div', { class: 'sub' }, `${s.ticker} · ${s.sector}${held ? ` · 보유 ${fmt(held.quantity)}${held.unit}` : ''}`)),
       el('div', { class: 'px num' }, el('div', { class: 'name' }, fmtP(s.price)), el('div', { class: `${dir(s.change)} small` }, `${arrow(s.change)} ${fmtPct(s.change_rate)}`))));
   }
 }
@@ -247,8 +251,8 @@ function updateDetailHead() {
       el('div', { class: 'total num' }, el('b', { class: 'num', id: 'px' }, fmtP(s.price))),
       el('div', { class: `${dir(s.change)} num` }, `${arrow(s.change)} ${fmt(Math.abs(s.change))}P (${fmtPct(s.change_rate)})`)),
     );
-  clear(ui.detailStats).append(el('div', { class: 'stat-grid' }, stat('전일 종가', fmtP(s.prev_close)), stat('오늘 거래량', `${fmt(s.volume)}주`),
-      stat('내 보유', held ? `${fmt(held.quantity)}주` : '없음'), stat('내 평균 매수가', held ? fmtP(held.average_price) : '-')));
+  clear(ui.detailStats).append(el('div', { class: 'stat-grid' }, stat('전일 종가', fmtP(s.prev_close)), stat('오늘 거래량', `${fmt(s.volume)}${s.unit}`),
+      stat('내 보유', held ? `${fmt(held.quantity)}${held.unit}` : '없음'), stat('내 평균 매수가', held ? fmtP(held.average_price) : '-')));
   clear(ui.actions).append(
     el('button', { class: 'btn buy grow', disabled: !canTrade, onclick: () => openTrade('buy', s.ticker) }, '모의 매수'),
     el('button', { class: 'btn sell grow', disabled: !canTrade || !held, onclick: () => openTrade('sell', s.ticker) }, '모의 매도'));
@@ -277,7 +281,7 @@ function openTrade(side, ticker) {
     const s = cur(), n = getQty();
     priceLine.textContent = fmtP(s.price);
     amountLine.textContent = Number.isFinite(n) ? fmtP(n * s.price) : '-';
-    limitLine.textContent = isBuy ? `가상현금 ${fmtP(S.state.me.cash)} · 최대 ${fmt(maxQty())}주` : `보유 ${fmt(maxQty())}주`;
+    limitLine.textContent = isBuy ? `가상현금 ${fmtP(S.state.me.cash)} · 최대 ${fmt(maxQty())}${s.unit}` : `보유 ${fmt(maxQty())}${s.unit}`;
     const rl = Array.from(reason.value.trim()).length;
     count.textContent = `${rl} / 200자${needReason ? ' · 최소 10자' : ''}`;
     submit.disabled = !Number.isFinite(n) || n < 1 || (needReason && rl < 10) || n > maxQty() || S.state.event.status !== 'running';
@@ -295,7 +299,7 @@ function openTrade(side, ticker) {
     const dlg = el('div', { class: 'overlay center', role: 'dialog', 'aria-modal': 'true' }, el('div', { class: 'sheet center' },
       el('h2', {}, isBuy ? '모의 매수 확인' : '모의 매도 확인'),
       el('div', { class: 'card' },
-        sumLine('종목', s.name), sumLine('수량', `${fmt(n)}주`), sumLine('예상 체결가', fmtP(s.price)), sumLine('예상 거래금액', fmtP(n * s.price)),
+        sumLine('종목', s.name), sumLine('수량', `${fmt(n)}${s.unit}`), sumLine('예상 체결가', fmtP(s.price)), sumLine('예상 거래금액', fmtP(n * s.price)),
         r ? el('div', { class: 'reason-item' }, `${isBuy ? '매수' : '매도'} 이유: ${r}`) : null),
       el('p', { class: 'muted small' }, '실제 주문이 아니에요. 확인하는 순간의 게임 가격으로 체결돼요. 가격이 바뀌면 체결 금액도 달라질 수 있어요.'),
       cerr, el('div', { class: 'row' }, el('button', { class: 'btn grow', onclick: () => dlg.remove() }, '돌아가기'), ok)));
@@ -305,7 +309,7 @@ function openTrade(side, ticker) {
         const res = await api('/api/trade', { method: 'POST', token: store.token, body: { ticker, side, quantity: n, reason: r || undefined } });
         S.state = res.state; syncClock(S.state.event);
         dlg.remove(); close(); renderSummary(); refreshActiveTab();
-        toast(`${isBuy ? '모의 매수' : '모의 매도'} 체결: ${res.trade.name} ${fmt(res.trade.quantity)}주 @ ${fmtP(res.trade.price)}`);
+        toast(`${isBuy ? '모의 매수' : '모의 매도'} 체결: ${res.trade.name} ${fmt(res.trade.quantity)}${res.trade.unit} @ ${fmtP(res.trade.price)}`);
       } catch (e) {
         cerr.textContent = e.message; ok.disabled = false;
         if (e.status === 401) poll();
@@ -319,7 +323,7 @@ function openTrade(side, ticker) {
     el('div', { class: 'row between' }, el('h2', {}, `${isBuy ? '모의 매수' : '모의 매도'} · ${cur().name}`), el('button', { class: 'btn sm', onclick: close, 'aria-label': '닫기' }, '✕')),
     el('div', { class: 'notice small' }, '🎓 가상 포인트로 하는 게임 속 거래예요. 실제 주문이 아니에요.'),
     sumLine('현재 게임 가격', priceLine),
-    el('label', { class: 'field', for: 'qty' }, '수량 (주)'),
+    el('label', { class: 'field', for: 'qty' }, `수량 (${cur().unit})`),
     el('div', { class: 'qty-row' },
       el('button', { class: 'qty-btn', onclick: () => step(-10) }, '-10'), el('button', { class: 'qty-btn', onclick: () => step(-1) }, '-1'), qty,
       el('button', { class: 'qty-btn', onclick: () => step(1) }, '+1'), el('button', { class: 'qty-btn', onclick: () => step(10) }, '+10')),
@@ -352,16 +356,16 @@ async function renderAccount(silent) {
       me.positions.length === 0 ? el('p', { class: 'muted' }, '아직 보유한 주식이 없어요. 시장 탭에서 종목을 골라보세요.') : null,
       ...me.positions.map((p) => el('div', { class: 'pos' },
         el('div', { class: 'row between' }, el('b', {}, p.name), el('b', { class: `${dir(p.return_rate)} num` }, `${arrow(p.return_rate)} ${fmtPct(p.return_rate)}`)),
-        el('div', { class: 'row between small muted num' }, el('span', {}, `${fmt(p.quantity)}주 · 평균 ${fmtP(p.average_price)}`), el('span', {}, `평가 ${fmtP(p.value)}`)),
+        el('div', { class: 'row between small muted num' }, el('span', {}, `${fmt(p.quantity)}${p.unit} · 평균 ${fmtP(p.average_price)}`), el('span', {}, `평가 ${fmtP(p.value)}`)),
         el('div', { class: `small num ${dir(p.profit)}` }, `평가손익 ${fmtSigned(p.profit)}`),
         reasonsBy(p.ticker).length ? el('details', { class: 'reasons', 'data-k': p.ticker, open: openKeys.has(p.ticker) },
-          el('summary', {}, '내가 적은 매수 이유'), ...reasonsBy(p.ticker).map((t) => el('div', { class: 'reason-item' }, `${fmtTime(t.created_at)} · ${fmt(t.quantity)}주 @ ${fmtP(t.price)}\n${t.reason}`))) : null)),
+          el('summary', {}, '내가 적은 매수 이유'), ...reasonsBy(p.ticker).map((t) => el('div', { class: 'reason-item' }, `${fmtTime(t.created_at)} · ${fmt(t.quantity)}${t.unit} @ ${fmtP(t.price)}\n${t.reason}`))) : null)),
       el('hr'), el('div', { class: 'sum-line' }, el('b', {}, '총자산'), el('b', { class: 'num' }, fmtP(me.total))),
       el('div', { class: `sum-line ${dir(me.return_rate)}` }, el('b', {}, '게임 수익률'), el('b', { class: 'num' }, fmtPct(me.return_rate)))),
     el('div', { class: 'card' }, el('h2', {}, '거래 기록'),
       txCache.length ? el('div', {}, ...txCache.map((t) => el('div', { class: 'pos' },
         el('div', { class: 'row between' }, el('b', { class: t.type === 'buy' ? 'up' : 'down' }, `${t.type === 'buy' ? '모의 매수' : '모의 매도'} · ${t.name}`), el('span', { class: 'muted small' }, fmtTime(t.created_at))),
-        el('div', { class: 'small num' }, `${fmt(t.quantity)}주 @ ${fmtP(t.price)} = ${fmtP(t.quantity * t.price)}`),
+        el('div', { class: 'small num' }, `${fmt(t.quantity)}${t.unit} @ ${fmtP(t.price)} = ${fmtP(t.quantity * t.price)}`),
         t.realized_pl != null ? el('div', { class: `small ${dir(t.realized_pl)}` }, `실현손익 ${fmtSigned(t.realized_pl)}`) : null,
         t.reason ? el('div', { class: 'reason-item small' }, t.reason) : null))) : el('p', { class: 'muted' }, '아직 거래 기록이 없어요.')));
 }
@@ -395,9 +399,9 @@ async function openCompare(code) {
   const detail = (p) => !p.details_visible
     ? el('div', { class: 'card muted' }, `🔒 ${p.nickname}님의 보유 종목과 매수 이유는 ${c.reveal_mode === 'after_end' ? '게임이 끝난 뒤' : '너굴이 공개하면'} 볼 수 있어요.`)
     : el('div', { class: 'card' }, el('h3', {}, `${p.nickname}님의 포트폴리오`),
-      p.positions.length ? el('div', {}, ...p.positions.map((x) => el('div', { class: 'sum-line' }, el('span', {}, `${x.name} ${fmt(x.quantity)}주`), el('b', { class: `num ${dir(x.return_rate)}` }, fmtPct(x.return_rate))))) : el('p', { class: 'muted small' }, '보유한 주식이 없어요.'),
+      p.positions.length ? el('div', {}, ...p.positions.map((x) => el('div', { class: 'sum-line' }, el('span', {}, `${x.name} ${fmt(x.quantity)}${x.unit}`), el('b', { class: `num ${dir(x.return_rate)}` }, fmtPct(x.return_rate))))) : el('p', { class: 'muted small' }, '보유한 주식이 없어요.'),
       el('div', { class: 'sum-line small muted' }, el('span', {}, '가상현금'), el('span', { class: 'num' }, fmtP(p.cash))),
-      p.reasons.length ? el('details', { class: 'reasons', open: true }, el('summary', {}, '거래 이유'), ...p.reasons.map((t) => el('div', { class: 'reason-item' }, `${t.type === 'buy' ? '매수' : '매도'} · ${t.name} ${fmt(t.quantity)}주\n${t.reason}`))) : null);
+      p.reasons.length ? el('details', { class: 'reasons', open: true }, el('summary', {}, '거래 이유'), ...p.reasons.map((t) => el('div', { class: 'reason-item' }, `${t.type === 'buy' ? '매수' : '매도'} · ${t.name} ${fmt(t.quantity)}${t.unit}\n${t.reason}`))) : null);
   const diff = c.other ? c.me.return_rate - c.other.return_rate : null;
   clear(ui.content).append(
     el('button', { class: 'btn sm', onclick: () => { S.compareCode = null; renderRank(); } }, '← 랭킹으로'),
@@ -425,7 +429,7 @@ async function renderReport() {
     el('div', { class: 'card' }, el('h3', {}, '자산 구성 (분산 비율)'), weightsBar(r.weights)),
     el('div', { class: 'card card-edu' }, el('h3', {}, '💡 이번 게임에서 살펴볼 점'), ...r.insights.map((t) => el('p', {}, t))),
     el('div', { class: 'card' }, el('h3', {}, '내가 적은 거래 이유'),
-      r.reasons.length ? el('div', {}, ...r.reasons.map((t) => el('div', { class: 'reason-item' }, `${t.type === 'buy' ? '매수' : '매도'} · ${t.name} ${fmt(t.quantity)}주 @ ${fmtP(t.price)}\n${t.reason}`))) : el('p', { class: 'muted' }, '기록된 이유가 없어요.')),
+      r.reasons.length ? el('div', {}, ...r.reasons.map((t) => el('div', { class: 'reason-item' }, `${t.type === 'buy' ? '매수' : '매도'} · ${t.name} ${fmt(t.quantity)}${t.unit} @ ${fmtP(t.price)}\n${t.reason}`))) : el('p', { class: 'muted' }, '기록된 이유가 없어요.')),
     el('a', { class: 'btn block', href: '/ranking' }, '🏆 너굴이들 전체 순위 보기'));
 }
 function weightsBar(weights) {

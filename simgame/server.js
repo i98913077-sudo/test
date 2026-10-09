@@ -4,7 +4,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openDb, getPriceSeed } from './lib/db.js';
-import { createMarket, TICKERS } from './lib/market.js';
+import { createMarket, TICKERS, GROUPS } from './lib/market.js';
 import { createGame, GameError } from './lib/game.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -125,9 +125,9 @@ export function createApp({ dbPath = ':memory:', adminPassword, now = Date.now, 
     if (pathname === '/api/compare' && m === 'GET') return json(res, 200, game.compare(needAuth(req), url.searchParams.get('code') ?? ''));
     if (pathname === '/api/report' && m === 'GET') return json(res, 200, game.report(needAuth(req)));
     if (pathname === '/api/ranking' && m === 'GET') return json(res, 200, game.ranking(game.currentEvent()));
-    if (pathname === '/api/tickers' && m === 'GET') return json(res, 200, { tickers: TICKERS.map(({ ticker, name, sector }) => ({ ticker, name, sector })) });
+    if (pathname === '/api/tickers' && m === 'GET') return json(res, 200, { tickers: TICKERS.map(({ ticker, name, sector, group, unit }) => ({ ticker, name, sector, group, unit })), groups: GROUPS });
 
-    const cm = pathname.match(/^\/api\/stocks\/(\d{6})\/candles$/);
+    const cm = pathname.match(/^\/api\/stocks\/([A-Za-z0-9._-]{1,12})\/candles$/);
     if (cm && m === 'GET') {
       const ev = game.currentEvent();
       if (!ev) throw new GameError('진행 중인 이벤트가 없습니다.', 404);

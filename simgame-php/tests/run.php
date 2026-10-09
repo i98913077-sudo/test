@@ -256,15 +256,28 @@ t('가격: 같은 시드면 재현, 시드가 다르면 다르고, 기준가에�
     }
 });
 
-t('기본 종목 7개 모두 거래 가능하고 종목 코드는 문자열이다 (숫자형 배열키 회귀)', function () {
+t('기본 종목(국내·미국 시총 상위, 지수선물, 달러, 원유) 전부 거래 가능, 종목 코드는 문자열 (숫자형 배열키 회귀)', function () {
     [$g, $c, $d] = started();
     [$a] = player($g);
+    $st = $g->myState($a);
+    $names = array_column($st['stocks'], 'name');
+    foreach (['삼성전자', 'SK하이닉스', 'LG에너지솔루션', '삼성바이오로직스', '현대차', '기아', '셀트리온', 'KB금융', 'NAVER',
+        '엔비디아', '마이크로소프트', '애플', '알파벳(구글)', '아마존', '메타', '브로드컴', '테슬라', '버크셔 해서웨이',
+        '코스피200 선물', 'S&P500 선물', '나스닥100 선물', '다우존스 선물', '원/달러 환율', '달러인덱스', 'WTI 원유', '브렌트유'] as $n) {
+        check(in_array($n, $names, true), "$n 누락");
+    }
+    $groups = array_values(array_unique(array_column($st['stocks'], 'group'))); sort($groups);
+    eq($groups, ['fx', 'idx', 'kr', 'oil', 'us']);
     foreach ($g->currentEvent()['tickers'] as $tk) {
         check(is_string($tk), "ticker 타입: " . gettype($tk));
-        $g->trade($a, ['ticker' => $tk, 'side' => 'buy', 'quantity' => 1, 'reason' => REASON]);
+        $r = $g->trade($a, ['ticker' => $tk, 'side' => 'buy', 'quantity' => 1, 'reason' => REASON]);
+        check($r['unit'] !== '', 'unit');
     }
-    eq(count($g->myState($a)['me']['positions']), 7);
-    foreach ($g->myState($a)['stocks'] as $st) check(is_string($st['ticker']));
+    $after = $g->myState($a);
+    eq(count($after['me']['positions']), count($st['stocks']));
+    foreach ($after['stocks'] as $s2) check(is_string($s2['ticker']) && $s2['price'] > 0 && $s2['prev_close'] > 0);
+    foreach ($after['me']['positions'] as $p) check($p['unit'] !== '');
+    foreach (['NVDA', 'WTI', 'USDKRW', 'BRKB', '373220'] as $code) eq(count($g->candles($g->currentEvent(), $code, '1d')), 288, $code);
     rmrf($d);
 });
 
@@ -353,6 +366,9 @@ t('HTTP: 관리자 로그인 → 이벤트 생성/시작 → 참가/거래/랭�
     eq($rk['json']['rows'][0]['nickname'], '민수');
     $cd = $H('GET', 'stocks/005930/candles', ['query' => '&range=1w']);
     eq(count($cd['json']['candles']), 168);
+    eq(count($H('GET', 'stocks/NVDA/candles', ['query' => '&range=1d'])['json']['candles']), 288, 'NVDA 차트');
+    eq($H('GET', 'stocks/NOPE/candles', ['query' => '&range=1d'])['status'], 404);
+    eq(count($H('GET', 'tickers')['json']['groups']), 5);
 });
 
 t('HTTP: 잘못된 경로/메서드/JSON/큰 본문', function () use ($adminTok, $H) {

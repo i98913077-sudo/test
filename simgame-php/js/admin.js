@@ -7,7 +7,7 @@ const tok = {
   set v(x) { try { x ? sessionStorage.setItem(KEY, x) : sessionStorage.removeItem(KEY); } catch { /* 무시 */ } },
 };
 const call = (path, opts = {}) => api(path, { ...opts, token: tok.v });
-let timer, allTickers = [];
+let timer, allTickers = [], allGroups = [];
 
 if (tok.v) dashboard(); else login();
 
@@ -26,7 +26,7 @@ function login(msg) {
 }
 
 async function dashboard() {
-  try { allTickers = (await api('/api/tickers')).tickers; await draw(); }
+  try { const tk = await api('/api/tickers'); allTickers = tk.tickers; allGroups = tk.groups ?? []; await draw(); }
   catch (e) { if (e.status === 401) { tok.v = null; return login('로그인이 필요합니다.'); } toast(e.message); }
   clearInterval(timer);
   timer = setInterval(() => draw().catch((e) => { if (e.status === 401) { tok.v = null; login('세션이 만료되었습니다.'); } }), 4000);
@@ -64,11 +64,19 @@ function studentLink() {
 function field(label, input, hint) { return el('div', {}, el('label', { class: 'field' }, label), input, hint ? el('div', { class: 'muted small' }, hint) : null); }
 
 function tickerPicker(selected) {
-  const boxes = allTickers.map((t) => {
-    const cb = el('input', { type: 'checkbox', value: t.ticker, checked: selected.includes(t.ticker) });
-    return { cb, node: el('label', { class: 'check' }, cb, el('span', {}, `${t.name} (${t.ticker})`)) };
+  const boxes = [];
+  const sections = (allGroups.length ? allGroups : [{ id: undefined, label: '종목' }]).map((g) => {
+    const items = allTickers.filter((t) => g.id === undefined || t.group === g.id).map((t) => {
+      const cb = el('input', { type: 'checkbox', value: t.ticker, checked: selected.includes(t.ticker) });
+      boxes.push({ cb });
+      return el('label', { class: 'check' }, cb, el('span', {}, `${t.name} (${t.ticker})`));
+    });
+    const members = boxes.slice(boxes.length - items.length).map((b) => b.cb);
+    const all = el('input', { type: 'checkbox', checked: members.every((c) => c.checked), 'aria-label': `${g.label} 전체 선택` });
+    all.addEventListener('change', () => members.forEach((c) => { c.checked = all.checked; }));
+    return el('div', { class: 'ticker-group' }, el('label', { class: 'check' }, all, el('b', {}, `${g.label} (${items.length})`)), ...items);
   });
-  return { node: el('div', {}, ...boxes.map((b) => b.node)), get: () => boxes.filter((b) => b.cb.checked).map((b) => b.cb.value) };
+  return { node: el('div', {}, ...sections), get: () => boxes.filter((b) => b.cb.checked).map((b) => b.cb.value) };
 }
 
 function createCard() {

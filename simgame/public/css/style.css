@@ -135,3 +135,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .summary.compact { padding: 8px 14px; margin-bottom: 8px; }
 .actions .btn { flex: 1 1 0; }
 @media (max-height: 720px) { .chart-box { height: 230px; } }
+
+.chips.wrap-chips { flex-wrap: wrap; }
+.chips.wrap-chips .chip { flex: 1 1 auto; padding: 0 10px; white-space: nowrap; }
+.ticker-group { border: 1px solid var(--line); border-radius: 10px; padding: 4px 10px; margin: 8px 0; }

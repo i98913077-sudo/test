@@ -43,7 +43,7 @@ function draw() {
   clear(reasonsBox);
   if (d.reasons_visible && d.reasons.length) {
     reasonsBox.append(el('div', { class: 'card' }, el('h2', {}, '💬 공개된 매수 이유'),
-      ...d.reasons.slice(0, 12).map((r) => el('div', { class: 'reason-item' }, el('b', {}, `${r.nickname} #${r.code} · ${r.name} ${fmt(r.quantity)}주`), el('br'), r.reason))));
+      ...d.reasons.slice(0, 12).map((r) => el('div', { class: 'reason-item' }, el('b', {}, `${r.nickname} #${r.code} · ${r.name} ${fmt(r.quantity)}${r.unit ?? '주'}`), el('br'), r.reason))));
   } else if (!d.reasons_visible) {
     reasonsBox.append(el('p', { class: 'muted small' }, '🔒 매수 이유는 게임이 끝난 뒤 공개됩니다.'));
   }

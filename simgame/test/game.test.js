@@ -6,6 +6,7 @@ async function setup(opts = {}) {
   let clock = Date.UTC(2026, 9, 8, 3, 0, 0);
   const { server, game } = createApp({ adminPassword: 'pw-test', now: () => clock, ...opts });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  server.unref(); // 테스트가 실패해 close()를 못 불러도 프로세스가 멈추지 않게
   const base = `http://127.0.0.1:${server.address().port}`;
   const call = async (method, p, { token, body, raw } = {}) => {
     const res = await fetch(base + p, {
@@ -362,5 +363,39 @@ test('보안 헤더, 정적 파일 경로 이탈 차단, 큰 요청 거부', asy
   }
   const big = await fetch(`${t.base}/api/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nickname: 'x'.repeat(50_000) }) }).catch((e) => ({ status: 'closed', e }));
   assert.ok(big.status === 413 || big.status === 'closed');
+  await t.close();
+});
+
+test('기본 종목: 국내·미국 시총 상위, 지수선물, 달러, 원유가 모두 있고 전부 거래 가능하다', async () => {
+  const t = await setup();
+  await t.admin('POST', '/api/admin/event', {});
+  await t.admin('POST', '/api/admin/event/start');
+  const { token } = await t.call('POST', '/api/join', { body: { nickname: 'A' } });
+  const st = await t.call('GET', '/api/state', { token });
+  const names = st.stocks.map((x) => x.name);
+  for (const n of ['삼성전자', 'SK하이닉스', 'LG에너지솔루션', '삼성바이오로직스', '현대차', '기아', '셀트리온', 'KB금융', 'NAVER',
+    '엔비디아', '마이크로소프트', '애플', '알파벳(구글)', '아마존', '메타', '브로드컴', '테슬라', '버크셔 해서웨이',
+    '코스피200 선물', 'S&P500 선물', '나스닥100 선물', '다우존스 선물', '원/달러 환율', '달러인덱스', 'WTI 원유', '브렌트유']) {
+    assert.ok(names.includes(n), `${n} 누락`);
+  }
+  assert.deepEqual([...new Set(st.stocks.map((x) => x.group))].sort(), ['fx', 'idx', 'kr', 'oil', 'us']);
+  assert.ok(st.stocks.every((x) => x.unit && x.price > 0 && x.prev_close > 0));
+  for (const s of st.stocks) {
+    const r = await t.call('POST', '/api/trade', { token, body: { ticker: s.ticker, side: 'buy', quantity: 1, reason: REASON } });
+    assert.equal(r.status, 200, `${s.ticker} 매수 실패: ${r.error}`);
+    assert.equal(r.trade.unit, s.unit);
+  }
+  const after = await t.call('GET', '/api/state', { token });
+  assert.equal(after.me.positions.length, st.stocks.length);
+  assert.ok(after.me.positions.every((p) => p.unit));
+  // 숫자가 아닌 종목 코드(NVDA, WTI)로도 차트가 열린다
+  for (const code of ['NVDA', 'WTI', 'USDKRW', 'BRKB']) {
+    const c = await t.call('GET', `/api/stocks/${code}/candles?range=1d`);
+    assert.equal(c.candles.length, 288, code);
+  }
+  assert.equal((await t.call('GET', '/api/stocks/NOPE/candles?range=1d')).status, 404);
+  assert.equal((await t.call('GET', '/api/stocks/bad%24%24/candles?range=1d')).status, 404);
+  const tk = await t.call('GET', '/api/tickers');
+  assert.equal(tk.groups.length, 5);
   await t.close();
 });

@@ -1,7 +1,7 @@
 // 게임 핵심 로직. 현금·보유수량·체결가·총자산·수익률·순위는 모두 여기(서버)에서만 계산한다.
 // 이 모듈은 실제 증권사/결제/외부 주문 시스템과 연결되지 않는다. 모든 거래는 DB 기록일 뿐이다.
 import { createHash, randomBytes } from 'node:crypto';
-import { TICKERS, TICKER_MAP } from './market.js';
+import { TICKERS, TICKER_MAP, GROUPS } from './market.js';
 
 export class GameError extends Error {
   constructor(message, status = 400) {
@@ -26,6 +26,9 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 const len = (s) => Array.from(s).length;
 const CONTROL_RE = new RegExp('[\\u0000-\\u001f\\u007f\\u200b-\\u200f\\u2028-\\u202e]', 'g');
 const clean = (s) => String(s).replace(CONTROL_RE, ' ').replace(/\s+/g, ' ').trim();
+
+// 종목 표시 이름·단위(주/계약/배럴 등)
+const tinfo = (t) => ({ name: TICKER_MAP.get(t)?.name ?? t, unit: TICKER_MAP.get(t)?.unit ?? '주' });
 
 export function createGame({ db, market, now = Date.now }) {
   const q = (sql) => db.prepare(sql);
@@ -211,7 +214,7 @@ export function createGame({ db, market, now = Date.now }) {
       const price = priceOf(ev, ticker);
       const prev = market.prevClose(ticker, at);
       return {
-        ticker, name: meta.name, sector: meta.sector, info: meta.info,
+        ticker, name: meta.name, group: meta.group, unit: meta.unit, sector: meta.sector, info: meta.info,
         price, prev_close: prev, change: price - prev, change_rate: (price - prev) / prev,
         volume: market.todayVolume(ticker, at),
       };
@@ -264,7 +267,7 @@ export function createGame({ db, market, now = Date.now }) {
       const value = price * h.quantity;
       const cost = h.average_price * h.quantity;
       return {
-        ticker: h.ticker, name: TICKER_MAP.get(h.ticker)?.name ?? h.ticker, quantity: h.quantity,
+        ticker: h.ticker, ...tinfo(h.ticker), quantity: h.quantity,
         average_price: Math.round(h.average_price), price, value,
         profit: Math.round(value - cost), return_rate: h.average_price ? (price - h.average_price) / h.average_price : 0,
       };
@@ -328,7 +331,7 @@ export function createGame({ db, market, now = Date.now }) {
     if (visible) {
       reasons = q(`SELECT t.ticker, t.quantity, t.price, t.reason, t.created_at, u.nickname, u.participant_code AS code
         FROM transactions t JOIN users u ON u.id=t.user_id WHERE t.event_id=? AND t.type='buy' ORDER BY t.id DESC LIMIT 30`)
-        .all(ev.id).map((r) => ({ ...r, name: TICKER_MAP.get(r.ticker)?.name ?? r.ticker }));
+        .all(ev.id).map((r) => ({ ...r, ...tinfo(r.ticker) }));
     }
     const avg = rows.length ? rows.reduce((s, r) => s + r.return_rate, 0) / rows.length : 0;
     return {
@@ -353,7 +356,7 @@ export function createGame({ db, market, now = Date.now }) {
   function myTransactions(auth, limit = 100) {
     const rows = q(`SELECT id, ticker, type, quantity, price, reason, realized_pl, created_at FROM transactions
       WHERE user_id=? ORDER BY id DESC LIMIT ?`).all(auth.user.id, limit);
-    return rows.map((r) => ({ ...r, name: TICKER_MAP.get(r.ticker)?.name ?? r.ticker }));
+    return rows.map((r) => ({ ...r, ...tinfo(r.ticker) }));
   }
 
   // ---------- 가상 매수/매도 ----------
@@ -412,7 +415,7 @@ export function createGame({ db, market, now = Date.now }) {
       }
       const info = q(`INSERT INTO transactions (user_id, event_id, ticker, type, quantity, price, reason, realized_pl, created_at)
         VALUES (?,?,?,?,?,?,?,?,?)`).run(user.id, ev.id, ticker, side, qty, price, reason, realized, now());
-      return { id: Number(info.lastInsertRowid), ticker, name: TICKER_MAP.get(ticker).name, type: side, quantity: qty, price, amount, realized_pl: realized };
+      return { id: Number(info.lastInsertRowid), ticker, ...tinfo(ticker), type: side, quantity: qty, price, amount, realized_pl: realized };
     });
   }
 
@@ -429,7 +432,7 @@ export function createGame({ db, market, now = Date.now }) {
       const base = { nickname: row.nickname, code: row.code, rank: row.rank, total: row.total, return_rate: row.return_rate, details_visible: visible };
       if (!visible) return base;
       const reasons = q(`SELECT ticker, type, quantity, price, reason, created_at FROM transactions WHERE user_id=? AND reason IS NOT NULL ORDER BY id DESC LIMIT 50`)
-        .all(row.user_id).map((r) => ({ ...r, name: TICKER_MAP.get(r.ticker)?.name ?? r.ticker }));
+        .all(row.user_id).map((r) => ({ ...r, ...tinfo(r.ticker) }));
       return { ...base, cash: row.cash, positions: positionsFor(ev, row.user_id), reasons };
     };
     return { me: detail(meRow, true), other: isSelf ? null : detail(them, false), reveal_mode: ev.reason_reveal_mode, ended: ev.status === 'ended' };
@@ -474,13 +477,13 @@ export function createGame({ db, market, now = Date.now }) {
       rank: me?.rank ?? null, participants: rows.length,
       total: acc.total, return_rate: acc.return_rate, cash: acc.cash, stock_value: acc.stock_value,
       trade_count: txs.length, buy_count: txs.filter((t) => t.type === 'buy').length, sell_count: sells.length,
-      most_traded: top ? { ticker: top[0], name: TICKER_MAP.get(top[0])?.name ?? top[0], count: top[1] } : null,
+      most_traded: top ? { ticker: top[0], ...tinfo(top[0]), count: top[1] } : null,
       weights, max_total: acc.peak_total, min_total: acc.low_total,
       max_unrealized_gain: unreal.length ? Math.max(0, ...unreal) : 0,
       max_unrealized_loss: unreal.length ? Math.min(0, ...unreal) : 0,
       best_realized: sells.length ? Math.max(...sells.map((s) => s.realized_pl)) : null,
       worst_realized: sells.length ? Math.min(...sells.map((s) => s.realized_pl)) : null,
-      reasons: txs.filter((t) => t.reason).map((t) => ({ ...t, name: TICKER_MAP.get(t.ticker)?.name ?? t.ticker })).reverse(),
+      reasons: txs.filter((t) => t.reason).map((t) => ({ ...t, ...tinfo(t.ticker) })).reverse(),
       insights,
     };
   }
@@ -493,7 +496,7 @@ export function createGame({ db, market, now = Date.now }) {
     const txRows = q('SELECT ticker, type, quantity, price FROM transactions WHERE event_id=?').all(ev.id);
     const perTicker = new Map();
     for (const t of txRows) {
-      const e = perTicker.get(t.ticker) ?? { ticker: t.ticker, name: TICKER_MAP.get(t.ticker)?.name ?? t.ticker, buy_qty: 0, sell_qty: 0, amount: 0, count: 0 };
+      const e = perTicker.get(t.ticker) ?? { ticker: t.ticker, ...tinfo(t.ticker), buy_qty: 0, sell_qty: 0, amount: 0, count: 0 };
       e[t.type === 'buy' ? 'buy_qty' : 'sell_qty'] += t.quantity;
       e.amount += t.quantity * t.price;
       e.count += 1;
@@ -521,7 +524,7 @@ export function createGame({ db, market, now = Date.now }) {
     if (!ev) return [];
     return q(`SELECT t.id, t.ticker, t.type, t.quantity, t.price, t.reason, t.realized_pl, t.created_at, u.nickname, u.participant_code AS code
       FROM transactions t JOIN users u ON u.id=t.user_id WHERE t.event_id=? ORDER BY t.id DESC LIMIT ?`).all(ev.id, limit)
-      .map((r) => ({ ...r, name: TICKER_MAP.get(r.ticker)?.name ?? r.ticker }));
+      .map((r) => ({ ...r, ...tinfo(r.ticker) }));
   }
 
   return {

@@ -55,6 +55,7 @@ final class Game {
     }
     private static function len(string $s): int { return mb_strlen($s, 'UTF-8'); }
     private static function name(string $ticker): string { return Market::TICKERS[$ticker]['name'] ?? $ticker; }
+    private static function unit(string $ticker): string { return Market::TICKERS[$ticker]['unit'] ?? '주'; }
     private static function toInt($v): ?int {
         if (is_int($v)) return $v;
         if (is_float($v) && is_finite($v) && floor($v) == $v && abs($v) < 9007199254740992) return (int)$v;
@@ -227,7 +228,7 @@ final class Game {
             $price = $this->priceOf($ev, $ticker);
             $prev = $this->market->prevClose($ticker, $at);
             $out[] = [
-                'ticker' => $ticker, 'name' => $meta['name'], 'sector' => $meta['sector'], 'info' => $meta['info'],
+                'ticker' => $ticker, 'name' => $meta['name'], 'group' => $meta['group'], 'unit' => $meta['unit'], 'sector' => $meta['sector'], 'info' => $meta['info'],
                 'price' => $price, 'prev_close' => $prev, 'change' => $price - $prev, 'change_rate' => ($price - $prev) / $prev,
                 'volume' => $this->market->todayVolume($ticker, $at),
             ];
@@ -282,7 +283,7 @@ final class Game {
             $qty = (int)$h['quantity']; $avg = (float)$h['average_price'];
             $value = $price * $qty;
             $out[] = [
-                'ticker' => $h['ticker'], 'name' => self::name($h['ticker']), 'quantity' => $qty,
+                'ticker' => $h['ticker'], 'name' => self::name($h['ticker']), 'unit' => self::unit($h['ticker']), 'quantity' => $qty,
                 'average_price' => (int)round($avg), 'price' => $price, 'value' => $value,
                 'profit' => (int)round($value - $avg * $qty), 'return_rate' => $avg ? ($price - $avg) / $avg : 0.0,
             ];
@@ -353,7 +354,7 @@ final class Game {
         if ($visible) {
             foreach ($this->all("SELECT t.ticker, t.quantity, t.price, t.reason, t.created_at, u.nickname, u.participant_code AS code
                 FROM transactions t JOIN users u ON u.id=t.user_id WHERE t.event_id=? AND t.type='buy' ORDER BY t.id DESC LIMIT 30", [$ev['id']]) as $r) {
-                $r['name'] = self::name($r['ticker']);
+                $r['name'] = self::name($r['ticker']); $r['unit'] = self::unit($r['ticker']);
                 $reasons[] = $r;
             }
         }
@@ -389,7 +390,7 @@ final class Game {
         $out = [];
         foreach ($this->all('SELECT id, ticker, type, quantity, price, reason, realized_pl, created_at FROM transactions WHERE user_id=? ORDER BY id DESC LIMIT ?',
             [$auth['user']['id'], $limit]) as $r) {
-            $r['name'] = self::name($r['ticker']);
+            $r['name'] = self::name($r['ticker']); $r['unit'] = self::unit($r['ticker']);
             $out[] = $r;
         }
         return $out;
@@ -449,7 +450,7 @@ final class Game {
             }
             $this->q('INSERT INTO transactions (user_id, event_id, ticker, type, quantity, price, reason, realized_pl, created_at) VALUES (?,?,?,?,?,?,?,?,?)',
                 [$uid, $ev['id'], $ticker, $side, $qty, $price, $reason, $realized, $this->now()]);
-            return ['id' => (int)$this->db->lastInsertId(), 'ticker' => $ticker, 'name' => self::name($ticker), 'type' => $side,
+            return ['id' => (int)$this->db->lastInsertId(), 'ticker' => $ticker, 'name' => self::name($ticker), 'unit' => self::unit($ticker), 'type' => $side,
                 'quantity' => $qty, 'price' => $price, 'amount' => $amount, 'realized_pl' => $realized];
         });
     }
@@ -472,7 +473,7 @@ final class Game {
             if (!$visible) return $base;
             $reasons = [];
             foreach ($this->all('SELECT ticker, type, quantity, price, reason, created_at FROM transactions WHERE user_id=? AND reason IS NOT NULL ORDER BY id DESC LIMIT 50', [$row['user_id']]) as $r) {
-                $r['name'] = self::name($r['ticker']);
+                $r['name'] = self::name($r['ticker']); $r['unit'] = self::unit($r['ticker']);
                 $reasons[] = $r;
             }
             return $base + ['cash' => $row['cash'], 'positions' => $this->positionsFor($ev, $row['user_id']), 'reasons' => $reasons];
@@ -516,7 +517,7 @@ final class Game {
         $unreal = array_column($acc['positions'], 'profit');
         $reasons = [];
         foreach (array_reverse($txs) as $t) {
-            if ($t['reason']) { $t['name'] = self::name($t['ticker']); $reasons[] = $t; }
+            if ($t['reason']) { $t['name'] = self::name($t['ticker']); $t['unit'] = self::unit($t['ticker']); $reasons[] = $t; }
         }
         return [
             'event' => $this->publicEvent($ev), 'is_final' => $ev['status'] === 'ended',
@@ -573,7 +574,7 @@ final class Game {
         $out = [];
         foreach ($this->all('SELECT t.id, t.ticker, t.type, t.quantity, t.price, t.reason, t.realized_pl, t.created_at, u.nickname, u.participant_code AS code
             FROM transactions t JOIN users u ON u.id=t.user_id WHERE t.event_id=? ORDER BY t.id DESC LIMIT ?', [$ev['id'], $limit]) as $r) {
-            $r['name'] = self::name($r['ticker']);
+            $r['name'] = self::name($r['ticker']); $r['unit'] = self::unit($r['ticker']);
             $out[] = $r;
         }
         return $out;

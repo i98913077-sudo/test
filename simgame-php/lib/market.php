@@ -5,7 +5,7 @@
 // "시간만 넣으면 바로 계산되는" 함수(여러 주기의 사인파 합 + 해시 노이즈)로 가격을 만든다.
 if (!defined('SIMGAME')) { http_response_code(403); exit; }
 
-final class Market {
+class Market {
     public const TICKERS = [
         '005930' => ['name' => '삼성전자', 'group' => 'kr', 'unit' => '주', 'base' => 70000, 'volFactor' => 0.9, 'baseVolume' => 120000, 'leverage' => 1, 'sector' => '반도체·전자', 'info' => '반도체, 스마트폰, 가전 등을 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)'],
         '000660' => ['name' => 'SK하이닉스', 'group' => 'kr', 'unit' => '주', 'base' => 180000, 'volFactor' => 1.2, 'baseVolume' => 30000, 'leverage' => 1, 'sector' => '반도체', 'info' => '메모리 반도체를 주로 만드는 기업입니다. (교육용 소개이며 투자 권유가 아닙니다. 가격은 샘플 기준가이며 실제 시세가 아닙니다)'],

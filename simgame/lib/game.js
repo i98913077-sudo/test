@@ -403,6 +403,9 @@ export function createGame({ db, market, now = Date.now }) {
 
   function trade(auth, input = {}) {
     const { user } = auth;
+    // 증거금이 모두 소진된 레버리지 포지션은 먼저 강제청산하고 확정한다. (이후 거래가 오류로 되돌려져도 청산 기록은 남는다)
+    const ev0 = currentEvent();
+    if (ev0 && ev0.id === auth.ev.id && findLiquidations(ev0, user.id).length) tx(() => applyLiquidations(findLiquidations(ev0, user.id), ev0));
     return tx(() => {
       const ev = currentEvent(); // 트랜잭션 안에서 최신 상태 확인
       if (!ev || ev.id !== auth.ev.id) throw new GameError('이벤트가 변경되었습니다. 다시 접속해주세요.', 409);
@@ -416,9 +419,6 @@ export function createGame({ db, market, now = Date.now }) {
         throw new GameError(`수량은 1 ~ ${LIMITS.maxQuantity.toLocaleString('ko-KR')} 사이의 정수여야 합니다.`);
       }
       const reason = validateReason(input.reason, side === 'buy' || ev.sell_reason_required);
-
-      // 증거금이 모두 소진된 레버리지 포지션은 먼저 강제청산한다.
-      applyLiquidations(findLiquidations(ev, user.id), ev);
 
       // 체결가는 항상 서버가 정한다. 클라이언트가 보낸 가격은 사용하지 않는다.
       const price = priceOf(ev, ticker);

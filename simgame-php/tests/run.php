@@ -266,30 +266,83 @@ t('선물 레버리지 10배: 증거금만 내고, 평가액=증거금+손익(10
     rmrf($d);
 });
 
-t('강제청산: 가격이 크게 반대로 움직이면 증거금을 잃고 포지션이 사라진다 (현금은 음수가 되지 않는다)', function () {
-    [$g, $c, $d] = started(['tickers' => ['K200F']], 30.0);
-    [$a] = player($g);
-    $b = $g->trade($a, ['ticker' => 'K200F', 'side' => 'buy', 'quantity' => 1000, 'reason' => REASON]);
-    $cashAfterBuy = $g->myState($a)['me']['cash'];
-    $liquidated = false;
-    for ($i = 0; $i < 600 && !$liquidated; $i++) {
-        $c->t += 3600 * 1000;
-        $st = $g->myState($a);
-        check($st['me']['cash'] >= 0, '현금 음수');
-        foreach ($st['me']['positions'] as $p) check($p['value'] >= 0);
-        eq($st['me']['total'], $st['me']['cash'] + $st['me']['stock_value']);
-        if (count($st['me']['positions']) === 0) {
-            $liquidated = true;
-            eq($st['me']['cash'], $cashAfterBuy, '강제청산으로 현금이 늘지 않는다');
-        }
-    }
-    check($liquidated, '강제청산이 일어나야 함');
-    $tx = $g->myTransactions($a);
-    $liq = array_values(array_filter($tx, fn($x) => $x['type'] === 'sell'))[0];
+class FakeMarket extends Market {
+    public int $p = 35000;
+    public function priceAt(string $ticker, int $ms): int { return $this->p; }
+    public function prevClose(string $ticker, int $ms): int { return 35000; }
+    public function todayVolume(string $ticker, int $ms): int { return 1; }
+}
+
+t('강제청산(결정적 시나리오): 경계값, 급락 시 손실 한정, 이익 정산, 청산 후 거래 오류에도 기록 유지', function () {
+    $dir = tmpdir();
+    $db = sim_open_db($dir);
+    $fake = new FakeMarket(1);
+    $now = gmmktime(3, 0, 0, 10, 8, 2026) * 1000;
+    $g = new Game($db, $fake, fn() => $now);
+    $g->createEvent(['tickers' => ['K200F']]);
+    $g->startEvent();
+    $login = fn() => $g->authenticate($g->join('A')['token']);
+    $buy = fn($a, int $qty = 1000) => $g->trade($a, ['ticker' => 'K200F', 'side' => 'buy', 'quantity' => $qty, 'reason' => REASON]);
+    $OPEN = 100000000 - 3500000; // 1000계약 × 35,000 ÷ 10배
+
+    // 1) 평균가 35,000 → 청산선은 31,500 (−10%)
+    $a = $login();
+    $buy($a);
+    eq($g->myState($a)['me']['cash'], $OPEN);
+    $fake->p = 31600; // −9.71%: 아직 살아있다
+    $me = $g->myState($a)['me'];
+    eq(count($me['positions']), 1);
+    eq($me['positions'][0]['value'], 100000);
+    eq($me['positions'][0]['profit'], 100000 - 3500000);
+    check(abs($me['positions'][0]['return_rate'] - (100000 - 3500000) / 3500000) < 1e-9);
+    eq($me['total'], $OPEN + 100000);
+    $fake->p = 31500; // −10%: 증거금 소진 → 강제청산
+    $me = $g->myState($a)['me'];
+    eq(count($me['positions']), 0);
+    eq($me['cash'], $OPEN, '증거금만 잃고 현금은 그대로'); eq($me['total'], $OPEN);
+    $liq = array_values(array_filter($g->myTransactions($a), fn($x) => $x['type'] === 'sell'))[0];
     check(str_contains($liq['reason'], '강제청산'));
-    eq((int)$liq['realized_pl'], -(int)round(1000 * $b['price'] / 10));
-    eq($g->ranking($g->currentEvent())['rows'][0]['total'], $cashAfterBuy);
-    rmrf($d);
+    eq((int)$liq['realized_pl'], -3500000);
+
+    // 2) 급락(−43%): 손실은 증거금으로 한정, 현금이 음수가 되지 않는다
+    $fake->p = 35000;
+    $buy($a);
+    $fake->p = 20000;
+    $me = $g->myState($a)['me'];
+    eq(count($me['positions']), 0); eq($me['cash'], $OPEN - 3500000);
+    check($me['cash'] >= 0 && $me['total'] === $me['cash']);
+
+    // 3) 이익: +5% → 증거금 대비 +50%, 매도하면 정산금이 현금으로
+    $fake->p = 35000;
+    $buy($a);
+    $cashBefore = $g->myState($a)['me']['cash'];
+    $fake->p = 36750;
+    $me = $g->myState($a)['me'];
+    eq($me['positions'][0]['value'], 5250000);
+    check(abs($me['positions'][0]['return_rate'] - 0.5) < 1e-9);
+    $sold = $g->trade($a, ['ticker' => 'K200F', 'side' => 'sell', 'quantity' => 1000]);
+    eq($sold['cash_change'], 5250000); eq($sold['realized_pl'], 1750000);
+    eq($g->myState($a)['me']['cash'], $cashBefore + 5250000);
+
+    // 4) 청산된 뒤 매도를 시도하면 오류지만, 청산 기록은 되돌려지지 않는다
+    $fake->p = 35000;
+    $buy($a);
+    $fake->p = 30000;
+    fails(fn() => $g->trade($a, ['ticker' => 'K200F', 'side' => 'sell', 'quantity' => 1000]), 400);
+    eq(count($g->myState($a)['me']['positions']), 0);
+    $n = count(array_filter($g->myTransactions($a), fn($x) => str_contains((string)$x['reason'], '강제청산')));
+    eq($n, 3, '청산 기록 3건이 모두 남아 있다');
+
+    // 5) 레버리지 1배 종목은 청산되지 않는다
+    $dir2 = tmpdir(); $db2 = sim_open_db($dir2); $fake2 = new FakeMarket(1);
+    $g2 = new Game($db2, $fake2, fn() => $now);
+    $g2->createEvent(['tickers' => ['005930']]); $g2->startEvent();
+    $fake2->p = 70000;
+    $b = $g2->authenticate($g2->join('B')['token']);
+    $g2->trade($b, ['ticker' => '005930', 'side' => 'buy', 'quantity' => 10, 'reason' => REASON]);
+    $fake2->p = 7000;
+    eq($g2->myState($b)['me']['positions'][0]['value'], 70000);
+    $db = $db2 = null; rmrf($dir); rmrf($dir2);
 });
 
 t('기존 DB(레버리지 컬럼 없는 옛 버전)도 열어서 컬럼을 자동 추가한다', function () {

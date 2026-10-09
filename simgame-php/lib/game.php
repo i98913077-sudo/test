@@ -442,6 +442,11 @@ final class Game {
 
     public function trade(array $auth, array $in = []): array {
         $user = $auth['user'];
+        // 증거금이 모두 소진된 레버리지 포지션은 먼저 강제청산하고 확정한다. (이후 거래가 오류로 되돌려져도 청산 기록은 남는다)
+        $ev0 = $this->currentEvent();
+        if ($ev0 && (int)$ev0['id'] === (int)$auth['ev']['id'] && $this->findLiquidations($ev0, (int)$user['id'])) {
+            $this->tx(fn() => $this->applyLiquidations($this->findLiquidations($ev0, (int)$user['id']), $ev0));
+        }
         return $this->tx(function () use ($auth, $user, $in) {
             $ev = $this->currentEvent(); // 트랜잭션 안에서 최신 상태 확인
             if (!$ev || (int)$ev['id'] !== (int)$auth['ev']['id']) throw new GameError('이벤트가 변경되었습니다. 다시 접속해주세요.', 409);
@@ -453,9 +458,6 @@ final class Game {
             $qty = array_key_exists('quantity', $in) ? self::toInt($in['quantity']) : null;
             if ($qty === null || $qty < 1 || $qty > self::MAX_QTY) throw new GameError('수량은 1 ~ ' . number_format(self::MAX_QTY) . ' 사이의 정수여야 합니다.');
             $reason = $this->validateReason($in['reason'] ?? null, $side === 'buy' || $ev['sell_reason_required']);
-
-            // 증거금이 모두 소진된 레버리지 포지션은 먼저 강제청산한다.
-            $this->applyLiquidations($this->findLiquidations($ev, (int)$user['id']), $ev);
 
             // 체결가는 항상 서버가 정한다. 클라이언트가 보낸 가격은 사용하지 않는다.
             $price = $this->priceOf($ev, $ticker);

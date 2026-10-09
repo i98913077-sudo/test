@@ -462,36 +462,80 @@ test('선물 레버리지 10배: 증거금만 내고, 평가액=증거금+손익
   await t.close();
 });
 
-test('강제청산: 가격이 크게 반대로 움직이면 증거금을 잃고 포지션이 사라진다 (현금은 음수가 되지 않는다)', async () => {
-  const t = await setup({ volatility: 30 });
-  await t.admin('POST', '/api/admin/event', { tickers: ['K200F'] });
-  await t.admin('POST', '/api/admin/event/start');
-  const { token } = await t.call('POST', '/api/join', { body: { nickname: 'A' } });
-  const b = await t.call('POST', '/api/trade', { token, body: { ticker: 'K200F', side: 'buy', quantity: 1000, reason: REASON } });
-  assert.equal(b.status, 200, b.error);
-  const cashAfterBuy = b.state.me.cash;
-  let liquidated = false;
-  for (let i = 0; i < 600 && !liquidated; i++) {
-    t.advance(3600 * 1000);
-    const st = await t.call('GET', '/api/state', { token });
-    assert.ok(st.me.cash >= 0, '현금은 음수가 될 수 없다');
-    assert.ok(st.me.positions.every((p) => p.value >= 0));
-    assert.equal(st.me.total, st.me.cash + st.me.stock_value);
-    if (st.me.positions.length === 0) {
-      liquidated = true;
-      assert.equal(st.me.cash, cashAfterBuy, '강제청산으로 현금이 늘지 않는다 (증거금만 잃는다)');
-      assert.equal(st.me.total, cashAfterBuy);
-    }
-  }
-  assert.ok(liquidated, '변동성이 매우 큰 환경에서는 강제청산이 일어나야 한다');
-  const tx = (await t.call('GET', '/api/transactions', { token })).transactions;
-  const liq = tx.find((x) => x.type === 'sell');
-  assert.ok(liq && liq.reason.includes('강제청산'));
-  assert.equal(liq.realized_pl, -Math.round((1000 * b.trade.price) / 10));
-  // 순위표에도 반영(총자산 = 현금)
-  const rk = await t.call('GET', '/api/ranking');
-  assert.equal(rk.rows[0].total, cashAfterBuy);
-  await t.close();
+test('강제청산(결정적 시나리오): 경계값, 급락 시 손실 한정, 이익 정산, 청산 후 거래 오류에도 기록 유지', async () => {
+  const { openDb } = await import('../lib/db.js');
+  const { createGame } = await import('../lib/game.js');
+  let price = 35000; // 가격을 직접 지정하는 가짜 시장
+  const fake = { priceAt: () => price, prevClose: () => 35000, todayVolume: () => 1, candles: () => [] };
+  const db = openDb(':memory:');
+  const clock = Date.UTC(2026, 9, 8, 3, 0, 0);
+  const g = createGame({ db, market: fake, now: () => clock });
+  g.createEvent({ tickers: ['K200F'] });
+  g.startEvent();
+  const login = () => g.authenticate(g.join('A').token);
+  const buy = (a, qty = 1000) => g.trade(a, { ticker: 'K200F', side: 'buy', quantity: qty, reason: REASON });
+  const OPEN = 100_000_000 - 3_500_000; // 1000계약 × 35,000 ÷ 10배
+
+  // 1) 평균가 35,000 → 청산선은 31,500 (−10%)
+  let a = login();
+  buy(a);
+  assert.equal(g.myState(a).me.cash, OPEN);
+  price = 31_600; // −9.71%: 아직 살아있다
+  let me = g.myState(a).me;
+  assert.equal(me.positions.length, 1);
+  assert.equal(me.positions[0].value, 100_000);
+  assert.equal(me.positions[0].profit, 100_000 - 3_500_000);
+  assert.ok(Math.abs(me.positions[0].return_rate - (100_000 - 3_500_000) / 3_500_000) < 1e-9);
+  assert.equal(me.total, OPEN + 100_000);
+  price = 31_500; // −10%: 증거금 소진 → 강제청산
+  me = g.myState(a).me;
+  assert.equal(me.positions.length, 0);
+  assert.equal(me.cash, OPEN, '증거금만 잃고 현금은 그대로');
+  assert.equal(me.total, OPEN);
+  const liq = g.myTransactions(a).find((x) => x.type === 'sell');
+  assert.ok(liq.reason.includes('강제청산'));
+  assert.equal(liq.realized_pl, -3_500_000);
+
+  // 2) 급락(−43%): 손실은 증거금으로 한정, 현금이 음수가 되지 않는다
+  price = 35_000;
+  buy(a);
+  price = 20_000;
+  me = g.myState(a).me;
+  assert.equal(me.positions.length, 0);
+  assert.equal(me.cash, OPEN - 3_500_000);
+  assert.ok(me.cash >= 0 && me.total === me.cash);
+
+  // 3) 이익: +5% → 증거금 대비 +50%, 매도하면 정산금이 현금으로
+  price = 35_000;
+  buy(a);
+  const cashBefore = g.myState(a).me.cash;
+  price = 36_750;
+  me = g.myState(a).me;
+  assert.equal(me.positions[0].value, 5_250_000);
+  assert.ok(Math.abs(me.positions[0].return_rate - 0.5) < 1e-9);
+  const sold = g.trade(a, { ticker: 'K200F', side: 'sell', quantity: 1000 });
+  assert.equal(sold.cash_change, 5_250_000);
+  assert.equal(sold.realized_pl, 1_750_000);
+  assert.equal(g.myState(a).me.cash, cashBefore + 5_250_000);
+
+  // 4) 청산된 뒤 매도를 시도하면 오류지만, 청산 기록은 되돌려지지 않는다
+  price = 35_000;
+  buy(a);
+  price = 30_000;
+  assert.throws(() => g.trade(a, { ticker: 'K200F', side: 'sell', quantity: 1000 }), /보유한 수량/);
+  const stillGone = g.myState(a).me;
+  assert.equal(stillGone.positions.length, 0);
+  assert.equal(g.myTransactions(a).filter((x) => x.reason?.includes('강제청산')).length, 3, '청산 기록 3건(시나리오 1·2·4)이 모두 남아 있다');
+
+  // 5) 레버리지 1배 종목은 청산되지 않는다 (가격이 크게 내려도 평가액만 줄어든다)
+  const g2 = createGame({ db: openDb(':memory:'), market: { ...fake, priceAt: () => price }, now: () => clock });
+  g2.createEvent({ tickers: ['005930'] }); g2.startEvent();
+  price = 70_000;
+  const b = g2.authenticate(g2.join('B').token);
+  g2.trade(b, { ticker: '005930', side: 'buy', quantity: 10, reason: REASON });
+  price = 7_000;
+  assert.equal(g2.myState(b).me.positions[0].value, 70_000);
+  db.close();
 });
 
 test('기존 DB(레버리지 컬럼 없는 옛 버전)도 열어서 컬럼을 자동 추가한다', async () => {

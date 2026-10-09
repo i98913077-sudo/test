@@ -45,6 +45,9 @@ class Market {
     ];
     public const GROUPS = [['id' => 'kr', 'label' => '국내주식'], ['id' => 'us', 'label' => '미국주식'], ['id' => 'idx', 'label' => '지수선물'], ['id' => 'fx', 'label' => '달러선물'], ['id' => 'oil', 'label' => '원유선물']];
     public const RANGES = [
+        // 분봉 (최근 구간)
+        'm1' => [1, 120], 'm3' => [3, 120], 'm5' => [5, 144], 'm10' => [10, 144], 'm30' => [30, 144],
+        // 기간
         '1d' => [5, 288], '1w' => [60, 168], '1m' => [1440, 30], '3m' => [1440, 90],
     ];
     // 주의: PHP는 '373220' 같은 숫자 문자열 키를 정수로 바꾼다. 종목 코드는 항상 이 함수로 문자열로 꺼낼 것.
@@ -110,6 +113,11 @@ class Market {
             $phase = 2 * M_PI * self::rnd($sd ^ 0x3C3C3C3C, $k + 200);
             $list[] = [$amp, 2 * M_PI / $period, $phase];
         }
+        // 분봉에서 실제 차트처럼 잔잔한 들쭉날쭉함이 보이도록 짧은 주기(3~16분)의 작은 움직임을 더한다
+        foreach ([3.1, 5.3, 9.7, 15.5] as $j => $period) {
+            $amp = 0.0007 * $meta['volFactor'] * $this->volatility * (0.6 + 0.8 * self::rnd($sd ^ 0x6B6B6B6B, $j + 300));
+            $list[] = [$amp, 2 * M_PI / $period, 2 * M_PI * self::rnd($sd ^ 0x7C7C7C7C, $j + 400)];
+        }
         return $this->comps[$ticker] = $list;
     }
 
@@ -130,7 +138,7 @@ class Market {
     public function priceAt(string $ticker, int $ms): int {
         $meta = self::TICKERS[$ticker];
         $smooth = $this->smoothLog($ticker, $ms / self::MIN_MS);
-        $jitter = (self::rnd($this->tSeed($ticker) ^ 0x5BD1E995, intdiv($ms, 10000)) - 0.5) * 0.0008 * $meta['volFactor'] * $this->volatility;
+        $jitter = (self::rnd($this->tSeed($ticker) ^ 0x5BD1E995, intdiv($ms, 10000)) - 0.5) * 0.0012 * $meta['volFactor'] * $this->volatility;
         return self::roundTick($meta['base'] * exp($smooth + $jitter), $meta['tick'] ?? null);
     }
 
@@ -158,18 +166,31 @@ class Market {
         [$bucketMin, $count] = self::RANGES[$range];
         $nowMin = intdiv($ms, self::MIN_MS);
         $align = $bucketMin === self::DAY_MIN ? self::kstDayStartMin($nowMin) : intdiv($nowMin, $bucketMin) * $bucketMin;
+        $fine = $bucketMin <= 30; // 분봉은 10초 단위 가격으로 시가·고가·저가·종가를 만들어 윅(꼬리)이 보이게 한다
         $step = $bucketMin >= self::DAY_MIN ? 5 : 1; // 긴 기간은 5분 간격으로 표본 추출(속도)
         $out = [];
         for ($b = $align - ($count - 1) * $bucketMin; $b <= $align; $b += $bucketMin) {
             $last = min($b + $bucketMin - 1, $nowMin);
             $o = 0; $h = 0; $l = PHP_INT_MAX; $c = 0; $v = 0;
-            for ($m = $b; $m <= $last; $m += $step) {
-                $p = $this->minutePrice($ticker, $m);
-                if ($m === $b) $o = $p;
-                if ($p > $h) $h = $p;
-                if ($p < $l) $l = $p;
-                $c = $p;
-                $v += $this->minuteVolume($ticker, $m) * $step;
+            if ($fine) {
+                $t1 = min(($b + $bucketMin) * self::MIN_MS - 1, $ms);
+                for ($t = $b * self::MIN_MS; $t <= $t1; $t += 10000) {
+                    $p = $this->priceAt($ticker, $t);
+                    if ($t === $b * self::MIN_MS) $o = $p;
+                    if ($p > $h) $h = $p;
+                    if ($p < $l) $l = $p;
+                    $c = $p;
+                }
+                for ($m = $b; $m <= $last; $m++) $v += $this->minuteVolume($ticker, $m);
+            } else {
+                for ($m = $b; $m <= $last; $m += $step) {
+                    $p = $this->minutePrice($ticker, $m);
+                    if ($m === $b) $o = $p;
+                    if ($p > $h) $h = $p;
+                    if ($p < $l) $l = $p;
+                    $c = $p;
+                    $v += $this->minuteVolume($ticker, $m) * $step;
+                }
             }
             if ($last === $nowMin) { // 진행 중인 마지막 캔들은 현재가로 마감
                 $c = $this->priceAt($ticker, $ms);

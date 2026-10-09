@@ -1,7 +1,7 @@
 // 의존성 없는 캔들차트(+거래량). 한국식 색상: 상승=빨강, 하락=파랑. 터치/마우스로 십자선 표시.
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-export function drawCandles(canvas, candles, { onHover, ma = true } = {}) {
+export function drawCandles(canvas, candles, { onHover, ma = true, timeFmt } = {}) {
   const box = canvas.parentElement;
   const dpr = window.devicePixelRatio || 1;
   const W = box.clientWidth, H = box.clientHeight;
@@ -47,6 +47,14 @@ export function drawCandles(canvas, candles, { onHover, ma = true } = {}) {
     ctx.fillRect(cx - bw / 2, H - padB - vh, bw, vh);
     ctx.globalAlpha = 1;
   });
+  // 시간 축 라벨
+  if (timeFmt) {
+    ctx.fillStyle = muted; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const f of [0.1, 0.37, 0.64, 0.9]) {
+      const i = Math.round((candles.length - 1) * f);
+      ctx.fillText(timeFmt(candles[i].t), x(i), H - 7);
+    }
+  }
   // 이동평균선 (5, 20)
   if (ma) {
     for (const [period, color] of [[5, '#e8a317'], [20, '#8a4fd6']]) {
@@ -77,7 +85,7 @@ export function drawCandles(canvas, candles, { onHover, ma = true } = {}) {
   const showAt = (clientX) => {
     const r = canvas.getBoundingClientRect();
     const i = Math.max(0, Math.min(candles.length - 1, Math.floor((clientX - r.left - 2) / step)));
-    drawCandles(canvas, candles, { onHover, ma });
+    drawCandles(canvas, candles, { onHover, ma, timeFmt });
     const c2 = canvas.getContext('2d');
     c2.setTransform(dpr, 0, 0, dpr, 0, 0);
     c2.strokeStyle = muted; c2.setLineDash([2, 3]);
@@ -87,7 +95,11 @@ export function drawCandles(canvas, candles, { onHover, ma = true } = {}) {
   };
   if (!canvas._bound) {
     canvas._bound = true;
-    const handler = (e) => canvas._show?.(e.clientX);
+    const handler = (e) => {
+      canvas._hold = true; clearTimeout(canvas._holdTimer); // 값을 보고 있는 동안은 실시간 갱신이 십자선을 지우지 않게 잠시 멈춘다
+      canvas._holdTimer = setTimeout(() => { canvas._hold = false; }, 3500);
+      canvas._show?.(e.clientX);
+    };
     canvas.addEventListener('pointermove', handler);
     canvas.addEventListener('pointerdown', handler);
   }

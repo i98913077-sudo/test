@@ -286,7 +286,7 @@ test('캔들 API: 기간별 개수, OHLC 정합성, 잘못된 입력', async () 
   const t = await setup();
   await t.admin('POST', '/api/admin/event', {});
   await t.admin('POST', '/api/admin/event/start');
-  for (const [range, n] of [['1d', 288], ['1w', 168], ['1m', 30], ['3m', 90]]) {
+  for (const [range, n] of [['m1', 120], ['m3', 120], ['m5', 144], ['m10', 144], ['m30', 144], ['1d', 288], ['1w', 168], ['1m', 30], ['3m', 90]]) {
     const r = await t.call('GET', `/api/stocks/005930/candles?range=${range}`);
     assert.equal(r.candles.length, n, range);
     for (const c of r.candles) {
@@ -654,4 +654,25 @@ test('선물 매도(매도 포지션): 진입·이익·손실·강제청산(+10%
   [g, a] = newGame(); price = 35_000; sell(g, a, 1000); price = 33_250;
   const rk = g.ranking(g.currentEvent());
   assert.equal(rk.rows[0].total, OPEN + 5_250_000);
+});
+
+test('분봉: 시간 간격이 맞고, 1분봉에도 고가/저가 꼬리가 생기며, 마지막 봉은 현재가로 마감된다', async () => {
+  const t = await setup();
+  await t.admin('POST', '/api/admin/event', {});
+  await t.admin('POST', '/api/admin/event/start');
+  const { token } = await t.call('POST', '/api/join', { body: { nickname: 'A' } });
+  for (const [range, minutes] of [['m1', 1], ['m3', 3], ['m5', 5], ['m10', 10], ['m30', 30]]) {
+    const { candles } = await t.call('GET', `/api/stocks/005930/candles?range=${range}`);
+    for (let i = 1; i < candles.length; i++) assert.equal(candles[i].t - candles[i - 1].t, minutes * 60000, `${range} 간격`);
+    for (const c of candles) assert.ok(c.h >= Math.max(c.o, c.c) && c.l <= Math.min(c.o, c.c) && c.v > 0, `${range} ${JSON.stringify(c)}`);
+    const st = await t.call('GET', '/api/state', { token });
+    assert.equal(candles.at(-1).c, st.stocks.find((s) => s.ticker === '005930').price, `${range} 마지막 봉 종가 = 현재가`);
+  }
+  const m1 = (await t.call('GET', '/api/stocks/005930/candles?range=m1')).candles;
+  assert.ok(m1.filter((c) => c.h > c.l).length > m1.length * 0.5, '1분봉의 절반 이상은 고가와 저가가 다르다(꼬리가 보인다)');
+  // 시간이 흐르면 새 봉이 생기고, 같은 분 안에서는 같은 봉이 갱신된다
+  const before = (await t.call('GET', '/api/stocks/005930/candles?range=m1')).candles.at(-1).t;
+  t.advance(65 * 1000);
+  assert.ok((await t.call('GET', '/api/stocks/005930/candles?range=m1')).candles.at(-1).t > before);
+  await t.close();
 });

@@ -455,13 +455,33 @@ t('입력 검증: 시작자금/종목/진행시간/이름/중복 이벤트', fun
 t('캔들: 기간별 개수, OHLC 정합성, 잘못된 입력', function () {
     [$g, $c, $d] = started();
     $ev = $g->currentEvent();
-    foreach (['1d' => 288, '1w' => 168, '1m' => 30, '3m' => 90] as $range => $n) {
+    foreach (['m1' => 120, 'm3' => 120, 'm5' => 144, 'm10' => 144, 'm30' => 144, '1d' => 288, '1w' => 168, '1m' => 30, '3m' => 90] as $range => $n) {
         $cs = $g->candles($ev, '005930', $range);
         eq(count($cs), $n, $range);
         foreach ($cs as $x) check($x['h'] >= max($x['o'], $x['c']) && $x['l'] <= min($x['o'], $x['c']) && $x['l'] > 0 && $x['v'] > 0, json_encode($x));
     }
     fails(fn() => $g->candles($ev, '005930', '9y'), 400);
     fails(fn() => $g->candles($ev, '000000', '1d'), 404);
+    rmrf($d);
+});
+
+t('분봉: 시간 간격이 맞고, 1분봉에도 고가/저가 꼬리가 생기며, 마지막 봉은 현재가로 마감된다', function () {
+    [$g, $c, $d] = started();
+    [$a] = player($g);
+    $ev = $g->currentEvent();
+    $price = array_values(array_filter($g->myState($a)['stocks'], fn($x) => $x['ticker'] === '005930'))[0]['price'];
+    foreach (['m1' => 1, 'm3' => 3, 'm5' => 5, 'm10' => 10, 'm30' => 30] as $range => $min) {
+        $cs = $g->candles($ev, '005930', $range);
+        for ($i = 1; $i < count($cs); $i++) eq($cs[$i]['t'] - $cs[$i - 1]['t'], $min * 60000, "$range 간격");
+        foreach ($cs as $x) check($x['h'] >= max($x['o'], $x['c']) && $x['l'] <= min($x['o'], $x['c']) && $x['v'] > 0, $range . ' ' . json_encode($x));
+        eq(end($cs)['c'], $price, "$range 마지막 봉 종가 = 현재가");
+    }
+    $m1 = $g->candles($ev, '005930', 'm1');
+    check(count(array_filter($m1, fn($x) => $x['h'] > $x['l'])) > count($m1) * 0.5, '1분봉의 절반 이상은 꼬리가 있다');
+    $before = end($m1)['t'];
+    $c->t += 65 * 1000;
+    $after = $g->candles($g->currentEvent(), '005930', 'm1');
+    check(end($after)['t'] > $before, '새 봉 생성');
     rmrf($d);
 });
 

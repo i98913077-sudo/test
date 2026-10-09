@@ -52,6 +52,10 @@ const BASE_VOL = 0.001; // 1분당 변동폭(교육 효과를 위해 실제보�
 const REVERSION = 0.00002; // 기준가로 되돌아가려는 힘 (가격이 무한정 벗어나지 않게)
 
 const RANGES = {
+  // 분봉 (최근 구간)
+  m1: { bucketMin: 1, count: 120 }, m3: { bucketMin: 3, count: 120 }, m5: { bucketMin: 5, count: 144 },
+  m10: { bucketMin: 10, count: 144 }, m30: { bucketMin: 30, count: 144 },
+  // 기간
   '1d': { bucketMin: 5, count: 288 },
   '1w': { bucketMin: 60, count: 168 },
   '1m': { bucketMin: DAY_MIN, count: 30 },
@@ -138,17 +142,30 @@ export function createMarket({ seed, volatility = 1 }) {
     const nowMin = Math.floor(ms / MIN);
     const align = (m) => (spec.bucketMin === DAY_MIN ? kstDayStartMin(m) : Math.floor(m / spec.bucketMin) * spec.bucketMin);
     const endStart = align(nowMin);
+    const fine = spec.bucketMin <= 30; // 분봉은 10초 단위 가격으로 시가·고가·저가·종가를 만들어 윅(꼬리)이 보이게 한다
     const out = [];
     for (let b = endStart - (spec.count - 1) * spec.bucketMin; b <= endStart; b += spec.bucketMin) {
       const last = Math.min(b + spec.bucketMin - 1, nowMin);
       let o = 0, h = 0, l = Infinity, c = 0, v = 0;
-      for (let m = b; m <= last; m++) {
-        const p = minutePrice(ticker, m);
-        if (m === b) o = p;
-        if (p > h) h = p;
-        if (p < l) l = p;
-        c = p;
-        v += minuteVolume(ticker, m);
+      if (fine) {
+        const t1 = Math.min((b + spec.bucketMin) * MIN - 1, ms);
+        for (let t = b * MIN; t <= t1; t += 10000) {
+          const p = priceAt(ticker, t);
+          if (t === b * MIN) o = p;
+          if (p > h) h = p;
+          if (p < l) l = p;
+          c = p;
+        }
+        for (let m = b; m <= last; m++) v += minuteVolume(ticker, m);
+      } else {
+        for (let m = b; m <= last; m++) {
+          const p = minutePrice(ticker, m);
+          if (m === b) o = p;
+          if (p > h) h = p;
+          if (p < l) l = p;
+          c = p;
+          v += minuteVolume(ticker, m);
+        }
       }
       if (last === nowMin) { // 진행 중인 마지막 캔들은 현재가로 마감
         c = priceAt(ticker, ms);

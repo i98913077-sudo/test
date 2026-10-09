@@ -190,3 +190,13 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .badge { display: inline-block; border-radius: 6px; padding: 1px 7px; font-size: .72rem; font-weight: 800; vertical-align: middle; }
 .badge.long { background: #ffe3e1; color: #a3231b; }
 .badge.short { background: #dbeafe; color: #1d4ed8; }
+
+/* 실시간 표시 */
+.live { color: var(--muted); }
+.live .dot { color: #16a06a; animation: blink 1.4s infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+.flash-up { animation: flashUp .9s ease-out; }
+.flash-down { animation: flashDown .9s ease-out; }
+@keyframes flashUp { from { background: rgba(214, 52, 44, .28); } to { background: transparent; } }
+@keyframes flashDown { from { background: rgba(28, 111, 209, .28); } to { background: transparent; } }
+.chips[aria-label="분봉"] .chip, .chips[aria-label="기간"] .chip { font-size: .9rem; }

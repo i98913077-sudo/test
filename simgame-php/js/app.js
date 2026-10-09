@@ -5,9 +5,27 @@ import { drawCandles } from './chart.js';
 const app = $('#app');
 const TABS = [['watch', '⭐', '관심종목'], ['quote', '💹', '현재가'], ['order', '🧾', '주문'], ['chart', '📈', '차트'], ['account', '💼', '계좌'], ['menu', '☰', '메뉴']];
 const GROUP_FILTERS = [['all', '전체', null], ['kr', '국내', ['kr']], ['us', '미국', ['us']], ['etc', '선물', ['idx', 'fx', 'oil']]];
+const MIN_RANGES = [['m1', '1분'], ['m3', '3분'], ['m5', '5분'], ['m10', '10분'], ['m30', '30분']];
+const PERIOD_RANGES = [['1d', '1일'], ['1w', '1주'], ['1m', '1개월'], ['3m', '3개월']];
+const RANGE_MIN = { m1: 1, m3: 3, m5: 5, m10: 10, m30: 30, '1d': 5, '1w': 60, '1m': 1440, '3m': 1440 }; // 봉 하나의 길이(분)
+const KST = { timeZone: 'Asia/Seoul' };
+const fmtAxis = (range, t) => (RANGE_MIN[range] >= 1440 ? new Date(t).toLocaleDateString('ko-KR', { ...KST, month: 'numeric', day: 'numeric' })
+  : range === '1w' ? new Date(t).toLocaleString('ko-KR', { ...KST, month: 'numeric', day: 'numeric', hour: '2-digit', hour12: false }) + '시'
+  : new Date(t).toLocaleTimeString('ko-KR', { ...KST, hour: '2-digit', minute: '2-digit', hour12: false }));
+const kstDayStart = (ms) => Math.floor((ms + 9 * 3600000) / 86400000) * 86400000 - 9 * 3600000;
+const bucketStart = (range, ms) => (RANGE_MIN[range] >= 1440 ? kstDayStart(ms) : Math.floor(ms / (RANGE_MIN[range] * 60000)) * RANGE_MIN[range] * 60000);
+// 실시간: 새 가격이 오면 마지막 봉을 갱신하고, 새 봉 시간이 되면 봉을 하나 추가한다. 봉이 여러 개 비면 false(서버에서 다시 받기)
+function applyLive(candles, range, price, ms) {
+  if (!candles?.length) return false;
+  const last = candles[candles.length - 1], start = bucketStart(range, ms), span = RANGE_MIN[range] * 60000;
+  if (start - last.t > span * 1.5) return false;
+  if (start > last.t) { candles.push({ t: start, o: last.c, h: Math.max(last.c, price), l: Math.min(last.c, price), c: price, v: 0 }); candles.shift(); }
+  else { last.c = price; last.h = Math.max(last.h, price); last.l = Math.min(last.l, price); }
+  return true;
+}
 const GROUP_NAMES = { kr: '국내주식', us: '미국주식', idx: '지수선물', fx: '달러선물', oil: '원유선물' };
 const S = {
-  state: null, tab: 'watch', sub: null, selected: null, side: 'buy', range: '1d', group: 'all', query: '', watchMode: 'fav',
+  state: null, tab: 'watch', sub: null, selected: null, side: 'buy', range: 'm5', group: 'all', lastPrice: {}, running: false, query: '', watchMode: 'fav',
   candles: null, mini: null, compareCode: null, clockOffset: 0, tradeCtx: null, favs: null,
 };
 let pollTimer, clockTimer, candleTimer;
@@ -146,12 +164,17 @@ function start(first) {
   renderSummary();
   showTab('watch');
   stopTimers();
-  pollTimer = setInterval(poll, 5000);
+  S.running = true; schedulePoll();
   clockTimer = setInterval(tickClock, 1000);
   candleTimer = setInterval(() => { if (S.tab === 'chart') loadChart(); else if (S.tab === 'quote') loadMini(); }, 15000);
   window.addEventListener('resize', redrawCharts);
 }
-function stopTimers() { clearInterval(pollTimer); clearInterval(clockTimer); clearInterval(candleTimer); window.removeEventListener('resize', redrawCharts); }
+function schedulePoll() {
+  clearTimeout(pollTimer);
+  if (!S.running) return;
+  pollTimer = setTimeout(async () => { await poll(); schedulePoll(); }, ['chart', 'quote', 'order'].includes(S.tab) ? 3000 : 5000); // 시세를 보는 화면은 더 자주 갱신
+}
+function stopTimers() { S.running = false; clearTimeout(pollTimer); clearInterval(clockTimer); clearInterval(candleTimer); window.removeEventListener('resize', redrawCharts); }
 
 async function poll() {
   try {
@@ -212,11 +235,20 @@ function selectStock(ticker, tab = 'quote', side) {
 }
 function refreshActiveTab() {
   if (S.tab === 'watch') updateWatchList();
-  else if (S.tab === 'quote') updateQuote();
+  else if (S.tab === 'quote') { updateQuote(); liveUpdate('mini'); }
   else if (S.tab === 'order') { updateOrderHead(); S.tradeCtx?.refresh(); }
-  else if (S.tab === 'chart') updateChartHead();
+  else if (S.tab === 'chart') { updateChartHead(); liveUpdate('chart'); }
   else if (S.tab === 'account') renderAccount(true);
   else if (S.tab === 'menu' && S.sub === 'rank' && !S.compareCode) renderRank(true);
+}
+
+// 실시간 갱신: 상태 폴링으로 받은 현재가로 마지막 봉을 갱신한다
+function liveUpdate(which) {
+  const s = curStock(); if (!s) return;
+  const range = which === 'chart' ? S.range : '1d';
+  const arr = which === 'chart' ? S.candles : S.mini;
+  if (arr && !applyLive(arr, range, s.price, serverNow())) { which === 'chart' ? loadChart() : loadMini(); return; }
+  redrawCharts();
 }
 
 // 종목 선택 드롭다운 (현재가·주문·차트 공통)
@@ -230,8 +262,13 @@ function stockPicker() {
   sel.addEventListener('change', () => { S.candles = null; S.mini = null; S.selected = sel.value; showTab(S.tab); });
   return sel;
 }
-const priceBlock = (s) => el('div', { class: 'pricebox' },
-  el('div', { class: `bigprice num ${dir(s.change)}` }, fmt(s.price), el('span', { class: 'unitp' }, 'P')),
+function priceBlock(s) {
+  const prev = S.lastPrice[s.ticker]; S.lastPrice[s.ticker] = s.price;
+  const flash = prev == null || prev === s.price ? '' : prev < s.price ? ' flash-up' : ' flash-down';
+  return priceBlockEl(s, flash);
+}
+const priceBlockEl = (s, flash) => el('div', { class: 'pricebox' },
+  el('div', { class: `bigprice num ${dir(s.change)}${flash}` }, fmt(s.price), el('span', { class: 'unitp' }, 'P')),
   el('div', { class: `num ${dir(s.change)}` }, `${arrow(s.change)} ${fmt(Math.abs(s.change))}P  ${fmtPct(s.change_rate)}`));
 const leverNotice = (s) => ((s.leverage ?? 1) > 1 ? el('div', { class: 'notice small' }, `⚠️ 레버리지 ${s.leverage}배 상품: 주문금액의 1/${s.leverage}만 증거금으로 내고, 손익도 ${s.leverage}배로 커져요. 가격이 약 ${Math.round(100 / s.leverage)}% 반대로(매수 포지션은 하락, 매도 포지션은 상승) 움직이면 증거금을 모두 잃고 강제청산돼요. 매수와 매도 모두 가능해요. (가상 포인트로 하는 게임이에요)`) : null);
 
@@ -311,16 +348,15 @@ function updateQuote() {
 }
 
 // ───────────── 차트 ─────────────
-const RANGES = [['1d', '1일'], ['1w', '1주'], ['1m', '1개월'], ['3m', '3개월']];
 function renderChartTab() {
   const s = ensureSelected();
   if (!s) { ui.content.append(el('p', { class: 'muted' }, '거래할 수 있는 종목이 없어요.')); return; }
   ui.cHead = el('div', { class: 'card slim' });
   ui.ohlc = el('div', { class: 'ohlc', 'aria-live': 'polite' }, '차트를 누르거나 드래그하면 값을 볼 수 있어요.');
   ui.cCanvas = el('canvas', { 'aria-label': `${s.name} 캔들차트` });
-  const chips = el('div', { class: 'chips', role: 'tablist' }, ...RANGES.map(([k, label]) =>
-    el('button', { class: `chip${k === S.range ? ' active' : ''}`, 'data-r': k, onclick: () => { S.range = k; S.candles = null; chips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c.dataset.r === k)); loadChart(); } }, label)));
-  ui.content.append(stockPicker(), ui.cHead, chips,
+  const mkChips = (list, label) => el('div', { class: 'chips', role: 'tablist', 'aria-label': label }, ...list.map(([k, text]) =>
+    el('button', { class: `chip${k === S.range ? ' active' : ''}`, 'data-r': k, onclick: () => { S.range = k; S.candles = null; ui.content.querySelectorAll('.chip[data-r]').forEach((c) => c.classList.toggle('active', c.dataset.r === k)); loadChart(); } }, text)));
+  ui.content.append(stockPicker(), ui.cHead, mkChips(MIN_RANGES, '분봉'), mkChips(PERIOD_RANGES, '기간'),
     el('div', { class: 'chart-box' }, ui.cCanvas), ui.ohlc,
     el('div', { class: 'legend small' }, el('span', {}, el('i', { class: 'ma5' }), '이동평균 5'), el('span', {}, el('i', { class: 'ma20' }), '이동평균 20'), el('span', { class: 'muted' }, '아래 막대: 거래량')),
     el('div', { class: 'row actions' },
@@ -332,7 +368,7 @@ function renderChartTab() {
 function updateChartHead() {
   if (!ui.cHead?.isConnected) return;
   const s = curStock(); if (!s) return;
-  clear(ui.cHead).append(el('div', { class: 'row between' }, el('b', {}, s.name), priceBlock(s)));
+  clear(ui.cHead).append(el('div', { class: 'row between' }, el('div', {}, el('b', {}, s.name), el('div', { class: 'live small' }, el('span', { class: 'dot' }, '●'), ` 실시간 · ${fmtTime(serverNow())}`)), priceBlock(s)));
 }
 async function fetchCandles(ticker, range) { return (await api(`/api/stocks/${encodeURIComponent(ticker)}/candles?range=${range}`)).candles; }
 async function loadChart() {
@@ -354,16 +390,16 @@ async function loadMini() {
   } catch { /* 다음 주기에 재시도 */ }
 }
 function redrawCharts() {
-  if (ui.cCanvas?.isConnected && S.candles && S.tab === 'chart') {
+  if (ui.cCanvas?.isConnected && S.candles && S.tab === 'chart' && !ui.cCanvas._hold) {
     drawCandles(ui.cCanvas, S.candles, {
+      timeFmt: (t) => fmtAxis(S.range, t),
       onHover: (c) => {
-        const d = new Date(c.t);
-        const when = S.range === '1d' || S.range === '1w' ? d.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString('ko-KR');
+        const when = RANGE_MIN[S.range] >= 1440 ? new Date(c.t).toLocaleDateString('ko-KR', KST) : new Date(c.t).toLocaleString('ko-KR', { ...KST, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
         ui.ohlc.textContent = `${when}  시 ${fmt(c.o)} · 고 ${fmt(c.h)} · 저 ${fmt(c.l)} · 종 ${fmt(c.c)} · 거래량 ${fmt(c.v)}`;
       },
     });
   }
-  if (ui.qCanvas?.isConnected && S.mini && S.tab === 'quote') drawCandles(ui.qCanvas, S.mini, { ma: false });
+  if (ui.qCanvas?.isConnected && S.mini && S.tab === 'quote') drawCandles(ui.qCanvas, S.mini, { ma: false, timeFmt: (t) => fmtAxis('1d', t) });
 }
 
 // ───────────── 주문 ─────────────

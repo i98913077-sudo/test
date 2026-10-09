@@ -1,7 +1,7 @@
 // 의존성 없는 캔들차트(+거래량). 한국식 색상: 상승=빨강, 하락=파랑. 터치/마우스로 십자선 표시.
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
-export function drawCandles(canvas, candles, { onHover } = {}) {
+export function drawCandles(canvas, candles, { onHover, ma = true } = {}) {
   const box = canvas.parentElement;
   const dpr = window.devicePixelRatio || 1;
   const W = box.clientWidth, H = box.clientHeight;
@@ -47,6 +47,23 @@ export function drawCandles(canvas, candles, { onHover } = {}) {
     ctx.fillRect(cx - bw / 2, H - padB - vh, bw, vh);
     ctx.globalAlpha = 1;
   });
+  // 이동평균선 (5, 20)
+  if (ma) {
+    for (const [period, color] of [[5, '#e8a317'], [20, '#8a4fd6']]) {
+      if (candles.length < period) continue;
+      ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.beginPath();
+      let started = false, sum = 0;
+      candles.forEach((c, i) => {
+        sum += c.c;
+        if (i >= period) sum -= candles[i - period].c;
+        if (i < period - 1) return;
+        const yy = y(sum / period);
+        if (!started) { ctx.moveTo(x(i), yy); started = true; } else ctx.lineTo(x(i), yy);
+      });
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1;
+  }
   const last = candles[candles.length - 1];
   const ly = y(last.c);
   ctx.setLineDash([3, 3]); ctx.strokeStyle = last.c >= last.o ? up : down;
@@ -60,7 +77,7 @@ export function drawCandles(canvas, candles, { onHover } = {}) {
   const showAt = (clientX) => {
     const r = canvas.getBoundingClientRect();
     const i = Math.max(0, Math.min(candles.length - 1, Math.floor((clientX - r.left - 2) / step)));
-    drawCandles(canvas, candles, { onHover });
+    drawCandles(canvas, candles, { onHover, ma });
     const c2 = canvas.getContext('2d');
     c2.setTransform(dpr, 0, 0, dpr, 0, 0);
     c2.strokeStyle = muted; c2.setLineDash([2, 3]);

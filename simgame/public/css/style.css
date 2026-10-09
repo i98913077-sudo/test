@@ -130,7 +130,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .big-rank .nick { font-weight: 800; }
 @media (max-width: 560px) { .big-rank { grid-template-columns: 44px minmax(0, 1fr) auto; } .big-rank .tot { display: none; } }
 
-.summary.compact .sumstats, .summary.compact .retline { display: none; }
+.summary.compact .sumstats { display: none; }
 .summary.compact .total { font-size: 1.15rem; }
 .summary.compact { padding: 8px 14px; margin-bottom: 8px; }
 .actions .btn { flex: 1 1 0; }
@@ -142,3 +142,47 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
 
 .sum-line .num { white-space: nowrap; flex: none; }
 .sum-line .muted { min-width: 0; }
+
+/* ── MTS 스타일 화면 (하단 6메뉴) ── */
+.tabbar.six { grid-template-columns: repeat(6, 1fr); }
+.tabbar.six button { font-size: .66rem; min-height: 56px; padding: 0 1px; }
+.tabbar.six button .ic { font-size: 1.15rem; }
+.summary.compact .retline { display: block; font-size: .85rem; }
+.summary.compact .sumstats { display: none; }
+.picker { margin-bottom: 8px; font-weight: 700; }
+.pricebox { text-align: right; }
+.bigprice { font-size: 1.7rem; font-weight: 900; line-height: 1.15; }
+.bigprice .unitp { font-size: .9rem; font-weight: 700; margin-left: 2px; }
+.card.slim { padding: 10px 14px; }
+.seg { display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 8px; background: var(--card); }
+.seg.three { grid-template-columns: repeat(3, 1fr); }
+.seg-btn { min-height: 46px; border: 0; background: none; font-weight: 800; cursor: pointer; color: var(--muted); }
+.seg-btn.active { background: var(--brand); color: #fff; }
+.seg-btn.buy.active { background: var(--up); }
+.seg-btn.sell.active { background: var(--down); }
+.wrow { display: flex; align-items: stretch; gap: 6px; margin-bottom: 8px; }
+.wrow .stock { margin-bottom: 0; }
+.star { flex: none; width: 44px; border: 1px solid var(--line); background: var(--card); border-radius: 12px; font-size: 1.3rem; color: var(--muted); cursor: pointer; }
+.star.on { color: #e8a317; }
+.star.big { width: 48px; height: 48px; }
+.order-form.is-buy { border-top: 4px solid var(--up); }
+.order-form.is-sell { border-top: 4px solid var(--down); }
+.chart-box.mini { height: 170px; margin: 8px 0; }
+.legend i.ma5, .legend i.ma20 { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.legend i.ma5 { background: #e8a317; } .legend i.ma20 { background: #8a4fd6; }
+.acct .sum-line b { font-size: 1.02rem; }
+.holding { border-bottom: 1px solid var(--line); padding: 4px 0; }
+.holding:last-child { border-bottom: 0; }
+.hrow { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 0; cursor: pointer; min-height: 64px; }
+.hrow > * + * { margin-top: 2px; }
+.action-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+.menu-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 8px 4px; text-align: left; cursor: pointer; color: inherit; text-decoration: none; font: inherit; }
+.menu-item:last-child { border-bottom: 0; }
+.menu-item .mi { font-size: 1.4rem; width: 32px; text-align: center; flex: none; }
+.menu-item .mdesc { display: block; }
+
+/* 라벨이 글자 단위로 줄바꿈되지 않게 하고, 수량 입력칸을 넉넉하게 */
+.sum-line .muted { white-space: nowrap; }
+.qty-row { flex-wrap: wrap; }
+.qty-row .input { order: -1; flex: 1 1 100%; }
+.qty-btn { flex: 1 1 0; min-width: 0; }

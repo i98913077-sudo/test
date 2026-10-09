@@ -31,6 +31,7 @@ require __DIR__ . '/lib/db.php';
 require __DIR__ . '/lib/game.php';
 
 const MAX_BODY = 16384;
+const APP_VERSION = '2026.10.09-leverage';
 
 try {
     $cfg = require __DIR__ . '/config.php';
@@ -108,6 +109,10 @@ try {
             $must('POST');
             if ($limited("join:$ip", 200, 60000)) throw new GameError('요청이 너무 많습니다. 잠시 후 다시 시도하세요.', 429);
             out(200, $game->join($body()['nickname'] ?? null));
+
+        case $route === 'version':
+            $must('GET');
+            out(200, ['version' => APP_VERSION, 'catalog_size' => count(Market::TICKERS), 'runtime' => 'PHP ' . PHP_VERSION]);
 
         case $route === 'state':
             $must('GET');

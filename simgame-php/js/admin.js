@@ -32,9 +32,11 @@ async function dashboard() {
   timer = setInterval(() => draw().catch((e) => { if (e.status === 401) { tok.v = null; login('세션이 만료되었습니다.'); } }), 4000);
 }
 
+let versionLine = el('p', { class: 'muted small' }, '');
 let formState = null; // 입력 중인 폼 값을 갱신 때 보존
 async function draw() {
   const ov = await call('/api/admin/overview');
+  try { const v = await api('/api/version'); versionLine = el('p', { class: 'muted small' }, `서버 버전 ${v.version} · 상품 ${v.catalog_size}개 · ${v.runtime}`); } catch { versionLine = el('p', { class: 'muted small' }, '서버 버전을 확인할 수 없어요 (옛 파일일 수 있어요)'); }
   const txs = ov.event ? (await call('/api/admin/transactions')).transactions : [];
   // 입력 중에는 폼을 다시 그리지 않는다
   if (document.activeElement && app.contains(document.activeElement) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) && $('#admin-root')) return;
@@ -45,6 +47,7 @@ async function draw() {
       el('a', { class: 'btn sm', href: 'ranking.html', target: '_blank', rel: 'noopener' }, '🏆 수업용 순위 화면'),
       el('button', { class: 'btn sm', onclick: () => { tok.v = null; login(); } }, '로그아웃'))),
     studentLink(),
+    versionLine,
     ev ? eventCard(ev) : null,
     (!ev || ev.status === 'ended') ? createCard() : null,
     ev ? statsCard(ov) : null,
@@ -113,9 +116,16 @@ function eventCard(ev) {
   const mode = el('select', { class: 'input' }, el('option', { value: 'after_end', selected: ev.reason_reveal_mode === 'after_end' }, '게임 종료 후 공개'), el('option', { value: 'live', selected: ev.reason_reveal_mode === 'live' }, '실시간 공개'));
   const sellReq = el('input', { type: 'checkbox', checked: ev.sell_reason_required });
   const picker = tickerPicker(ev.tickers);
+  // 업데이트 전에 만든 이벤트에는 새 종목이 빠져 있다. 한 번에 모두 추가할 수 있게 안내한다.
+  const missing = allTickers.filter((t) => !ev.tickers.includes(t.ticker));
+  const missingByGroup = allGroups.map((g) => [g.label, missing.filter((t) => t.group === g.id).length]).filter(([, n]) => n > 0).map(([l, n]) => `${l} ${n}개`).join(', ');
+  const missingBanner = ev.status !== 'ended' && missing.length ? el('div', { class: 'notice' },
+    el('b', {}, `⚠️ 이 이벤트에는 새 종목 ${missing.length}개가 빠져 있어요`), el('div', { class: 'small' }, missingByGroup),
+    el('button', { class: 'btn primary block', onclick: run(() => call('/api/admin/event/update', { method: 'POST', body: { tickers: allTickers.map((t) => t.ticker) } }), `종목 ${missing.length}개를 추가했어요`) }, '새 종목 모두 추가하기')) : null;
   return el('div', { class: 'card' },
     el('div', { class: 'row between' }, el('h2', {}, `이벤트: ${ev.name}`), el('span', { class: 'pill' }, status)),
     el('div', { class: 'muted small' }, `시작 자금 ${fmtP(ev.initial_balance)} · ${ev.tickers.length}개 종목 · 참가자 ${ev.participants}명 · 시작 ${ev.start_at ? fmtTime(ev.start_at) : '-'} · 종료 예정 ${ev.end_at ? fmtTime(ev.end_at) : (ev.duration_min ? `시작 후 ${ev.duration_min}분` : '직접 종료')}`),
+    missingBanner,
     el('div', { class: 'row' },
       ev.status === 'ready' ? el('button', { class: 'btn primary grow', onclick: run(() => call('/api/admin/event/start', { method: 'POST' }), '게임을 시작했어요') }, '▶ 게임 시작') : null,
       ev.status === 'running' ? el('button', { class: 'btn danger grow', onclick: () => { if (confirm('지금 게임을 종료할까요? 종료하면 가격이 고정되고 더 이상 거래할 수 없어요.')) run(() => call('/api/admin/event/end', { method: 'POST' }), '게임을 종료했어요')(); } }, '■ 게임 종료') : null,

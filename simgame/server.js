@@ -17,6 +17,7 @@ const MIME = {
 const PAGES = { '/': 'index.html', '/ranking': 'ranking.html', '/admin': 'admin.html' };
 
 const sha = (s) => createHash('sha256').update(s).digest();
+const APP_VERSION = '2026.10.09-leverage';
 
 export function createApp({ dbPath = ':memory:', adminPassword, now = Date.now, frameAncestors = "'none'", volatility = 1 } = {}) {
   const db = openDb(dbPath);
@@ -115,6 +116,7 @@ export function createApp({ dbPath = ':memory:', adminPassword, now = Date.now, 
       const body = await readJson(req);
       return json(res, 200, game.join(body.nickname));
     }
+    if (pathname === '/api/version' && m === 'GET') return json(res, 200, { version: APP_VERSION, catalog_size: TICKERS.length, runtime: process.version });
     if (pathname === '/api/state' && m === 'GET') return json(res, 200, game.myState(needAuth(req)));
     if (pathname === '/api/transactions' && m === 'GET') return json(res, 200, { transactions: game.myTransactions(needAuth(req)) });
     if (pathname === '/api/trade' && m === 'POST') {

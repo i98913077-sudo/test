@@ -193,7 +193,12 @@ function updateStockList() {
   const allowed = GROUP_FILTERS.find((g) => g[0] === S.group)?.[2];
   const items = S.state.stocks.filter((s) => (!allowed || allowed.includes(s.group)) && (!q || s.name.toLowerCase().includes(q) || s.ticker.toLowerCase().includes(q)));
   clear(ui.list);
-  if (!items.length) ui.list.append(el('p', { class: 'muted' }, '검색 결과가 없어요.'));
+  if (!items.length) {
+    const noneInGroup = !q && allowed && !S.state.stocks.some((x) => allowed.includes(x.group));
+    ui.list.append(el('div', { class: noneInGroup ? 'notice' : 'muted' }, noneInGroup
+      ? '이 구분의 종목은 아직 이 게임에 없어요. 너굴(운영자)에게 관리자 화면에서 종목을 추가해 달라고 말해 주세요.'
+      : '검색 결과가 없어요.'));
+  }
   for (const s of items) {
     const held = S.state.me.positions.find((p) => p.ticker === s.ticker);
     ui.list.append(el('button', { class: 'stock', onclick: () => { S.selected = s.ticker; S.range = '1d'; setCompact(true); clear(ui.content); renderDetail(); window.scrollTo({ top: 0 }); } },

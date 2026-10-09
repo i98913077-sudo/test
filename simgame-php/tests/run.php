@@ -514,6 +514,18 @@ t('HTTP: 관리자 로그인 → 이벤트 생성/시작 → 참가/거래/랭�
     eq(count($H('GET', 'tickers')['json']['groups']), 5);
 });
 
+t('HTTP: 본문을 base64(b64:...)로 감싸 보내도 동일하게 처리되고, 특수문자 이유가 그대로 저장된다', function () use ($H) {
+    $enc = fn(array $o) => 'b64:' . base64_encode(json_encode($o, JSON_UNESCAPED_UNICODE));
+    $j = $H('POST', 'join', ['raw' => $enc(['nickname' => '너굴B64'])]);
+    eq($j['status'], 200);
+    $tricky = "'; DROP TABLE users;-- <script>alert(1)</script> 따옴표\" 그리고 \"select * from\" 이유입니다";
+    $r = $H('POST', 'trade', ['token' => $j['json']['token'], 'raw' => $enc(['ticker' => '005930', 'side' => 'buy', 'quantity' => 1, 'reason' => $tricky])]);
+    eq($r['status'], 200);
+    $tx = $H('GET', 'transactions', ['token' => $j['json']['token']]);
+    eq($tx['json']['transactions'][0]['reason'], trim(preg_replace('/\s+/u', ' ', $tricky)), '특수문자 이유가 그대로 저장된다');
+    eq($H('POST', 'join', ['raw' => 'b64:@@@not-base64@@@'])['status'], 400);
+});
+
 t('HTTP: 잘못된 경로/메서드/JSON/큰 본문', function () use ($adminTok, $H) {
     eq($H('GET', 'nope')['status'], 404);
     eq($H('GET', 'join')['status'], 405);

@@ -60,12 +60,20 @@ export function apiUrl(path) {
   return new URL(`api.php?r=${route}${query ? `&${query}` : ''}`, document.baseURI).href;
 }
 
+// 요청 본문을 UTF-8 → base64 로 감싸 보낸다. 일부 호스팅의 보안필터가 본문 속 글자(따옴표·기호 등)를 오탐해 400/403으로 막는 것을 피한다.
+function encodeBody(obj) {
+  const bytes = new TextEncoder().encode(JSON.stringify(obj));
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return `b64:${btoa(bin)}`;
+}
+
 export async function api(path, { method = 'GET', body, token } = {}) {
   const headers = {};
   if (body) headers['Content-Type'] = 'text/plain;charset=UTF-8'; // 서버는 본문을 직접 JSON으로 해석한다. 일부 호스팅 보안필터가 application/json POST를 막는 것을 피한다
   if (token) headers['X-Auth-Token'] = token; // Authorization 헤더는 일부 PHP 호스팅이 걸러내서 커스텀 헤더 사용
   let res;
-  try { res = await fetch(apiUrl(path), { method, headers, body: body ? JSON.stringify(body) : undefined }); }
+  try { res = await fetch(apiUrl(path), { method, headers, body: body ? encodeBody(body) : undefined }); }
   catch { throw Object.assign(new Error('네트워크 연결을 확인해주세요.'), { status: 0 }); }
   // 응답을 글자로 먼저 읽고(앞의 BOM 제거) JSON이면 해석한다. 호스팅이 HTML 오류 페이지를 돌려줄 때 원인을 알 수 있게 한다.
   const text = (await res.text().catch(() => '')).replace(/^\uFEFF/, '').trim();
@@ -75,7 +83,8 @@ export async function api(path, { method = 'GET', body, token } = {}) {
     const hint = res.status === 403 || res.status === 406 || res.status === 409
       ? '호스팅의 보안 설정이 요청을 막았을 수 있어요. 호스팅 고객센터에 "api.php POST 요청이 403으로 차단된다"고 문의하세요.'
       : 'api.php가 올바른 JSON을 돌려주지 않았어요. 폴더 위치와 PHP 버전을 확인하세요.';
-    throw Object.assign(new Error(`서버 응답 오류 (${res.status}). ${hint}`), { status: res.status });
+    const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140); // 서버가 실제로 돌려준 문구(원인 확인용)
+    throw Object.assign(new Error(`서버 응답 오류 (${res.status}). ${hint}${snippet ? ` [서버 응답: ${snippet}]` : ' [서버 응답: 내용 없음]'}`), { status: res.status });
   }
   if (!res.ok) throw Object.assign(new Error(data.error ?? `오류가 발생했습니다 (${res.status})`), { status: res.status });
   return data;

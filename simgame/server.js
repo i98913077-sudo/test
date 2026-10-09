@@ -80,7 +80,9 @@ export function createApp({ dbPath = ':memory:', adminPassword, now = Date.now, 
       req.on('end', () => {
         if (!chunks.length) return resolve({});
         try {
-          const v = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+          let text = Buffer.concat(chunks).toString('utf8');
+          if (text.startsWith('b64:')) text = Buffer.from(text.slice(4), 'base64').toString('utf8'); // JSON을 base64로 감싼 형식도 허용
+          const v = JSON.parse(text);
           if (v === null || typeof v !== 'object' || Array.isArray(v)) throw new Error();
           resolve(v);
         } catch { reject(new GameError('JSON 형식이 올바르지 않습니다.')); }

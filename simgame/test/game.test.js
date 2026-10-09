@@ -556,3 +556,20 @@ test('기존 DB(레버리지 컬럼 없는 옛 버전)도 열어서 컬럼을 �
   assert.ok(db.prepare('PRAGMA table_info(transactions)').all().some((c) => c.name === 'leverage'));
   db.close();
 });
+
+test('요청 본문을 base64("b64:...")로 감싸 보내도 동일하게 처리된다 (호스팅 보안필터 우회용 형식)', async () => {
+  const t = await setup();
+  await t.admin('POST', '/api/admin/event', {});
+  await t.admin('POST', '/api/admin/event/start');
+  const enc = (o) => 'b64:' + Buffer.from(JSON.stringify(o), 'utf8').toString('base64');
+  const raw = (p, body, token) => fetch(t.base + p, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=UTF-8', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body });
+  const j = await (await raw('/api/join', enc({ nickname: '너굴' }))).json();
+  assert.ok(j.token);
+  const tricky = `'; DROP TABLE users;-- <script>alert(1)</script> 따옴표" 그리고 "select * from" 이유입니다`;
+  const r = await raw('/api/trade', enc({ ticker: '005930', side: 'buy', quantity: 1, reason: tricky }), j.token);
+  assert.equal(r.status, 200);
+  const tx = await (await fetch(t.base + '/api/transactions', { headers: { Authorization: `Bearer ${j.token}` } })).json();
+  assert.equal(tx.transactions[0].reason, tricky.replace(/\s+/g, ' ').trim(), '특수문자 이유가 그대로 저장된다');
+  assert.equal((await raw('/api/join', 'b64:@@@not-base64@@@')).status, 400);
+  await t.close();
+});

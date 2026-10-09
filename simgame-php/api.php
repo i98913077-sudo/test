@@ -73,6 +73,10 @@ try {
     $body = function (): array {
         $raw = (string)stream_get_contents(fopen('php://input', 'r'), MAX_BODY + 1);
         if (strlen($raw) > MAX_BODY) throw new GameError('요청이 너무 큽니다.', 413);
+        if (str_starts_with($raw, 'b64:')) { // 화면이 보내는 형식: JSON을 base64로 감싼 것 (호스팅 보안필터 오탐 회피)
+            $raw = base64_decode(substr($raw, 4), true);
+            if ($raw === false || strlen($raw) > MAX_BODY) throw new GameError('요청 형식이 올바르지 않습니다.');
+        }
         if ($raw === '') return [];
         $v = json_decode($raw, true);
         if (!is_array($v) || (array_is_list($v) && $v !== [])) throw new GameError('JSON 형식이 올바르지 않습니다.');

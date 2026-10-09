@@ -2,6 +2,9 @@
 declare(strict_types=1);
 // SAFE INVEST API (PHP판). 모든 요청은 api.php?r=<경로> 로 들어온다. (서버 설정/리라이트 불필요)
 define('SIMGAME', 1);
+ob_start(); // 설정/코드 파일 앞의 BOM·공백 등 뜻하지 않은 출력이 JSON을 깨뜨리지 않게 버퍼링
+
+function discard_output(): void { while (ob_get_level() > 0) ob_end_clean(); }
 
 ini_set('display_errors', '0');
 ini_set('serialize_precision', '-1');
@@ -11,6 +14,7 @@ header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: no-referrer');
 
 function out(int $status, $data): void {
+    discard_output();
     http_response_code($status);
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;
@@ -174,6 +178,7 @@ try {
                         $lines[] = implode(',', array_map($csvCell, [gmdate('c', intdiv((int)$t['created_at'], 1000)), $t['nickname'], $t['code'], $t['name'],
                             $t['type'] === 'buy' ? '매수' : '매도', $t['quantity'], $t['price'], $t['realized_pl'], $t['reason']]));
                     }
+                    discard_output();
                     header('Content-Type: text/csv; charset=utf-8');
                     header('Content-Disposition: attachment; filename="transactions.csv"');
                     echo "\xEF\xBB\xBF" . implode("\r\n", $lines);

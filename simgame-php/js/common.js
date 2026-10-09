@@ -62,13 +62,21 @@ export function apiUrl(path) {
 
 export async function api(path, { method = 'GET', body, token } = {}) {
   const headers = {};
-  if (body) headers['Content-Type'] = 'application/json';
+  if (body) headers['Content-Type'] = 'text/plain;charset=UTF-8'; // 서버는 본문을 직접 JSON으로 해석한다. 일부 호스팅 보안필터가 application/json POST를 막는 것을 피한다
   if (token) headers['X-Auth-Token'] = token; // Authorization 헤더는 일부 PHP 호스팅이 걸러내서 커스텀 헤더 사용
   let res;
   try { res = await fetch(apiUrl(path), { method, headers, body: body ? JSON.stringify(body) : undefined }); }
   catch { throw Object.assign(new Error('네트워크 연결을 확인해주세요.'), { status: 0 }); }
+  // 응답을 글자로 먼저 읽고(앞의 BOM 제거) JSON이면 해석한다. 호스팅이 HTML 오류 페이지를 돌려줄 때 원인을 알 수 있게 한다.
+  const text = (await res.text().catch(() => '')).replace(/^\uFEFF/, '').trim();
   let data = {};
-  try { data = await res.json(); } catch { /* 본문 없음 */ }
+  try { data = JSON.parse(text); } catch { data = null; }
+  if (data === null) {
+    const hint = res.status === 403 || res.status === 406 || res.status === 409
+      ? '호스팅의 보안 설정이 요청을 막았을 수 있어요. 호스팅 고객센터에 "api.php POST 요청이 403으로 차단된다"고 문의하세요.'
+      : 'api.php가 올바른 JSON을 돌려주지 않았어요. 폴더 위치와 PHP 버전을 확인하세요.';
+    throw Object.assign(new Error(`서버 응답 오류 (${res.status}). ${hint}`), { status: res.status });
+  }
   if (!res.ok) throw Object.assign(new Error(data.error ?? `오류가 발생했습니다 (${res.status})`), { status: res.status });
   return data;
 }

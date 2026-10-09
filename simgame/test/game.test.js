@@ -522,7 +522,7 @@ test('강제청산(결정적 시나리오): 경계값, 급락 시 손실 한정,
   price = 35_000;
   buy(a);
   price = 30_000;
-  assert.throws(() => g.trade(a, { ticker: 'K200F', side: 'sell', quantity: 1000 }), /보유한 수량/);
+  assert.throws(() => g.trade(a, { ticker: 'K200F', side: 'sell', quantity: 1000 }), /이유를/); // 이제 선물 매도는 새 매도 포지션이라 이유가 필요하다
   const stillGone = g.myState(a).me;
   assert.equal(stillGone.positions.length, 0);
   assert.equal(g.myTransactions(a).filter((x) => x.reason?.includes('강제청산')).length, 3, '청산 기록 3건(시나리오 1·2·4)이 모두 남아 있다');
@@ -553,6 +553,8 @@ test('기존 DB(레버리지 컬럼 없는 옛 버전)도 열어서 컬럼을 �
   const cols = db.prepare('PRAGMA table_info(holdings)').all().map((c) => c.name);
   assert.ok(cols.includes('leverage'));
   assert.equal(db.prepare('SELECT leverage FROM holdings').get().leverage, 1, '기존 보유는 1배(레버리지 없음)');
+  assert.equal(db.prepare('SELECT side FROM holdings').get().side, 'long', '기존 보유는 매수 포지션');
+  assert.ok(db.prepare('PRAGMA table_info(transactions)').all().some((c) => c.name === 'effect'));
   assert.ok(db.prepare('PRAGMA table_info(transactions)').all().some((c) => c.name === 'leverage'));
   db.close();
 });
@@ -572,4 +574,84 @@ test('요청 본문을 base64("b64:...")로 감싸 보내도 동일하게 처리
   assert.equal(tx.transactions[0].reason, tricky.replace(/\s+/g, ' ').trim(), '특수문자 이유가 그대로 저장된다');
   assert.equal((await raw('/api/join', 'b64:@@@not-base64@@@')).status, 400);
   await t.close();
+});
+
+test('선물 매도(매도 포지션): 진입·이익·손실·강제청산(+10%)·부분/전체 청산·방향 전환, 주식은 공매도 불가', async () => {
+  const { openDb } = await import('../lib/db.js');
+  const { createGame } = await import('../lib/game.js');
+  let price = 35000;
+  const fake = { priceAt: () => price, prevClose: () => 35000, todayVolume: () => 1, candles: () => [] };
+  const clock = Date.UTC(2026, 9, 8, 3, 0, 0);
+  const newGame = (tickers = ['K200F', '005930']) => {
+    const g = createGame({ db: openDb(':memory:'), market: fake, now: () => clock });
+    g.createEvent({ tickers }); g.startEvent();
+    return [g, g.authenticate(g.join('A').token)];
+  };
+  const sell = (g, a, quantity, extra = {}) => g.trade(a, { ticker: 'K200F', side: 'sell', quantity, reason: REASON, ...extra });
+  const buy = (g, a, quantity, extra = {}) => g.trade(a, { ticker: 'K200F', side: 'buy', quantity, reason: REASON, ...extra });
+  const OPEN = 100_000_000 - 3_500_000;
+
+  // 1) 보유 없이 매도 → 매도 포지션 진입 (증거금 1/10), 이유 필수
+  let [g, a] = newGame();
+  assert.throws(() => g.trade(a, { ticker: 'K200F', side: 'sell', quantity: 1000 }), /이유를/);
+  let r = sell(g, a, 1000);
+  assert.equal(r.effect, 'open'); assert.equal(r.side_after, 'short'); assert.equal(r.cash_change, -3_500_000); assert.equal(r.realized_pl, null);
+  let me = g.myState(a).me;
+  assert.equal(me.cash, OPEN);
+  assert.equal(me.positions[0].side, 'short'); assert.equal(me.positions[0].margin, 3_500_000);
+  assert.equal(me.total, 100_000_000, '진입 직후 총자산은 그대로');
+
+  // 2) 가격 하락 = 이익 (−5% → 증거금 대비 +50%)
+  price = 33_250;
+  me = g.myState(a).me;
+  assert.equal(me.positions[0].value, 5_250_000);
+  assert.equal(me.positions[0].profit, 1_750_000);
+  assert.ok(Math.abs(me.positions[0].return_rate - 0.5) < 1e-9);
+  // 3) 매수로 청산하면 정산금이 현금으로 (이유 없이도 청산 가능)
+  r = g.trade(a, { ticker: 'K200F', side: 'buy', quantity: 1000 });
+  assert.equal(r.effect, 'close'); assert.equal(r.cash_change, 5_250_000); assert.equal(r.realized_pl, 1_750_000); assert.equal(r.side_after, null);
+  assert.equal(g.myState(a).me.cash, OPEN + 5_250_000);
+
+  // 4) 가격 상승 = 손실, +10% 에서 강제청산 (경계: 38,400 생존 / 38,500 청산)
+  [g, a] = newGame(); price = 35_000; sell(g, a, 1000);
+  price = 38_400; me = g.myState(a).me;
+  assert.equal(me.positions.length, 1); assert.equal(me.positions[0].value, 100_000);
+  price = 38_500; me = g.myState(a).me;
+  assert.equal(me.positions.length, 0); assert.equal(me.cash, OPEN); assert.equal(me.total, OPEN);
+  const liq = g.myTransactions(a).find((x) => x.effect === 'liquidation');
+  assert.equal(liq.type, 'buy', '매도 포지션의 청산은 매수 방향으로 기록'); assert.equal(liq.realized_pl, -3_500_000);
+  price = 60_000; // 급등해도 손실은 증거금까지, 현금은 음수가 되지 않는다
+  assert.ok(g.myState(a).me.cash >= 0);
+
+  // 5) 부분 청산 후 남은 수량 유지, 같은 방향으로 늘리면 평균가 갱신
+  [g, a] = newGame(); price = 35_000; sell(g, a, 1000);
+  price = 34_000; r = g.trade(a, { ticker: 'K200F', side: 'buy', quantity: 400 });
+  assert.equal(r.effect, 'close'); assert.equal(r.closed_qty, 400);
+  me = g.myState(a).me; assert.equal(me.positions[0].quantity, 600); assert.equal(me.positions[0].side, 'short');
+  r = sell(g, a, 400); // 34,000에 400 추가 매도 → 평균가 (600×35,000 + 400×34,000)/1000 = 34,600
+  assert.equal(g.myState(a).me.positions[0].quantity, 1000);
+  assert.equal(g.myState(a).me.positions[0].average_price, 34_600);
+
+  // 6) 방향 전환: 매수 포지션 1000계약을 1500계약 매도 → 1000 청산 + 500 매도 포지션 신규
+  [g, a] = newGame(); price = 35_000; buy(g, a, 1000);
+  price = 36_000; const before = g.myState(a).me.cash;
+  r = sell(g, a, 1500);
+  assert.equal(r.effect, 'flip'); assert.equal(r.closed_qty, 1000); assert.equal(r.opened_qty, 500); assert.equal(r.side_after, 'short');
+  const settle = Math.round(1000 * (36_000 - 35_000 * 0.9));
+  assert.equal(r.realized_pl, settle - 3_500_000);
+  assert.equal(r.cash_change, settle - Math.ceil((36_000 * 500) / 10));
+  me = g.myState(a).me; assert.equal(me.positions.length, 1); assert.equal(me.positions[0].side, 'short'); assert.equal(me.positions[0].quantity, 500);
+  assert.equal(me.cash, before + r.cash_change);
+
+  // 7) 증거금 부족하면 거부, 주식은 공매도 불가
+  [g, a] = newGame(); price = 35_000;
+  assert.throws(() => sell(g, a, 1_000_000), /증거금/); // 명목 350억 → 증거금 35억 > 현금
+  assert.throws(() => g.trade(a, { ticker: '005930', side: 'sell', quantity: 1, reason: REASON }), /보유한 수량/);
+  g.trade(a, { ticker: '005930', side: 'buy', quantity: 2, reason: REASON });
+  assert.throws(() => g.trade(a, { ticker: '005930', side: 'sell', quantity: 3 }), /보유한 수량/);
+
+  // 8) 총자산·순위는 매도 포지션 평가액을 사용한다
+  [g, a] = newGame(); price = 35_000; sell(g, a, 1000); price = 33_250;
+  const rk = g.ranking(g.currentEvent());
+  assert.equal(rk.rows[0].total, OPEN + 5_250_000);
 });

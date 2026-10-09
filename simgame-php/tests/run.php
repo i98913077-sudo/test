@@ -328,7 +328,7 @@ t('강제청산(결정적 시나리오): 경계값, 급락 시 손실 한정, �
     $fake->p = 35000;
     $buy($a);
     $fake->p = 30000;
-    fails(fn() => $g->trade($a, ['ticker' => 'K200F', 'side' => 'sell', 'quantity' => 1000]), 400);
+    fails(fn() => $g->trade($a, ['ticker' => 'K200F', 'side' => 'sell', 'quantity' => 1000]), 400); // 이제 선물 매도는 새 매도 포지션이라 이유가 필요하다
     eq(count($g->myState($a)['me']['positions']), 0);
     $n = count(array_filter($g->myTransactions($a), fn($x) => str_contains((string)$x['reason'], '강제청산')));
     eq($n, 3, '청산 기록 3건이 모두 남아 있다');
@@ -345,6 +345,83 @@ t('강제청산(결정적 시나리오): 경계값, 급락 시 손실 한정, �
     $db = $db2 = null; rmrf($dir); rmrf($dir2);
 });
 
+t('선물 매도(매도 포지션): 진입·이익·손실·강제청산(+10%)·부분/전체 청산·방향 전환, 주식은 공매도 불가', function () {
+    $now = gmmktime(3, 0, 0, 10, 8, 2026) * 1000;
+    $mk = function (array $tickers = ['K200F', '005930']) use ($now) {
+        $dir = tmpdir(); $db = sim_open_db($dir); $fake = new FakeMarket(1);
+        $g = new Game($db, $fake, fn() => $now);
+        $g->createEvent(['tickers' => $tickers]); $g->startEvent();
+        return [$g, $g->authenticate($g->join('A')['token']), $fake, $dir];
+    };
+    $sell = fn($g, $a, int $q, array $x = []) => $g->trade($a, $x + ['ticker' => 'K200F', 'side' => 'sell', 'quantity' => $q, 'reason' => REASON]);
+    $buy = fn($g, $a, int $q, array $x = []) => $g->trade($a, $x + ['ticker' => 'K200F', 'side' => 'buy', 'quantity' => $q, 'reason' => REASON]);
+    $OPEN = 100000000 - 3500000;
+
+    // 1) 보유 없이 매도 → 매도 포지션 진입 (증거금 1/10), 이유 필수
+    [$g, $a, $fk, $d1] = $mk();
+    fails(fn() => $g->trade($a, ['ticker' => 'K200F', 'side' => 'sell', 'quantity' => 1000]), 400);
+    $r = $sell($g, $a, 1000);
+    eq($r['effect'], 'open'); eq($r['side_after'], 'short'); eq($r['cash_change'], -3500000); eq($r['realized_pl'], null);
+    $me = $g->myState($a)['me'];
+    eq($me['cash'], $OPEN); eq($me['positions'][0]['side'], 'short'); eq($me['positions'][0]['margin'], 3500000); eq($me['total'], 100000000);
+
+    // 2) 가격 하락 = 이익 (−5% → 증거금 대비 +50%)
+    $fk->p = 33250;
+    $me = $g->myState($a)['me'];
+    eq($me['positions'][0]['value'], 5250000); eq($me['positions'][0]['profit'], 1750000);
+    check(abs($me['positions'][0]['return_rate'] - 0.5) < 1e-9);
+    // 3) 매수로 청산하면 정산금이 현금으로 (이유 없이도 청산 가능)
+    $r = $g->trade($a, ['ticker' => 'K200F', 'side' => 'buy', 'quantity' => 1000]);
+    eq($r['effect'], 'close'); eq($r['cash_change'], 5250000); eq($r['realized_pl'], 1750000); eq($r['side_after'], null);
+    eq($g->myState($a)['me']['cash'], $OPEN + 5250000);
+    rmrf($d1);
+
+    // 4) 가격 상승 = 손실, +10% 에서 강제청산 (경계: 38,400 생존 / 38,500 청산)
+    [$g, $a, $fk, $d2] = $mk(); $sell($g, $a, 1000);
+    $fk->p = 38400; $me = $g->myState($a)['me'];
+    eq(count($me['positions']), 1); eq($me['positions'][0]['value'], 100000);
+    $fk->p = 38500; $me = $g->myState($a)['me'];
+    eq(count($me['positions']), 0); eq($me['cash'], $OPEN); eq($me['total'], $OPEN);
+    $liq = array_values(array_filter($g->myTransactions($a), fn($x) => $x['effect'] === 'liquidation'))[0];
+    eq($liq['type'], 'buy', '매도 포지션의 청산은 매수 방향으로 기록'); eq((int)$liq['realized_pl'], -3500000);
+    $fk->p = 60000;
+    check($g->myState($a)['me']['cash'] >= 0);
+    rmrf($d2);
+
+    // 5) 부분 청산 후 남은 수량 유지, 같은 방향으로 늘리면 평균가 갱신
+    [$g, $a, $fk, $d3] = $mk(); $sell($g, $a, 1000);
+    $fk->p = 34000; $r = $g->trade($a, ['ticker' => 'K200F', 'side' => 'buy', 'quantity' => 400]);
+    eq($r['effect'], 'close'); eq($r['closed_qty'], 400);
+    $me = $g->myState($a)['me']; eq($me['positions'][0]['quantity'], 600); eq($me['positions'][0]['side'], 'short');
+    $sell($g, $a, 400);
+    eq($g->myState($a)['me']['positions'][0]['quantity'], 1000); eq($g->myState($a)['me']['positions'][0]['average_price'], 34600);
+    rmrf($d3);
+
+    // 6) 방향 전환: 매수 포지션 1000계약을 1500계약 매도 → 1000 청산 + 500 매도 포지션 신규
+    [$g, $a, $fk, $d4] = $mk(); $buy($g, $a, 1000);
+    $fk->p = 36000; $before = $g->myState($a)['me']['cash'];
+    $r = $sell($g, $a, 1500);
+    eq($r['effect'], 'flip'); eq($r['closed_qty'], 1000); eq($r['opened_qty'], 500); eq($r['side_after'], 'short');
+    $settle = (int)round(1000 * (36000 - 35000 * 0.9));
+    eq($r['realized_pl'], $settle - 3500000); eq($r['cash_change'], $settle - (int)ceil(36000 * 500 / 10));
+    $me = $g->myState($a)['me'];
+    eq(count($me['positions']), 1); eq($me['positions'][0]['side'], 'short'); eq($me['positions'][0]['quantity'], 500); eq($me['cash'], $before + $r['cash_change']);
+    rmrf($d4);
+
+    // 7) 증거금 부족하면 거부, 주식은 공매도 불가
+    [$g, $a, $fk, $d5] = $mk();
+    fails(fn() => $sell($g, $a, 1000000), 400);
+    fails(fn() => $g->trade($a, ['ticker' => '005930', 'side' => 'sell', 'quantity' => 1, 'reason' => REASON]), 400);
+    $g->trade($a, ['ticker' => '005930', 'side' => 'buy', 'quantity' => 2, 'reason' => REASON]);
+    fails(fn() => $g->trade($a, ['ticker' => '005930', 'side' => 'sell', 'quantity' => 3]), 400);
+    rmrf($d5);
+
+    // 8) 총자산·순위는 매도 포지션 평가액을 사용한다
+    [$g, $a, $fk, $d6] = $mk(); $sell($g, $a, 1000); $fk->p = 33250;
+    eq($g->ranking($g->currentEvent())['rows'][0]['total'], $OPEN + 5250000);
+    rmrf($d6);
+});
+
 t('기존 DB(레버리지 컬럼 없는 옛 버전)도 열어서 컬럼을 자동 추가한다', function () {
     $dir = tmpdir();
     $file = $dir . '/g_oldtest.sqlite';
@@ -358,6 +435,9 @@ t('기존 DB(레버리지 컬럼 없는 옛 버전)도 열어서 컬럼을 자�
     eq((int)$row['leverage'], 1, '기존 보유는 1배');
     $has = false; foreach ($db->query('PRAGMA table_info(transactions)')->fetchAll() as $c) if ($c['name'] === 'leverage') $has = true;
     check($has, 'transactions.leverage');
+    $hasSide = false; foreach ($db->query('PRAGMA table_info(holdings)')->fetchAll() as $c) if ($c['name'] === 'side') $hasSide = true;
+    check($hasSide, 'holdings.side');
+    eq($db->query('SELECT side FROM holdings')->fetch()['side'], 'long', '기존 보유는 매수 포지션');
     $db = null; rmrf($dir);
 });
 

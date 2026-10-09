@@ -19,6 +19,7 @@ const EDU_CARDS = [
   ['분산이란?', '여러 자산이나 종목에 나누어 담는 개념입니다. 한 곳의 변동이 전체에 미치는 영향이 달라질 수 있습니다.'],
   ['레버리지란?', '적은 돈(증거금)으로 더 큰 금액을 거래하는 방식이에요. 레버리지 10배면 주문금액의 1/10만 내지만 이익도 손실도 10배로 커져요.'],
   ['증거금과 강제청산', '증거금은 레버리지 거래를 위해 맡겨 두는 돈이에요. 가격이 반대로 크게 움직여 증거금을 모두 잃으면 포지션이 강제로 정리(강제청산)돼요.'],
+  ['매도 포지션(공매도)이란?', '가격이 내릴 거라고 보고 먼저 파는 거래예요. 가격이 내리면 이익이지만 오르면 손실이에요. 이 게임에서는 선물에서만 할 수 있고, 증거금을 넘는 손실은 없어요.'],
   ['위험과 수익', '높은 수익 가능성에는 손실 가능성도 함께 존재할 수 있습니다.'],
   ['등락률이란?', '이전 기준 가격 대비 얼마나 올랐거나 내렸는지를 퍼센트로 나타낸 값입니다.'],
   ['평균 매수가(평단)', '여러 번 나누어 샀을 때 한 주당 평균적으로 얼마에 샀는지를 계산한 값입니다.'],
@@ -32,6 +33,17 @@ const MISSIONS = [
 ];
 let eduIdx = Math.floor(Math.random() * EDU_CARDS.length), missionIdx = 0;
 
+const isShortable = (s) => (s?.leverage ?? 1) > 1; // 선물(레버리지 상품)만 매도 포지션 가능
+const sideLabel = (p) => (p.side === 'short' ? '매도 포지션' : '매수 포지션');
+const equityOfC = (qty, avg, lev, price, side) => Math.max(0, Math.round(side === 'short' ? qty * (avg * (1 + 1 / lev) - price) : qty * (price - avg * (1 - 1 / lev))));
+const sideBadge = (p) => (p.leverage > 1 ? el('span', { class: `badge ${p.side === 'short' ? 'short' : 'long'}` }, sideLabel(p)) : null);
+// 체결내역 라벨 (선물은 신규/청산을 구분해서 표시)
+function fillLabel(t) {
+  if (t.effect === 'liquidation') return '강제청산';
+  const base = t.type === 'buy' ? '매수' : '매도';
+  if (!(t.leverage > 1)) return base;
+  return { open: `${base} (신규)`, close: `${base} (${t.type === 'buy' ? '매도' : '매수'} 포지션 청산)`, flip: `${base} (청산 후 신규)` }[t.effect] ?? base;
+}
 const serverNow = () => Date.now() + S.clockOffset;
 const syncClock = (ev) => { if (ev?.server_time) S.clockOffset = ev.server_time - Date.now(); };
 
@@ -221,7 +233,7 @@ function stockPicker() {
 const priceBlock = (s) => el('div', { class: 'pricebox' },
   el('div', { class: `bigprice num ${dir(s.change)}` }, fmt(s.price), el('span', { class: 'unitp' }, 'P')),
   el('div', { class: `num ${dir(s.change)}` }, `${arrow(s.change)} ${fmt(Math.abs(s.change))}P  ${fmtPct(s.change_rate)}`));
-const leverNotice = (s) => ((s.leverage ?? 1) > 1 ? el('div', { class: 'notice small' }, `⚠️ 레버리지 ${s.leverage}배 상품: 주문금액의 1/${s.leverage}만 증거금으로 내고, 손익도 ${s.leverage}배로 커져요. 가격이 약 ${Math.round(100 / s.leverage)}% 반대로 움직이면 증거금을 모두 잃고 강제청산돼요. (가상 포인트로 하는 게임이에요)`) : null);
+const leverNotice = (s) => ((s.leverage ?? 1) > 1 ? el('div', { class: 'notice small' }, `⚠️ 레버리지 ${s.leverage}배 상품: 주문금액의 1/${s.leverage}만 증거금으로 내고, 손익도 ${s.leverage}배로 커져요. 가격이 약 ${Math.round(100 / s.leverage)}% 반대로(매수 포지션은 하락, 매도 포지션은 상승) 움직이면 증거금을 모두 잃고 강제청산돼요. 매수와 매도 모두 가능해요. (가상 포인트로 하는 게임이에요)`) : null);
 
 // ───────────── 관심종목 ─────────────
 function renderWatch() {
@@ -290,11 +302,11 @@ function updateQuote() {
     priceBlock(s), leverNotice(s));
   clear(ui.qActions).append(
     el('button', { class: 'btn buy grow', disabled: !canTrade, onclick: () => selectStock(s.ticker, 'order', 'buy') }, '매수'),
-    el('button', { class: 'btn sell grow', disabled: !canTrade || !held, onclick: () => selectStock(s.ticker, 'order', 'sell') }, '매도'));
+    el('button', { class: 'btn sell grow', disabled: !canTrade || (!held && !isShortable(s)), onclick: () => selectStock(s.ticker, 'order', 'sell') }, '매도'));
   if (!canTrade) ui.qActions.append(el('p', { class: 'muted small' }, S.state.event.status === 'ready' ? '게임 시작 후 거래할 수 있어요.' : '게임이 종료되어 거래할 수 없어요.'));
   clear(ui.qStats).append(el('div', { class: 'stat-grid' },
     stat('전일 종가', fmtP(s.prev_close)), stat('오늘 거래량', `${fmt(s.volume)}${s.unit}`),
-    stat('내 보유', held ? `${fmt(held.quantity)}${held.unit}` : '없음'), stat('내 평균 매수가', held ? fmtP(held.average_price) : '-'),
+    stat('내 보유', held ? `${fmt(held.quantity)}${held.unit}${held.leverage > 1 ? ` (${sideLabel(held)})` : ''}` : '없음'), stat('내 평균 매수가', held ? fmtP(held.average_price) : '-'),
     stat('평가손익', held ? fmtSigned(held.profit) : '-'), stat(held?.leverage > 1 ? '수익률(증거금 대비)' : '수익률', held ? fmtPct(held.return_rate) : '-')));
 }
 
@@ -313,7 +325,7 @@ function renderChartTab() {
     el('div', { class: 'legend small' }, el('span', {}, el('i', { class: 'ma5' }), '이동평균 5'), el('span', {}, el('i', { class: 'ma20' }), '이동평균 20'), el('span', { class: 'muted' }, '아래 막대: 거래량')),
     el('div', { class: 'row actions' },
       el('button', { class: 'btn buy grow', disabled: S.state.event.status !== 'running', onclick: () => selectStock(s.ticker, 'order', 'buy') }, '매수'),
-      el('button', { class: 'btn sell grow', disabled: S.state.event.status !== 'running' || !posOf(s.ticker), onclick: () => selectStock(s.ticker, 'order', 'sell') }, '매도')));
+      el('button', { class: 'btn sell grow', disabled: S.state.event.status !== 'running' || (!posOf(s.ticker) && !isShortable(s)), onclick: () => selectStock(s.ticker, 'order', 'sell') }, '매도')));
   updateChartHead();
   loadChart();
 }
@@ -382,54 +394,85 @@ async function renderOrderBody() {
 }
 
 // 주문 입력 폼. 실제 증권사 주문이 아니라 게임 DB에 가상 거래를 기록한다.
+// 선물은 매수·매도 모두 새 포지션을 열 수 있고, 반대 방향 보유가 있으면 먼저 청산한 뒤 남은 수량으로 새 포지션을 연다.
 function buildTradeForm(side, ticker, onDone) {
   const isBuy = side === 'buy';
   const cur = () => S.state.stocks.find((x) => x.ticker === ticker);
   const held = () => posOf(ticker);
   const levered = (cur().leverage ?? 1) > 1;
-  const needReason = isBuy || S.state.event.sell_reason_required;
   const qty = el('input', { class: 'input', type: 'number', inputmode: 'numeric', min: 1, step: 1, value: '1', id: 'qty', 'aria-label': '수량' });
-  const reason = el('textarea', { class: 'input', id: 'reason', maxlength: 200, placeholder: isBuy ? '예) 요즘 이 회사 제품이 많이 팔린다는 기사를 읽어서, 앞으로도 잘 팔릴 것 같다고 생각했어요.' : '예) 목표했던 만큼 올라서 일부를 팔아 현금을 확보하고 싶어요.', 'aria-label': isBuy ? '매수 이유' : '매도 이유' });
+  const reason = el('textarea', { class: 'input', id: 'reason', maxlength: 200, placeholder: isBuy ? '예) 요즘 이 회사 제품이 많이 팔린다는 기사를 읽어서, 앞으로도 잘 팔릴 것 같다고 생각했어요.' : '예) 목표했던 만큼 올라서 일부를 팔아 현금을 확보하고 싶어요. (선물 신규 매도라면 왜 내릴 거라고 보는지 적어요)', 'aria-label': isBuy ? '매수 이유' : '매도 이유' });
+  const reasonLabel = el('label', { class: 'field', for: 'reason' });
   const count = el('span', { class: 'muted small' }, '0 / 200자');
   const err = el('p', { class: 'err', role: 'alert' });
   const priceLine = el('b', { class: 'num' });
   const amountLine = el('b', { class: 'num' });
   const marginLine = el('b', { class: 'num' });
+  const settleLine = el('b', { class: 'num' });
+  const marginRow = sumLine('필요 증거금', marginLine);
+  const settleRow = sumLine('청산 정산금', settleLine);
+  const effectLine = el('div', { class: 'muted small' });
   const limitLine = el('span', { class: 'num muted' });
   const submit = el('button', { class: `btn ${isBuy ? 'buy' : 'sell'} block` }, isBuy ? '매수 주문' : '매도 주문');
   const getQty = () => (/^\d+$/.test(qty.value.trim()) ? Number(qty.value.trim()) : NaN);
-  const levNow = () => (isBuy ? cur().leverage ?? 1 : held()?.leverage ?? cur().leverage ?? 1);
-  const maxQty = () => (isBuy ? Math.floor((S.state.me.cash * levNow()) / cur().price) : held()?.quantity ?? 0);
-  // 매수: 필요 증거금 / 매도: 예상 정산금(증거금 + 손익, 0 미만이면 0)
-  const marginFor = (n) => (isBuy ? Math.ceil((n * cur().price) / levNow()) : Math.max(0, Math.round(n * (cur().price - (held()?.average_price ?? cur().price) * (1 - 1 / levNow())))));
+  // 주문 계획: 반대 방향 보유는 먼저 청산, 남는 수량은 새 포지션 (주식은 가진 만큼만 매도)
+  function plan(n) {
+    const s = cur(), h = held(), lev = s.leverage ?? 1;
+    const opposes = !!h && ((isBuy && h.side === 'short') || (!isBuy && h.side === 'long'));
+    let close = opposes ? Math.min(n, h.quantity) : 0, open = n - close;
+    if (!isBuy && !levered) { close = n; open = 0; }
+    const proceeds = close > 0 ? equityOfC(close, h.average_price, h.leverage, s.price, h.side) : 0;
+    const margin = open > 0 ? Math.ceil((open * s.price) / lev) : 0;
+    return { close, open, proceeds, margin, opposes, h };
+  }
+  const roomQty = () => Math.floor((S.state.me.cash * (cur().leverage ?? 1)) / cur().price);
+  const maxQty = () => {
+    const h = held();
+    if (!levered) return isBuy ? roomQty() : h?.quantity ?? 0;
+    const closable = h && ((isBuy && h.side === 'short') || (!isBuy && h.side === 'long')) ? h.quantity : 0;
+    return closable + roomQty(); // 청산 + 신규 진입 가능 수량(보수적으로 계산)
+  };
 
   function refresh() {
     const s = cur(), n = getQty();
+    const valid = Number.isFinite(n) && n >= 1;
+    const p = valid ? plan(n) : { close: 0, open: isBuy || levered ? 1 : 0, proceeds: 0, margin: 0 };
+    const needReason = p.open > 0 || S.state.event.sell_reason_required;
     priceLine.textContent = fmtP(s.price);
-    amountLine.textContent = Number.isFinite(n) ? fmtP(n * s.price) : '-';
-    marginLine.textContent = Number.isFinite(n) ? fmtP(marginFor(n)) : '-';
-    limitLine.textContent = isBuy ? `주문가능금액 ${fmtP(S.state.me.cash)} · 최대 ${fmt(maxQty())}${s.unit}` : `매도가능수량 ${fmt(maxQty())}${s.unit}`;
+    amountLine.textContent = valid ? fmtP(n * s.price) : '-';
+    marginLine.textContent = valid ? fmtP(p.margin) : '-';
+    settleLine.textContent = valid ? fmtP(p.proceeds) : '-';
+    marginRow.classList.toggle('hidden', !levered || (valid && p.open === 0));
+    settleRow.classList.toggle('hidden', !levered || !valid || p.close === 0);
+    const h = held();
+    effectLine.textContent = !valid || !levered ? '' : p.close > 0 && p.open > 0 ? `${h.side === 'short' ? '매도' : '매수'} 포지션 ${fmt(p.close)}${s.unit} 청산 후, ${fmt(p.open)}${s.unit} ${isBuy ? '매수' : '매도'} 포지션 신규 진입`
+      : p.close > 0 ? `${h.side === 'short' ? '매도' : '매수'} 포지션 ${fmt(p.close)}${s.unit} 청산` : `${isBuy ? '매수' : '매도'} 포지션 신규 진입`;
+    limitLine.textContent = isBuy ? `주문가능금액 ${fmtP(S.state.me.cash)} · 최대 ${fmt(maxQty())}${s.unit}` : levered ? `매도가능 최대 ${fmt(maxQty())}${s.unit} (보유 청산 + 신규 매도)` : `매도가능수량 ${fmt(maxQty())}${s.unit}`;
+    reasonLabel.textContent = needReason ? `${isBuy ? '매수' : '매도'} 이유 (필수)` : `${isBuy ? '매수' : '매도'} 이유 (선택)`;
     const rl = Array.from(reason.value.trim()).length;
     count.textContent = `${rl} / 200자${needReason ? ' · 최소 10자' : ''}`;
-    submit.disabled = !Number.isFinite(n) || n < 1 || (needReason && rl < 10) || n > maxQty() || S.state.event.status !== 'running';
-    err.textContent = Number.isFinite(n) && n > maxQty() ? (isBuy ? (levered ? '증거금(가상현금)이 부족해요.' : '가상현금이 부족해요.') : '보유 수량보다 많이 팔 수 없어요.') : '';
+    submit.disabled = !valid || (needReason && rl < 10) || n > maxQty() || S.state.event.status !== 'running';
+    err.textContent = valid && n > maxQty() ? (isBuy || levered ? (levered ? '증거금(가상현금)이 부족해요.' : '가상현금이 부족해요.') : '보유 수량보다 많이 팔 수 없어요.') : '';
   }
   const step = (d) => { const n = getQty(); qty.value = String(Math.max(1, (Number.isFinite(n) ? n : 0) + d)); refresh(); };
   qty.addEventListener('input', refresh); reason.addEventListener('input', refresh);
 
   submit.addEventListener('click', () => confirmTrade());
   function confirmTrade() {
-    const s = cur(), n = getQty(), r = reason.value.trim();
+    const s = cur(), n = getQty(), r = reason.value.trim(), p = plan(n);
+    const lev = s.leverage ?? 1;
     const ok = el('button', { class: `btn ${isBuy ? 'buy' : 'sell'} grow` }, isBuy ? '네, 모의 매수 할게요' : '네, 모의 매도 할게요');
     const cerr = el('p', { class: 'err', role: 'alert' });
     const dlg = el('div', { class: 'overlay center', role: 'dialog', 'aria-modal': 'true' }, el('div', { class: 'sheet center' },
       el('h2', {}, isBuy ? '모의 매수 확인' : '모의 매도 확인'),
       el('div', { class: 'card' },
         sumLine('종목', s.name), sumLine('수량', `${fmt(n)}${s.unit}`), sumLine('주문유형', '시장가'), sumLine('예상 체결가', fmtP(s.price)), sumLine(levered ? '명목 거래금액' : '예상 거래금액', fmtP(n * s.price)),
-        levered ? sumLine(isBuy ? '필요 증거금 (현금에서 차감)' : '예상 정산금 (현금으로 입금)', fmtP(marginFor(n))) : null,
-        levered ? sumLine('레버리지', `${levNow()}배`) : null,
+        levered && p.open > 0 ? sumLine('필요 증거금 (현금에서 차감)', fmtP(p.margin)) : null,
+        levered && p.close > 0 ? sumLine('예상 정산금 (현금으로 입금)', fmtP(p.proceeds)) : null,
+        levered ? sumLine('레버리지', `${lev}배`) : null,
+        levered ? el('div', { class: 'muted small' }, effectLine.textContent) : null,
         r ? el('div', { class: 'reason-item' }, `${isBuy ? '매수' : '매도'} 이유: ${r}`) : null),
-      levered && isBuy ? el('div', { class: 'notice small' }, `⚠️ 손익이 ${levNow()}배로 커져요. 가격이 약 ${Math.round(100 / levNow())}% 반대로 움직이면 증거금을 모두 잃고 강제청산돼요.`) : null,
+      levered && p.open > 0 ? el('div', { class: 'notice small' }, `⚠️ 손익이 ${lev}배로 커져요. 가격이 약 ${Math.round(100 / lev)}% 반대로(${isBuy ? '하락' : '상승'}) 움직이면 증거금을 모두 잃고 강제청산돼요.`) : null,
       el('p', { class: 'muted small' }, '실제 주문이 아니에요. 확인하는 순간의 게임 가격으로 체결돼요. 가격이 바뀌면 체결 금액도 달라질 수 있어요.'),
       cerr, el('div', { class: 'row' }, el('button', { class: 'btn grow', onclick: () => dlg.remove() }, '돌아가기'), ok)));
     ok.addEventListener('click', async () => {
@@ -438,7 +481,8 @@ function buildTradeForm(side, ticker, onDone) {
         const res = await api('/api/trade', { method: 'POST', token: store.token, body: { ticker, side, quantity: n, reason: r || undefined } });
         S.state = res.state; syncClock(S.state.event); txCache = null;
         dlg.remove(); renderSummary();
-        toast(`${isBuy ? '모의 매수' : '모의 매도'} 체결: ${res.trade.name} ${fmt(res.trade.quantity)}${res.trade.unit} @ ${fmtP(res.trade.price)}`);
+        const eff = levered ? ({ open: ' · 신규', close: ' · 청산', flip: ' · 청산 후 신규' }[res.trade.effect] ?? '') : '';
+        toast(`${isBuy ? '모의 매수' : '모의 매도'} 체결${eff}: ${res.trade.name} ${fmt(res.trade.quantity)}${res.trade.unit} @ ${fmtP(res.trade.price)}`);
         updateOrderHead();
         onDone();
       } catch (e) {
@@ -450,12 +494,13 @@ function buildTradeForm(side, ticker, onDone) {
   }
 
   const quick = isBuy ? [['25%', 0.25], ['50%', 0.5], ['최대', 1]] : [['절반', 0.5], ['전량', 1]];
-  const noHolding = !isBuy && !held();
+  const noHolding = !isBuy && !levered && !held();
   const node = el('div', { class: `card order-form ${isBuy ? 'is-buy' : 'is-sell'}` },
     sumLine('주문유형', '시장가'),
     el('div', { class: 'muted small' }, '현재 게임가격에 바로 체결돼요.'),
     sumLine('현재 게임 가격', priceLine),
     levered ? leverNotice(cur()) : null,
+    levered && !isBuy ? el('div', { class: 'notice small' }, '선물은 보유가 없어도 매도할 수 있어요. 매도 포지션은 가격이 내리면 이익, 오르면 손실이에요.') : null,
     noHolding ? el('div', { class: 'notice small' }, '이 종목을 보유하고 있지 않아 매도할 수 없어요. 먼저 매수해 보세요.') : null,
     el('label', { class: 'field', for: 'qty' }, `주문수량 (${cur().unit})`),
     el('div', { class: 'qty-row' },
@@ -464,9 +509,8 @@ function buildTradeForm(side, ticker, onDone) {
     el('div', { class: 'row' }, ...quick.map(([label, f]) => el('button', { class: 'btn sm grow', onclick: () => { qty.value = String(Math.max(1, Math.floor(maxQty() * f))); refresh(); } }, label))),
     el('div', { class: 'row between small' }, limitLine),
     sumLine(levered ? '명목 거래금액' : '예상 거래금액', amountLine),
-    levered ? sumLine(isBuy ? '필요 증거금' : '예상 정산금', marginLine) : null,
-    el('label', { class: 'field', for: 'reason' }, isBuy ? '매수 이유 (필수)' : (needReason ? '매도 이유 (필수)' : '매도 이유 (선택)')),
-    reason, el('div', { class: 'row between' }, count),
+    marginRow, settleRow, effectLine,
+    reasonLabel, reason, el('div', { class: 'row between' }, count),
     err, submit);
   return { node, refresh };
 }
@@ -477,7 +521,7 @@ async function renderFills(box) {
   if (!box.isConnected) return;
   clear(box).append(el('div', { class: 'card' }, el('h2', {}, '체결내역'),
     txCache.length ? el('div', {}, ...txCache.map((t) => el('div', { class: 'pos' },
-      el('div', { class: 'row between' }, el('b', { class: t.type === 'buy' ? 'up' : 'down' }, `${t.type === 'buy' ? '매수' : '매도'} · ${t.name}`), el('span', { class: 'muted small' }, fmtTime(t.created_at))),
+      el('div', { class: 'row between' }, el('b', { class: t.type === 'buy' ? 'up' : 'down' }, `${fillLabel(t)} · ${t.name}`), el('span', { class: 'muted small' }, fmtTime(t.created_at))),
       el('div', { class: 'small num' }, `${fmt(t.quantity)}${t.unit} @ ${fmtP(t.price)} = ${fmtP(t.quantity * t.price)}`),
       t.realized_pl != null ? el('div', { class: `small ${dir(t.realized_pl)}` }, `실현손익 ${fmtSigned(t.realized_pl)}`) : null,
       t.reason ? el('div', { class: 'reason-item small' }, t.reason) : null))) : el('p', { class: 'muted' }, '아직 체결내역이 없어요.')));
@@ -489,7 +533,7 @@ async function renderAccount(silent) {
   if (!silent || !txCache) { try { txCache = (await api('/api/transactions', { token: store.token })).transactions; } catch { txCache ??= []; } }
   if (S.tab !== 'account') return;
   const openKeys = new Set([...ui.content.querySelectorAll('details[open]')].map((d) => d.dataset.k));
-  const reasonsBy = (ticker) => txCache.filter((t) => t.ticker === ticker && t.type === 'buy' && t.reason);
+  const reasonsBy = (ticker) => txCache.filter((t) => t.ticker === ticker && t.reason && t.effect !== 'liquidation' && (t.effect === 'open' || t.effect === 'flip' || t.type === 'buy'));
   const totalPl = me.total - event.initial_balance;
   clear(ui.content).append(
     el('div', { class: 'card acct' },
@@ -505,12 +549,12 @@ async function renderAccount(silent) {
       me.positions.length === 0 ? el('p', { class: 'muted' }, '아직 보유한 종목이 없어요. 관심종목에서 종목을 골라 매수해 보세요.') : null,
       ...me.positions.map((p) => el('div', { class: 'holding' },
         el('button', { class: 'hrow', onclick: () => openActionSheet(p) },
-          el('div', { class: 'row between' }, el('b', {}, p.name), el('b', { class: `num ${dir(p.profit)}` }, fmtSigned(p.profit))),
+          el('div', { class: 'row between' }, el('b', {}, p.name, ' ', sideBadge(p)), el('b', { class: `num ${dir(p.profit)}` }, fmtSigned(p.profit))),
           el('div', { class: 'row between small num' }, el('span', { class: 'muted' }, `${fmt(p.quantity)}${p.unit} · 평균 ${fmtP(p.average_price)}`), el('b', { class: dir(p.return_rate) }, `${arrow(p.return_rate)} ${fmtPct(p.return_rate)}`)),
           el('div', { class: 'row between small num muted' }, el('span', {}, `현재가 ${fmtP(p.price)}`), el('span', {}, `평가 ${fmtP(p.value)}`)),
           p.leverage > 1 ? el('div', { class: 'small muted num' }, `레버리지 ${p.leverage}배 · 증거금 ${fmtP(p.margin)} (수익률은 증거금 대비)`) : null),
         reasonsBy(p.ticker).length ? el('details', { class: 'reasons', 'data-k': p.ticker, open: openKeys.has(p.ticker) },
-          el('summary', {}, '내가 적은 매수 이유'), ...reasonsBy(p.ticker).map((t) => el('div', { class: 'reason-item' }, `${fmtTime(t.created_at)} · ${fmt(t.quantity)}${t.unit} @ ${fmtP(t.price)}\n${t.reason}`))) : null))),
+          el('summary', {}, '내가 적은 진입 이유'), ...reasonsBy(p.ticker).map((t) => el('div', { class: 'reason-item' }, `${fmtTime(t.created_at)} · ${fmt(t.quantity)}${t.unit} @ ${fmtP(t.price)}\n${t.reason}`))) : null))),
     el('button', { class: 'btn block', onclick: () => { S.side = 'fills'; showTab('order'); } }, '🧾 체결내역 보기'));
 }
 // 보유종목을 누르면 나오는 바로가기 (실제 MTS의 종목 메뉴처럼)
@@ -519,7 +563,7 @@ function openActionSheet(p) {
   const running = S.state.event.status === 'running';
   const go = (tab, side) => { overlay.remove(); selectStock(p.ticker, tab, side); };
   const overlay = el('div', { class: 'overlay', role: 'dialog', 'aria-modal': 'true' }, el('div', { class: 'sheet' },
-    el('div', { class: 'row between' }, el('h2', {}, p.name), el('button', { class: 'btn sm', onclick: () => overlay.remove(), 'aria-label': '닫기' }, '✕')),
+    el('div', { class: 'row between' }, el('h2', {}, p.name, ' ', sideBadge(p)), el('button', { class: 'btn sm', onclick: () => overlay.remove(), 'aria-label': '닫기' }, '✕')),
     el('div', { class: 'muted small num' }, `${fmt(p.quantity)}${p.unit} · 평균 ${fmtP(p.average_price)} · 현재가 ${fmtP(p.price)}`),
     el('div', { class: 'action-grid' },
       el('button', { class: 'btn buy', disabled: !running, onclick: () => go('order', 'buy') }, '매수'),
@@ -582,7 +626,7 @@ function renderGuide() {
     el('div', { class: 'card' }, el('h3', {}, '이 게임의 규칙'),
       el('p', {}, '• 모든 주문은 시장가로, 확인하는 순간의 게임 가격에 바로 체결돼요.'),
       el('p', {}, '• 가격은 수업용 샘플(DEMO)이며 실제 시세가 아니에요.'),
-      el('p', {}, '• 선물은 레버리지 10배예요. 증거금만 내고 거래하며, 손익도 10배로 커지고, 약 10% 반대로 움직이면 강제청산돼요. 공매도와 만기는 없어요.'),
+      el('p', {}, '• 선물은 레버리지 10배예요. 증거금만 내고 거래하며, 손익도 10배로 커져요. 매수·매도 모두 가능하고(매도는 가격이 내리면 이익), 약 10% 반대로 움직이면(매수는 하락, 매도는 상승) 강제청산돼요. 만기는 없어요. 주식은 가진 만큼만 팔 수 있어요.'),
       el('p', {}, '• 매수할 때는 이유를 적어야 해요. 다른 사람의 이유는 게임이 끝난 뒤(또는 너굴이 정한 때) 공개돼요.')));
 }
 
@@ -615,7 +659,7 @@ async function openCompare(code) {
   const detail = (p) => !p.details_visible
     ? el('div', { class: 'card muted' }, `🔒 ${p.nickname}님의 보유 종목과 매수 이유는 ${c.reveal_mode === 'after_end' ? '게임이 끝난 뒤' : '너굴이 공개하면'} 볼 수 있어요.`)
     : el('div', { class: 'card' }, el('h3', {}, `${p.nickname}님의 포트폴리오`),
-      p.positions.length ? el('div', {}, ...p.positions.map((x) => el('div', { class: 'sum-line' }, el('span', {}, `${x.name} ${fmt(x.quantity)}${x.unit}`), el('b', { class: `num ${dir(x.return_rate)}` }, fmtPct(x.return_rate))))) : el('p', { class: 'muted small' }, '보유한 주식이 없어요.'),
+      p.positions.length ? el('div', {}, ...p.positions.map((x) => el('div', { class: 'sum-line' }, el('span', {}, `${x.name} ${fmt(x.quantity)}${x.unit}${x.leverage > 1 ? ` (${sideLabel(x)})` : ''}`), el('b', { class: `num ${dir(x.return_rate)}` }, fmtPct(x.return_rate))))) : el('p', { class: 'muted small' }, '보유한 주식이 없어요.'),
       el('div', { class: 'sum-line small muted' }, el('span', {}, '가상현금'), el('span', { class: 'num' }, fmtP(p.cash))),
       p.reasons.length ? el('details', { class: 'reasons', open: true }, el('summary', {}, '거래 이유'), ...p.reasons.map((t) => el('div', { class: 'reason-item' }, `${t.type === 'buy' ? '매수' : '매도'} · ${t.name} ${fmt(t.quantity)}${t.unit}\n${t.reason}`))) : null);
   const diff = c.other ? c.me.return_rate - c.other.return_rate : null;

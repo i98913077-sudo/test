@@ -46,6 +46,7 @@ export function openDb(path = ':memory:') {
       quantity INTEGER NOT NULL CHECK (quantity > 0),
       average_price REAL NOT NULL,
       leverage INTEGER NOT NULL DEFAULT 1,
+      side TEXT NOT NULL DEFAULT 'long',
       PRIMARY KEY (user_id, ticker)
     );
     CREATE TABLE IF NOT EXISTS transactions (
@@ -59,16 +60,21 @@ export function openDb(path = ':memory:') {
       reason TEXT,
       realized_pl INTEGER,
       leverage INTEGER NOT NULL DEFAULT 1,
+      effect TEXT,
       created_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_tx_event ON transactions(event_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_tx_user ON transactions(user_id, created_at);
   `);
   // 이미 만들어진 DB(레버리지 도입 전)에는 컬럼을 안전하게 추가한다.
-  for (const table of ['holdings', 'transactions']) {
+  const addCol = (table, col, ddl) => {
     const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
-    if (!cols.includes('leverage')) db.exec(`ALTER TABLE ${table} ADD COLUMN leverage INTEGER NOT NULL DEFAULT 1`);
-  }
+    if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`);
+  };
+  addCol('holdings', 'leverage', 'INTEGER NOT NULL DEFAULT 1');
+  addCol('transactions', 'leverage', 'INTEGER NOT NULL DEFAULT 1');
+  addCol('holdings', 'side', "TEXT NOT NULL DEFAULT 'long'"); // 매수 포지션(long) / 매도 포지션(short)
+  addCol('transactions', 'effect', 'TEXT'); // open / close / flip / liquidation
   return db;
 }
 

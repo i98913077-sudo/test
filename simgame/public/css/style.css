@@ -186,3 +186,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .qty-row { flex-wrap: wrap; }
 .qty-row .input { order: -1; flex: 1 1 100%; }
 .qty-btn { flex: 1 1 0; min-width: 0; }
+
+.badge { display: inline-block; border-radius: 6px; padding: 1px 7px; font-size: .72rem; font-weight: 800; vertical-align: middle; }
+.badge.long { background: #ffe3e1; color: #a3231b; }
+.badge.short { background: #dbeafe; color: #1d4ed8; }

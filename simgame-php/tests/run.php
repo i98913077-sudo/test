@@ -218,6 +218,21 @@ t('시작 자금·종목은 참가자가 있으면 변경 불가, 초기화하�
     rmrf($d);
 });
 
+t('이미 만든 이벤트에도 종목을 추가할 수 있고, 참가자가 있으면 빼는 것만 막는다', function () {
+    [$g, $c, $d] = started(['tickers' => ['005930', '000660']]);
+    [$a] = player($g);
+    $g->trade($a, ['ticker' => '005930', 'side' => 'buy', 'quantity' => 2, 'reason' => REASON]);
+    eq(count($g->myState($a)['stocks']), 2);
+    $g->updateEvent(['tickers' => ['005930', '000660', 'NVDA', 'WTI', 'K200F']]);
+    $st = $g->myState($a);
+    eq(array_column($st['stocks'], 'ticker'), ['005930', '000660', 'NVDA', 'K200F', 'WTI'], '표 순서대로 정렬');
+    eq($st['me']['positions'][0]['quantity'], 2, '기존 보유 유지');
+    $g->trade($a, ['ticker' => 'NVDA', 'side' => 'buy', 'quantity' => 1, 'reason' => REASON]);
+    fails(fn() => $g->updateEvent(['tickers' => ['000660', 'NVDA']]), 409);
+    eq(count($g->myState($a)['stocks']), 5);
+    rmrf($d);
+});
+
 t('입력 검증: 시작자금/종목/진행시간/이름/중복 이벤트', function () {
     [$g, $c, $d] = fresh();
     foreach ([['initial_balance' => -1], ['initial_balance' => 1.5], ['tickers' => ['abc']], ['tickers' => []], ['duration_min' => 0],

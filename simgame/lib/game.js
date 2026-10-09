@@ -97,9 +97,9 @@ export function createGame({ db, market, now = Date.now }) {
   function validateTickers(list) {
     if (list == null) return TICKERS.map((t) => t.ticker);
     if (!Array.isArray(list) || list.length < 1 || list.length > TICKERS.length) throw new GameError('종목은 1개 이상 선택해야 합니다.');
-    const set = [...new Set(list.map(String))];
-    if (!set.every((t) => TICKER_MAP.has(t))) throw new GameError('알 수 없는 종목이 포함되어 있습니다.');
-    return set;
+    const set = new Set(list.map(String));
+    if (![...set].every((t) => TICKER_MAP.has(t))) throw new GameError('알 수 없는 종목이 포함되어 있습니다.');
+    return TICKERS.map((t) => t.ticker).filter((t) => set.has(t)); // 표의 순서대로 정렬
   }
   function validateBalance(v) {
     if (v == null) return LIMITS.defaultBalance;
@@ -156,8 +156,12 @@ export function createGame({ db, market, now = Date.now }) {
       next.initial_balance = validateBalance(input.initial_balance);
     }
     if ('tickers' in input) {
-      if (hasPlayers) throw new GameError('참가자가 있으면 종목 목록을 바꿀 수 없습니다. 초기화 후 변경하세요.', 409);
-      next.tickers = validateTickers(input.tickers);
+      const nt = validateTickers(input.tickers);
+      // 종목을 "추가"하는 것은 기존 보유에 영향이 없어 참가자가 있어도 허용. 빼는 것만 막는다.
+      if (hasPlayers && !ev.tickers.every((t) => nt.includes(t))) {
+        throw new GameError('참가자가 있으면 종목을 추가만 할 수 있습니다. 종목을 빼려면 초기화 후 변경하세요.', 409);
+      }
+      next.tickers = nt;
     }
     // 진행 중 종료 시간 조정: 지금부터 N분 뒤에 끝나도록
     if ('end_in_min' in input && ev.status === 'running') {

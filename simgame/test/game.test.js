@@ -399,3 +399,23 @@ test('기본 종목: 국내·미국 시총 상위, 지수선물, 달러, 원유�
   assert.equal(tk.groups.length, 5);
   await t.close();
 });
+
+test('이미 만든 이벤트에도 종목을 추가할 수 있고, 참가자가 있으면 빼는 것만 막는다', async () => {
+  const t = await setup();
+  await t.admin('POST', '/api/admin/event', { tickers: ['005930', '000660'] });
+  await t.admin('POST', '/api/admin/event/start');
+  const { token } = await t.call('POST', '/api/join', { body: { nickname: 'A' } });
+  await t.call('POST', '/api/trade', { token, body: { ticker: '005930', side: 'buy', quantity: 2, reason: REASON } });
+  assert.equal((await t.call('GET', '/api/state', { token })).stocks.length, 2);
+  // 추가는 허용 (참가자·보유가 있어도)
+  const add = await t.admin('PATCH', '/api/admin/event', { tickers: ['005930', '000660', 'NVDA', 'WTI', 'K200F'] });
+  assert.equal(add.status, 200);
+  const st = await t.call('GET', '/api/state', { token });
+  assert.deepEqual(st.stocks.map((x) => x.ticker), ['005930', '000660', 'NVDA', 'K200F', 'WTI'], '표 순서대로 정렬');
+  assert.equal(st.me.positions[0].quantity, 2, '기존 보유는 그대로');
+  assert.equal((await t.call('POST', '/api/trade', { token, body: { ticker: 'NVDA', side: 'buy', quantity: 1, reason: REASON } })).status, 200);
+  // 빼는 것은 막는다 (보유 중 종목 포함)
+  assert.equal((await t.admin('PATCH', '/api/admin/event', { tickers: ['000660', 'NVDA'] })).status, 409);
+  assert.equal((await t.call('GET', '/api/state', { token })).stocks.length, 5);
+  await t.close();
+});

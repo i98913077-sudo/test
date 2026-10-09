@@ -112,6 +112,7 @@ function eventCard(ev) {
   const extend = el('input', { class: 'input', type: 'number', min: 1, placeholder: '지금부터 N분 뒤 종료' });
   const mode = el('select', { class: 'input' }, el('option', { value: 'after_end', selected: ev.reason_reveal_mode === 'after_end' }, '게임 종료 후 공개'), el('option', { value: 'live', selected: ev.reason_reveal_mode === 'live' }, '실시간 공개'));
   const sellReq = el('input', { type: 'checkbox', checked: ev.sell_reason_required });
+  const picker = tickerPicker(ev.tickers);
   return el('div', { class: 'card' },
     el('div', { class: 'row between' }, el('h2', {}, `이벤트: ${ev.name}`), el('span', { class: 'pill' }, status)),
     el('div', { class: 'muted small' }, `시작 자금 ${fmtP(ev.initial_balance)} · ${ev.tickers.length}개 종목 · 참가자 ${ev.participants}명 · 시작 ${ev.start_at ? fmtTime(ev.start_at) : '-'} · 종료 예정 ${ev.end_at ? fmtTime(ev.end_at) : (ev.duration_min ? `시작 후 ${ev.duration_min}분` : '직접 종료')}`),
@@ -122,7 +123,8 @@ function eventCard(ev) {
     ev.status !== 'ended' ? el('div', {},
       field('매수 이유 공개 시점', mode), el('label', { class: 'check' }, sellReq, el('span', {}, '매도 이유도 필수로 받기')),
       ev.status === 'running' ? field('종료 시간 조정', extend, '비워두고 저장하면 변경하지 않아요.') : null,
-      el('button', { class: 'btn sm', onclick: run(() => call('/api/admin/event', { method: 'PATCH', body: { reason_reveal_mode: mode.value, sell_reason_required: sellReq.checked, ...(extend.value ? { end_in_min: Number(extend.value) } : {}) } }), '설정을 저장했어요') }, '설정 저장')) : null,
+      el('b', {}, '거래 종목'), el('p', { class: 'muted small' }, ev.participants > 0 ? '참가자가 있어서 종목은 추가만 할 수 있어요. (빼려면 초기화 후 변경)' : '구분별로 켜고 끌 수 있어요.'), picker.node,
+      el('button', { class: 'btn sm', onclick: run(() => call('/api/admin/event', { method: 'PATCH', body: { reason_reveal_mode: mode.value, sell_reason_required: sellReq.checked, tickers: picker.get(), ...(extend.value ? { end_in_min: Number(extend.value) } : {}) } }), '설정을 저장했어요') }, '설정 저장')) : null,
     err);
 }
 

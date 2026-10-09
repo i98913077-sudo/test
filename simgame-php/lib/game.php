@@ -115,7 +115,7 @@ final class Game {
         if (!is_array($list) || count($list) < 1 || count($list) > count($all)) throw new GameError('종목은 1개 이상 선택해야 합니다.');
         $set = array_values(array_unique(array_map('strval', $list)));
         foreach ($set as $t) if (!isset(Market::TICKERS[$t])) throw new GameError('알 수 없는 종목이 포함되어 있습니다.');
-        return $set;
+        return array_values(array_filter($all, fn($t) => in_array($t, $set, true))); // 표의 순서대로 정렬
     }
     private function validateBalance($v): int {
         if ($v === null) return self::DEFAULT_BALANCE;
@@ -170,8 +170,12 @@ final class Game {
             $next['initial_balance'] = $this->validateBalance($in['initial_balance']);
         }
         if (array_key_exists('tickers', $in)) {
-            if ($hasPlayers) throw new GameError('참가자가 있으면 종목 목록을 바꿀 수 없습니다. 초기화 후 변경하세요.', 409);
-            $next['tickers'] = $this->validateTickers($in['tickers']);
+            $nt = $this->validateTickers($in['tickers']);
+            // 종목을 "추가"하는 것은 기존 보유에 영향이 없어 참가자가 있어도 허용. 빼는 것만 막는다.
+            if ($hasPlayers && count(array_diff($ev['tickers'], $nt)) > 0) {
+                throw new GameError('참가자가 있으면 종목을 추가만 할 수 있습니다. 종목을 빼려면 초기화 후 변경하세요.', 409);
+            }
+            $next['tickers'] = $nt;
         }
         if (array_key_exists('end_in_min', $in) && $ev['status'] === 'running') {
             $m = $this->validateDuration($in['end_in_min']);

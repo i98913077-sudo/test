@@ -1,0 +1,21 @@
+# Apache 호스팅용 설정 (다른 서버에서는 무시될 수 있음)
+Options -Indexes
+DirectoryIndex index.html
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "no-referrer"
+  # 같은 도메인의 홈페이지에서 iframe으로 넣는 것은 허용합니다. 다른 도메인에서 넣으려면 'self' 뒤에 주소를 추가하세요.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+</IfModule>
+
+# 설정/코드/DB 파일은 웹에서 직접 열리지 않게 막기
+<FilesMatch "^(config\.php|.*\.sqlite|.*\.md)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

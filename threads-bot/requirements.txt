@@ -1,0 +1,2 @@
+requests>=2.31
+anthropic>=1.0  # AI 댓글 모드(ai.enabled)에서만 필요

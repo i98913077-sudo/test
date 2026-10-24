@@ -6,6 +6,7 @@
 - `screenplay/` 영화대본 PDF (정식본, 병맛 B급본, 완결본 + 41컷 컷리스트)
 - `src/` 대본 원본 텍스트와 PDF 제작 스크립트
 - `assets/` 영상 링크 등
+- `threads-bot/` Threads 자동 홍보 봇 (자동 게시·멘션 답글·댓글 응대·키워드 댓글)
 
 ## 영상
 - 20초 연결본(한글 자막): https://d2ol7oe51mr4n9.cloudfront.net/user_3CZ4NxhrcqKYJP84LKj5qzklUJg/e1848dc9-5fe4-4441-956f-6a343f6a30f1.mp4

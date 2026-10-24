@@ -109,6 +109,15 @@ def ai_reply(ai_cfg, rule, post):
     return text
 
 
+def maybe_add_link(rule, text):
+    """홍보 링크는 매번이 아니라 link_probability 확률로만 붙인다 (스팸 판정 방지)."""
+    link = rule.get("link")
+    if not link or random.random() >= rule.get("link_probability", 0.3):
+        return text
+    text = text[:MAX_TEXT - len(link) - 1]
+    return f"{text}\n{link}"
+
+
 # ---------------------------------------------------------------- 상태 저장
 
 class State:
@@ -202,7 +211,7 @@ def run_once(api, cfg, state, me, live):
                     if live:
                         state.record(post["id"], post.get("username"))
                     continue
-                text = text[:MAX_TEXT]
+                text = maybe_add_link(rule, text[:MAX_TEXT])
 
                 snippet = (post.get("text") or "").replace("\n", " ")[:60]
                 log(f"  @{post.get('username')}: {snippet}")

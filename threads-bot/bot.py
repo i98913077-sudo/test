@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
-"""Threads 키워드 자동 댓글 봇.
+"""Threads 자동 홍보 봇.
 
-공식 Threads API(graph.threads.net)로 키워드를 검색하고, 규칙에 맞는 글에
-템플릿 또는 AI(Claude)로 만든 댓글을 답니다.
+공식 Threads API(graph.threads.net)로 아래 일을 자동으로 합니다.
+켜고 끄는 건 config.json에서 합니다.
+
+  1. mentions  : 누가 @내계정 을 태그하면 답글 (그록 방식)
+  2. comments  : 내 글에 달린 댓글에 답글
+  3. auto_post : 홍보 글을 정해진 간격마다 내 계정에 게시
+  4. rules     : 키워드 검색해서 남의 글에 댓글 (Meta 앱 검수 후 동작)
 
     python bot.py               # 1회 실행, 미리보기(실제 게시 X)
     python bot.py --live        # 1회 실행, 실제로 댓글 게시
@@ -65,11 +70,27 @@ class Threads:
                           search_type=search_type, fields=POST_FIELDS, limit=limit)
         return data.get("data", [])
 
-    def reply(self, post_id, text):
-        container = self._call("POST", "me/threads", media_type="TEXT",
-                               text=text, reply_to_id=post_id)
+    def mentions(self, limit=25):
+        return self._call("GET", "me/mentions", fields=POST_FIELDS, limit=limit).get("data", [])
+
+    def my_posts(self, limit=10):
+        return self._call("GET", "me/threads", fields=POST_FIELDS, limit=limit).get("data", [])
+
+    def replies(self, post_id):
+        return self._call("GET", f"{post_id}/replies", fields=POST_FIELDS).get("data", [])
+
+    def publish(self, text, reply_to_id=None, topic_tag=None):
+        params = {"media_type": "TEXT", "text": text}
+        if reply_to_id:
+            params["reply_to_id"] = reply_to_id
+        if topic_tag:
+            params["topic_tag"] = topic_tag
+        container = self._call("POST", "me/threads", **params)
         time.sleep(3)  # 컨테이너 처리 대기
         return self._call("POST", "me/threads_publish", creation_id=container["id"])
+
+    def reply(self, post_id, text):
+        return self.publish(text, reply_to_id=post_id)
 
 
 # ---------------------------------------------------------------- 댓글 생성
@@ -79,13 +100,16 @@ def template_reply(rule, post):
     return text.replace("{username}", post.get("username", ""))
 
 
-def ai_reply(ai_cfg, rule, post):
+def ai_reply(ai_cfg, rule, post, parent=None):
     import anthropic  # AI 모드에서만 필요
 
     client = anthropic.Anthropic()
     hint = rule.get("ai_hint", "")
+    context = ""
+    if parent:
+        context = f"내가 쓴 원래 글:\n<my_post>\n{parent.get('text', '')}\n</my_post>\n\n그 글에 달린 댓글:\n"
     prompt = (
-        f"다음은 Threads 게시글입니다.\n\n<post>\n{post.get('text', '')}\n</post>\n\n"
+        f"다음은 Threads 게시글입니다.\n\n{context}<post>\n{post.get('text', '')}\n</post>\n\n"
         f"이 글에 달 댓글을 한국어로 하나만 작성하세요. {hint}\n"
         f"- {ai_cfg.get('max_chars', 200)}자 이내, 자연스러운 반말/존댓말은 글쓴이 말투에 맞추기\n"
         "- 글 내용에 실제로 반응할 것 (복붙 같은 홍보 문구 금지)\n"
@@ -140,6 +164,17 @@ class State:
     def user_replied_today(self, username):
         return self.data["users"].get(username) == self.today()
 
+    def last_auto_post(self):
+        ts = self.data.get("last_auto_post")
+        return datetime.fromisoformat(ts) if ts else None
+
+    def next_auto_post_index(self):
+        return self.data.get("auto_post_index", 0)
+
+    def record_auto_post(self):
+        self.data["last_auto_post"] = datetime.now(timezone.utc).isoformat()
+        self.data["auto_post_index"] = self.next_auto_post_index() + 1
+
     def record(self, post_id, username):
         self.data["replied"] = (self.data["replied"] + [post_id])[-5000:]
         self.data["daily"] = {self.today(): self.today_count() + 1}
@@ -161,83 +196,175 @@ def is_recent(post, max_age_hours):
     return datetime.now(timezone.utc) - posted <= timedelta(hours=max_age_hours)
 
 
-def skip_reason(post, cfg, state, me):
+def skip_reason(post, cfg, state, me, rule):
     text = post.get("text") or ""
     if post.get("username") == me["username"]:
         return "내 글"
     if state.replied(post["id"]):
         return "이미 댓글 담"
-    if cfg.get("skip_replies", True) and post.get("is_reply"):
+    if rule.get("skip_replies", cfg.get("skip_replies", True)) and post.get("is_reply"):
         return "댓글(답글)임"
     if any(w in text for w in cfg.get("exclude_words", [])):
         return "제외 단어 포함"
-    if not is_recent(post, cfg.get("max_post_age_hours", 24)):
+    if not is_recent(post, rule.get("max_post_age_hours", cfg.get("max_post_age_hours", 24))):
         return "오래된 글"
-    if cfg.get("one_reply_per_user_per_day", True) and state.user_replied_today(post.get("username")):
+    if (rule.get("one_reply_per_user_per_day", cfg.get("one_reply_per_user_per_day", True))
+            and state.user_replied_today(post.get("username"))):
         return "오늘 이미 이 사용자에게 댓글 담"
     return None
 
 
-def run_once(api, cfg, state, me, live):
-    per_run = cfg.get("max_replies_per_run", 5)
-    per_day = cfg.get("max_replies_per_day", 30)
-    delay_min, delay_max = cfg.get("delay_seconds", [60, 180])
-    ai_cfg = cfg.get("ai", {})
-    done = 0
+class Runner:
+    """한 번 실행(run)에서 댓글 수 한도와 게시를 관리한다."""
 
-    for rule in cfg["rules"]:
-        for keyword in rule["keywords"]:
-            if done >= per_run or state.today_count() >= per_day:
-                log(f"한도 도달 (이번 실행 {done}/{per_run}, 오늘 {state.today_count()}/{per_day})")
-                return done
+    def __init__(self, api, cfg, state, me, live):
+        self.api, self.cfg, self.state, self.me, self.live = api, cfg, state, me, live
+        self.per_run = cfg.get("max_replies_per_run", 5)
+        self.per_day = cfg.get("max_replies_per_day", 30)
+        self.done = 0
+
+    def full(self):
+        return self.done >= self.per_run or self.state.today_count() >= self.per_day
+
+    def wait(self):
+        delay_min, delay_max = self.cfg.get("delay_seconds", [60, 180])
+        wait = random.uniform(delay_min, delay_max)
+        log(f"  {wait:.0f}초 대기")
+        time.sleep(wait)
+
+    def handle(self, rule, post, parent=None):
+        """조건에 맞으면 post에 댓글을 단다."""
+        if self.full() or skip_reason(post, self.cfg, self.state, self.me, rule):
+            return
+        ai_cfg = self.cfg.get("ai", {})
+        use_ai = rule.get("ai", ai_cfg.get("enabled", False))
+        text = None
+        if use_ai:
             try:
-                posts = api.search(keyword, cfg.get("search_type", "RECENT"))
-            except RuntimeError as e:
-                log(f"검색 실패 '{keyword}': {e}")
+                text = ai_reply(ai_cfg, rule, post, parent)
+            except Exception as e:  # 키가 없거나 API 오류면 템플릿으로 대신 답한다
+                log(f"  AI 실패, 템플릿 사용: {e}")
+                text = template_reply(rule, post)
+        else:
+            text = template_reply(rule, post)
+        if not text:
+            log(f"  건너뜀 (AI가 SKIP): {post.get('permalink')}")
+            if self.live:
+                self.state.record(post["id"], post.get("username"))
+            return
+        text = maybe_add_link(rule, text[:MAX_TEXT])
+
+        snippet = (post.get("text") or "").replace("\n", " ")[:60]
+        log(f"  @{post.get('username')}: {snippet}")
+        log(f"  └ 댓글: {text}")
+
+        if not self.live:
+            log("  (미리보기 모드 - 게시 안 함. 실제 게시는 --live)")
+            self.done += 1
+            return
+        try:
+            self.api.reply(post["id"], text)
+        except RuntimeError as e:
+            log(f"  게시 실패: {e}")
+            return
+        self.state.record(post["id"], post.get("username"))
+        self.state.save()
+        self.done += 1
+        log(f"  게시 완료 ({post.get('permalink')})")
+        self.wait()
+
+    def mentions(self):
+        rule = self.cfg.get("mentions", {})
+        if not rule.get("enabled"):
+            return
+        try:
+            posts = self.api.mentions()
+        except RuntimeError as e:
+            log(f"멘션 가져오기 실패: {e}")
+            return
+        log(f"[멘션] {len(posts)}개")
+        for post in posts:
+            self.handle(rule, post)
+
+    def comments(self):
+        rule = self.cfg.get("comments", {})
+        if not rule.get("enabled"):
+            return
+        try:
+            my_posts = self.api.my_posts(rule.get("recent_posts", 10))
+        except RuntimeError as e:
+            log(f"내 글 가져오기 실패: {e}")
+            return
+        for parent in my_posts:
+            if self.full() or parent.get("is_reply"):
                 continue
-            log(f"'{keyword}' 검색 결과 {len(posts)}개")
+            try:
+                replies = self.api.replies(parent["id"])
+            except RuntimeError as e:
+                log(f"댓글 가져오기 실패: {e}")
+                continue
+            if replies:
+                log(f"[내 글 댓글] {(parent.get('text') or '')[:30]!r} 에 댓글 {len(replies)}개")
+            for post in replies:
+                self.handle(rule, post, parent)
 
-            for post in posts:
-                if done >= per_run or state.today_count() >= per_day:
-                    break
-                reason = skip_reason(post, cfg, state, me)
-                if reason:
-                    continue
+    def auto_post(self):
+        rule = self.cfg.get("auto_post", {})
+        if not rule.get("enabled") or not rule.get("posts"):
+            return
+        last = self.state.last_auto_post()
+        every = timedelta(hours=rule.get("every_hours", 12))
+        if last and datetime.now(timezone.utc) - last < every:
+            log(f"[자동 게시] 다음 게시: {(last + every).astimezone():%m-%d %H:%M}")
+            return
+        posts = rule["posts"]
+        text = posts[self.state.next_auto_post_index() % len(posts)]
+        text = maybe_add_link(rule, text[:MAX_TEXT])
+        log(f"[자동 게시] {text}")
+        if not self.live:
+            log("  (미리보기 모드 - 게시 안 함. 실제 게시는 --live)")
+            return
+        try:
+            self.api.publish(text, topic_tag=rule.get("topic_tag"))
+        except RuntimeError as e:
+            log(f"  게시 실패: {e}")
+            return
+        self.state.record_auto_post()
+        self.state.save()
+        log("  게시 완료")
 
-                use_ai = rule.get("ai", ai_cfg.get("enabled", False))
-                text = ai_reply(ai_cfg, rule, post) if use_ai else template_reply(rule, post)
-                if not text:
-                    log(f"  건너뜀 (AI가 SKIP): {post.get('permalink')}")
-                    if live:
-                        state.record(post["id"], post.get("username"))
-                    continue
-                text = maybe_add_link(rule, text[:MAX_TEXT])
-
-                snippet = (post.get("text") or "").replace("\n", " ")[:60]
-                log(f"  @{post.get('username')}: {snippet}")
-                log(f"  └ 댓글: {text}")
-
-                if not live:
-                    log("  (미리보기 모드 - 게시 안 함. 실제 게시는 --live)")
-                    done += 1
-                    continue
+    def keywords(self):
+        for rule in self.cfg.get("rules", []):
+            if not rule.get("enabled", True):
+                continue
+            for keyword in rule["keywords"]:
+                if self.full():
+                    return
                 try:
-                    api.reply(post["id"], text)
+                    posts = self.api.search(keyword, self.cfg.get("search_type", "RECENT"))
                 except RuntimeError as e:
-                    log(f"  게시 실패: {e}")
+                    log(f"검색 실패 '{keyword}': {e}")
                     continue
-                state.record(post["id"], post.get("username"))
-                state.save()
-                done += 1
-                log(f"  게시 완료 ({post.get('permalink')})")
-                wait = random.uniform(delay_min, delay_max)
-                log(f"  {wait:.0f}초 대기")
-                time.sleep(wait)
-    return done
+                log(f"[키워드] '{keyword}' 검색 결과 {len(posts)}개")
+                for post in posts:
+                    self.handle(rule, post)
+
+
+def run_once(api, cfg, state, me, live):
+    runner = Runner(api, cfg, state, me, live)
+    runner.auto_post()
+    # 사람들이 먼저 말 건 것(멘션, 내 글 댓글)부터 답한다.
+    runner.mentions()
+    runner.comments()
+    runner.keywords()
+    if runner.full():
+        log(f"한도 도달 (이번 실행 {runner.done}/{runner.per_run}, "
+            f"오늘 {state.today_count()}/{runner.per_day})")
+    return runner.done
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Threads 키워드 자동 댓글 봇")
+    parser = argparse.ArgumentParser(description="Threads 자동 홍보 봇")
     parser.add_argument("--config", default=str(HERE / "config.json"))
     parser.add_argument("--live", action="store_true", help="실제로 댓글 게시 (기본은 미리보기)")
     parser.add_argument("--loop", action="store_true", help="config의 간격마다 반복 실행")

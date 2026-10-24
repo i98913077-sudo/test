@@ -1,4 +1,46 @@
 {
+  "mentions": {
+    "enabled": true,
+    "ai": true,
+    "skip_replies": false,
+    "one_reply_per_user_per_day": false,
+    "max_post_age_hours": 72,
+    "replies": [
+      "불러주셔서 감사해요! 주식하면서 흔들릴 때 《주식시장에 나와서는 안 될 비법서》 한번 읽어보세요. 기법이 아니라 마음의 자리를 보는 책이에요 📈",
+      "주식책 찾으시면 《주식시장에 나와서는 안 될 비법서》 추천드려요. 일주일 만에 400위에서 66위까지 역주행 중이에요"
+    ],
+    "link": "https://product.kyobobook.co.kr/detail/S000221636170",
+    "link_probability": 1.0,
+    "ai_hint": "이 사람은 나를 직접 태그해서 말을 걸었습니다. 질문이나 요청에 먼저 성실하게 답하세요. 주식·투자·책 이야기라면 《주식시장에 나와서는 안 될 비법서》을 자연스럽게 추천하고, 관련 없는 이야기면 책 언급 없이 답만 하세요. 책 소개: 기법이 아니라 마음의 자리를 보는 주식책. 일주일 만에 400위→66위 역주행, 예스24 투자/재테크 83위, 알라딘 주식/펀드 주간 33위(10/21 기준). 링크는 쓰지 마세요(봇이 따로 붙임)."
+  },
+  "comments": {
+    "enabled": true,
+    "ai": true,
+    "recent_posts": 10,
+    "skip_replies": false,
+    "one_reply_per_user_per_day": false,
+    "max_post_age_hours": 72,
+    "replies": [
+      "관심 가져주셔서 감사해요! 교보문고에서 보실 수 있어요 🙏",
+      "읽어보시면 차트보다 내 마음을 먼저 보게 되실 거예요. 감사합니다!"
+    ],
+    "link": "https://product.kyobobook.co.kr/detail/S000221636170",
+    "link_probability": 1.0,
+    "ai_hint": "내 홍보 글에 달린 댓글에 글쓴이(책 홍보하는 사람)로서 답하세요. 감사 인사, 질문에 대한 답, 구매처 문의면 교보문고에 있다고 안내. 악플이나 무관한 댓글이면 SKIP. 책 소개: 기법이 아니라 마음의 자리를 보는 주식책. 일주일 만에 400위→66위 역주행, 예스24 투자/재테크 83위, 알라딘 주식/펀드 주간 33위(10/21 기준). 링크는 쓰지 마세요(봇이 따로 붙임)."
+  },
+  "auto_post": {
+    "enabled": true,
+    "every_hours": 12,
+    "topic_tag": "주식책",
+    "posts": [
+      "400위 → 66위, 일주일 만에 역주행 중\n예스24 투자/재테크 83위 · 알라딘 주식/펀드 주간 33위 (10/21 기준)\n기법이 아니라 마음의 자리를 보는 책.\n《주식시장에 나와서는 안 될 비법서》 지금 만나보세요.",
+      "차트는 매일 보는데, 내 마음은 언제 보셨나요?\n《주식시장에 나와서는 안 될 비법서》\n기법이 아니라 마음의 자리를 보는 책.",
+      "물리고, 손절하고, 또 들어가고.\n문제는 종목이 아니라 내 마음의 자리였어요.\n《주식시장에 나와서는 안 될 비법서》 — 일주일 만에 400위에서 66위로.",
+      "주식책 추천해달라는 분들께 요즘 이 책 드려요.\n《주식시장에 나와서는 안 될 비법서》\n예스24 투자/재테크 83위 · 알라딘 주식/펀드 주간 33위"
+    ],
+    "link": "https://product.kyobobook.co.kr/detail/S000221636170",
+    "link_probability": 1.0
+  },
   "rules": [
     {
       "keywords": [
@@ -43,13 +85,13 @@
   "max_post_age_hours": 24,
   "skip_replies": true,
   "one_reply_per_user_per_day": true,
-  "max_replies_per_run": 5,
-  "max_replies_per_day": 15,
+  "max_replies_per_run": 10,
+  "max_replies_per_day": 40,
   "delay_seconds": [
     90,
     240
   ],
-  "loop_interval_minutes": 30,
+  "loop_interval_minutes": 15,
   "ai": {
     "enabled": false,
     "model": "claude-opus-5-5",

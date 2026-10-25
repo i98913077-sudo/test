@@ -1,4 +1,4 @@
-import { el, $, clear, fmt, fmtP, fmtPct, fmtSigned, dir, fmtTime, fmtDuration, api, apiUrl, banner, disclaimerBlock, toast } from './common.js?v=2026.10.25-envelope';
+import { el, $, clear, fmt, fmtP, fmtPct, fmtSigned, dir, fmtTime, fmtDuration, api, apiUrl, banner, disclaimerBlock, toast } from './common.js?v=2026.10.25-check';
 
 const app = $('#app');
 const KEY = 'safeinvest.admin';
@@ -18,7 +18,7 @@ function login(msg) {
   const verLine = el('p', { class: 'muted small' }, '서버 버전 확인 중…');
   const go = async (e) => {
     e.preventDefault();
-    try { tok.v = (await api('/api/admin/login', { method: 'POST', body: { password: pw.value } })).token; dashboard(); }
+    try { tok.v = (await api('/api/t/auth', { method: 'POST', body: { password: pw.value } })).token; dashboard(); }
     catch (ex) { err.textContent = ex.message; }
   };
   clear(app).append(banner(), el('main', { class: 'wrap' }, el('h1', {}, '너굴 관리자'),
@@ -37,9 +37,9 @@ async function dashboard() {
 let versionLine = el('p', { class: 'muted small' }, '');
 let formState = null; // 입력 중인 폼 값을 갱신 때 보존
 async function draw() {
-  const ov = await call('/api/admin/overview');
+  const ov = await call('/api/t/overview');
   try { const v = await api('/api/version'); versionLine = el('p', { class: 'muted small' }, `서버 버전 ${v.version} · 상품 ${v.catalog_size}개 · ${v.runtime}`); } catch { versionLine = el('p', { class: 'muted small' }, '서버 버전을 확인할 수 없어요 (옛 파일일 수 있어요)'); }
-  const txs = ov.event ? (await call('/api/admin/transactions')).transactions : [];
+  const txs = ov.event ? (await call('/api/t/transactions')).transactions : [];
   // 입력 중에는 폼을 다시 그리지 않는다
   if (document.activeElement && app.contains(document.activeElement) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) && $('#admin-root')) return;
   const ev = ov.event;
@@ -96,7 +96,7 @@ function createCard() {
   btn.addEventListener('click', async () => {
     err.textContent = '';
     try {
-      await call('/api/admin/event', { method: 'POST', body: {
+      await call('/api/t/event', { method: 'POST', body: {
         name: name.value, initial_balance: Number(bal.value), duration_min: dur.value ? Number(dur.value) : null,
         reason_reveal_mode: mode.value, sell_reason_required: sellReq.checked, tickers: picker.get(),
       } });
@@ -123,20 +123,20 @@ function eventCard(ev) {
   const missingByGroup = allGroups.map((g) => [g.label, missing.filter((t) => t.group === g.id).length]).filter(([, n]) => n > 0).map(([l, n]) => `${l} ${n}개`).join(', ');
   const missingBanner = ev.status !== 'ended' && missing.length ? el('div', { class: 'notice' },
     el('b', {}, `⚠️ 이 이벤트에는 새 종목 ${missing.length}개가 빠져 있어요`), el('div', { class: 'small' }, missingByGroup),
-    el('button', { class: 'btn primary block', onclick: run(() => call('/api/admin/event/update', { method: 'POST', body: { tickers: allTickers.map((t) => t.ticker) } }), `종목 ${missing.length}개를 추가했어요`) }, '새 종목 모두 추가하기')) : null;
+    el('button', { class: 'btn primary block', onclick: run(() => call('/api/t/event/update', { method: 'POST', body: { tickers: allTickers.map((t) => t.ticker) } }), `종목 ${missing.length}개를 추가했어요`) }, '새 종목 모두 추가하기')) : null;
   return el('div', { class: 'card' },
     el('div', { class: 'row between' }, el('h2', {}, `이벤트: ${ev.name}`), el('span', { class: 'pill' }, status)),
     el('div', { class: 'muted small' }, `시작 자금 ${fmtP(ev.initial_balance)} · ${ev.tickers.length}개 종목 · 참가자 ${ev.participants}명 · 시작 ${ev.start_at ? fmtTime(ev.start_at) : '-'} · 종료 예정 ${ev.end_at ? fmtTime(ev.end_at) : (ev.duration_min ? `시작 후 ${ev.duration_min}분` : '직접 종료')}`),
     missingBanner,
     el('div', { class: 'row' },
-      ev.status === 'ready' ? el('button', { class: 'btn primary grow', onclick: run(() => call('/api/admin/event/start', { method: 'POST' }), '게임을 시작했어요') }, '▶ 게임 시작') : null,
-      ev.status === 'running' ? el('button', { class: 'btn danger grow', onclick: () => { if (confirm('지금 게임을 종료할까요? 종료하면 가격이 고정되고 더 이상 거래할 수 없어요.')) run(() => call('/api/admin/event/end', { method: 'POST' }), '게임을 종료했어요')(); } }, '■ 게임 종료') : null,
-      el('button', { class: 'btn grow', onclick: () => { if (confirm('초기화하면 모든 참가자, 거래 기록, 순위가 삭제됩니다. 계속할까요?')) run(() => call('/api/admin/event/reset', { method: 'POST' }), '초기화했어요')(); } }, '↺ 게임 초기화')),
+      ev.status === 'ready' ? el('button', { class: 'btn primary grow', onclick: run(() => call('/api/t/event/start', { method: 'POST' }), '게임을 시작했어요') }, '▶ 게임 시작') : null,
+      ev.status === 'running' ? el('button', { class: 'btn danger grow', onclick: () => { if (confirm('지금 게임을 종료할까요? 종료하면 가격이 고정되고 더 이상 거래할 수 없어요.')) run(() => call('/api/t/event/end', { method: 'POST' }), '게임을 종료했어요')(); } }, '■ 게임 종료') : null,
+      el('button', { class: 'btn grow', onclick: () => { if (confirm('초기화하면 모든 참가자, 거래 기록, 순위가 삭제됩니다. 계속할까요?')) run(() => call('/api/t/event/reset', { method: 'POST' }), '초기화했어요')(); } }, '↺ 게임 초기화')),
     ev.status !== 'ended' ? el('div', {},
       field('매수 이유 공개 시점', mode), el('label', { class: 'check' }, sellReq, el('span', {}, '매도 이유도 필수로 받기')),
       ev.status === 'running' ? field('종료 시간 조정', extend, '비워두고 저장하면 변경하지 않아요.') : null,
       el('b', {}, '거래 종목'), el('p', { class: 'muted small' }, ev.participants > 0 ? '참가자가 있어서 종목은 추가만 할 수 있어요. (빼려면 초기화 후 변경)' : '구분별로 켜고 끌 수 있어요.'), picker.node,
-      el('button', { class: 'btn sm', onclick: run(() => call('/api/admin/event/update', { method: 'POST', body: { reason_reveal_mode: mode.value, sell_reason_required: sellReq.checked, tickers: picker.get(), ...(extend.value ? { end_in_min: Number(extend.value) } : {}) } }), '설정을 저장했어요') }, '설정 저장')) : null,
+      el('button', { class: 'btn sm', onclick: run(() => call('/api/t/event/update', { method: 'POST', body: { reason_reveal_mode: mode.value, sell_reason_required: sellReq.checked, tickers: picker.get(), ...(extend.value ? { end_in_min: Number(extend.value) } : {}) } }), '설정을 저장했어요') }, '설정 저장')) : null,
     err);
 }
 
@@ -161,7 +161,7 @@ function boardCard(ov) {
 function txCard(txs) {
   const csv = el('button', { class: 'btn sm', onclick: async () => {
     try {
-      const res = await fetch(apiUrl('/api/admin/export.csv'), { headers: { 'X-Auth-Token': tok.v } });
+      const res = await fetch(apiUrl('/api/t/export.csv'), { headers: { 'X-Auth-Token': tok.v } });
       if (!res.ok) throw new Error('내보내기에 실패했어요.');
       const url = URL.createObjectURL(await res.blob());
       const a = el('a', { href: url, download: 'transactions.csv' }); document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);

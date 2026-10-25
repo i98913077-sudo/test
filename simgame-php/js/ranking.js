@@ -1,4 +1,4 @@
-import { el, $, clear, fmtP, fmtPct, fmt, dir, arrow, api, banner, disclaimerBlock, fmtDuration } from './common.js?v=2026.10.25-envelope';
+import { el, $, clear, fmtP, fmtPct, fmt, dir, arrow, api, banner, disclaimerBlock, fmtDuration } from './common.js?v=2026.10.25-check';
 
 const app = $('#app');
 const head = el('div', { class: 'board-head' });

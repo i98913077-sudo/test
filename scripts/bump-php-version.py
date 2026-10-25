@@ -11,7 +11,7 @@ if not ver or not re.fullmatch(r'[0-9A-Za-z._-]+', ver):
 root = pathlib.Path(__file__).resolve().parent.parent / 'simgame-php'
 def sub(path, pattern, repl):
     p = root / path; s = p.read_text(encoding='utf-8'); n = re.sub(pattern, repl, s); p.write_text(n, encoding='utf-8'); return s != n
-for html in ['index.html', 'ranking.html', 'admin.html']:
+for html in ['index.html', 'ranking.html', 'admin.html', 'check.html']:
     sub(html, r'(href="css/style\.css)(\?v=[^"]*)?"', rf'\1?v={ver}"')
     sub(html, r'(src="js/[a-z]+\.js)(\?v=[^"]*)?"', rf'\1?v={ver}"')
 for js in (root / 'js').glob('*.js'):

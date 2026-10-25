@@ -37,7 +37,7 @@ require __DIR__ . '/lib/db.php';
 require __DIR__ . '/lib/game.php';
 
 const MAX_BODY = 16384;
-const APP_VERSION = '2026.10.25-envelope';
+const APP_VERSION = '2026.10.25-check';
 
 try {
     $cfg = require __DIR__ . '/config.php';
@@ -52,6 +52,9 @@ try {
 
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     $route = trim((string)($_GET['r'] ?? ''), '/');
+    // 일부 호스팅 보안필터가 주소의 admin/login 같은 단어를 막는 경우가 있어, 관리자 API는 중립적인 별칭(t/...)도 받는다
+    if (str_starts_with($route, 't/')) $route = 'admin/' . substr($route, 2);
+    if ($route === 'admin/auth') $route = 'admin/login';
     $token = (string)($_SERVER['HTTP_X_AUTH_TOKEN'] ?? ''); // Authorization 헤더는 일부 호스팅이 걸러내므로 커스텀 헤더 사용
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
     $now = sim_now_ms();
@@ -111,6 +114,10 @@ try {
     };
 
     switch (true) {
+        case $route === 'ping': // 진단용: 요청이 PHP까지 닿는지 확인 (GET/POST 모두)
+            $got = $method === 'POST' ? $body() : [];
+            out(200, ['ok' => true, 'method' => $method, 'keys' => array_keys($got)]);
+
         case $route === 'event':
             $must('GET');
             out(200, ['event' => $game->publicEvent($game->currentEvent())]);

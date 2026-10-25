@@ -639,6 +639,17 @@ t('HTTP: X-Envelope 헤더를 보내면 오류도 HTTP 200 + JSON(error, status)
     eq($ok['status'], 200); check(!isset($ok['json']['error']) && !isset($ok['json']['status']), '정상 응답에는 error/status가 붙지 않는다');
 });
 
+t('HTTP: 관리자 API 별칭(t/...)과 진단용 ping', function () use ($H) {
+    $r = $H('POST', 't/auth', ['body' => ['password' => 'pw-test']]);
+    eq($r['status'], 200); check(strlen($r['json']['token'] ?? '') === 48, 't/auth 로 로그인');
+    $tok = $r['json']['token'];
+    eq($H('GET', 't/overview', ['token' => $tok])['status'], 200, 't/overview');
+    eq($H('POST', 't/auth', ['body' => ['password' => 'nope']])['status'], 401);
+    $p = $H('POST', 'ping', ['raw' => 'b64:' . base64_encode(json_encode(['a' => 1]))]);
+    eq($p['json']['ok'], true); eq($p['json']['method'], 'POST'); eq($p['json']['keys'], ['a']);
+    eq($H('GET', 'ping')['json']['method'], 'GET');
+});
+
 t('HTTP: 잘못된 경로/메서드/JSON/큰 본문', function () use ($adminTok, $H) {
     eq($H('GET', 'nope')['status'], 404);
     eq($H('GET', 'join')['status'], 405);

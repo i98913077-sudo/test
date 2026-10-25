@@ -71,6 +71,7 @@ function encodeBody(obj) {
 export async function api(path, { method = 'GET', body, token } = {}) {
   const headers = {};
   if (body) headers['Content-Type'] = 'text/plain;charset=UTF-8'; // 서버는 본문을 직접 JSON으로 해석한다. 일부 호스팅 보안필터가 application/json POST를 막는 것을 피한다
+  headers['X-Envelope'] = '1'; // 호스팅이 오류 응답 본문을 바꿔도 안내 문구가 전달되도록 오류도 200 + JSON으로 받는다
   if (token) headers['X-Auth-Token'] = token; // Authorization 헤더는 일부 PHP 호스팅이 걸러내서 커스텀 헤더 사용
   let res;
   try { res = await fetch(apiUrl(path), { method, headers, body: body ? encodeBody(body) : undefined }); }
@@ -86,6 +87,7 @@ export async function api(path, { method = 'GET', body, token } = {}) {
     const snippet = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140); // 서버가 실제로 돌려준 문구(원인 확인용)
     throw Object.assign(new Error(`서버 응답 오류 (${res.status}). ${hint}${snippet ? ` [서버 응답: ${snippet}]` : ' [서버 응답: 내용 없음]'}`), { status: res.status });
   }
+  if (data.error && Number.isInteger(data.status) && data.status >= 400) throw Object.assign(new Error(data.error), { status: data.status }); // X-Envelope 오류
   if (!res.ok) throw Object.assign(new Error(data.error ?? `오류가 발생했습니다 (${res.status})`), { status: res.status });
   return data;
 }

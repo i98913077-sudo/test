@@ -15,6 +15,12 @@ header('Referrer-Policy: no-referrer');
 
 function out(int $status, $data): void {
     discard_output();
+    // 일부 호스팅은 4xx/5xx 응답의 본문을 자체 오류 페이지로 바꿔버린다(안내 문구가 사라짐).
+    // 화면이 X-Envelope 헤더를 보내면 오류도 HTTP 200 + JSON({error, status})으로 돌려줘서 이를 피한다.
+    if ($status >= 400 && !empty($_SERVER['HTTP_X_ENVELOPE'])) {
+        $data = (is_array($data) ? $data : []) + ['status' => $status];
+        $status = 200;
+    }
     http_response_code($status);
     echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     exit;

@@ -566,6 +566,7 @@ function http(string $method, string $route, array $o = []): array {
     $h = [];
     if (isset($o['token'])) $h[] = 'X-Auth-Token: ' . $o['token'];
     if (isset($o['now'])) $h[] = 'X-Sim-Now: ' . $o['now'];
+    if (!empty($o['envelope'])) $h[] = 'X-Envelope: 1';
     $payload = $o['raw'] ?? (isset($o['body']) ? json_encode($o['body']) : null);
     if ($payload !== null) $h[] = 'Content-Type: application/json';
     curl_setopt_array($ch, [CURLOPT_CUSTOMREQUEST => $method, CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_HTTPHEADER => $h, CURLOPT_TIMEOUT => 20]
@@ -624,6 +625,18 @@ t('HTTP: 본문을 base64(b64:...)로 감싸 보내도 동일하게 처리되고
     $tx = $H('GET', 'transactions', ['token' => $j['json']['token']]);
     eq($tx['json']['transactions'][0]['reason'], trim(preg_replace('/\s+/u', ' ', $tricky)), '특수문자 이유가 그대로 저장된다');
     eq($H('POST', 'join', ['raw' => 'b64:@@@not-base64@@@'])['status'], 400);
+});
+
+t('HTTP: X-Envelope 헤더를 보내면 오류도 HTTP 200 + JSON(error, status)으로 돌려준다 (호스팅이 4xx 본문을 바꾸는 문제 회피)', function () use ($H, $adminTok) {
+    $r = $H('GET', 'state', ['envelope' => true]);
+    eq($r['status'], 200); eq($r['json']['status'], 401); check(!empty($r['json']['error']), '오류 문구');
+    eq($H('GET', 'state')['status'], 401, '헤더가 없으면 기존처럼 실제 HTTP 상태');
+    $r = $H('POST', 'join', ['envelope' => true, 'raw' => 'b64:' . base64_encode(json_encode(['nickname' => '<bad>']))]);
+    eq($r['status'], 200); eq($r['json']['status'], 400);
+    $r = $H('POST', 'admin/event/reset', ['envelope' => true]);
+    eq($r['status'], 200); eq($r['json']['status'], 401);
+    $ok = $H('GET', 'event', ['envelope' => true]);
+    eq($ok['status'], 200); check(!isset($ok['json']['error']) && !isset($ok['json']['status']), '정상 응답에는 error/status가 붙지 않는다');
 });
 
 t('HTTP: 잘못된 경로/메서드/JSON/큰 본문', function () use ($adminTok, $H) {

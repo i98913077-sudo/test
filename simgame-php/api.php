@@ -37,7 +37,7 @@ require __DIR__ . '/lib/db.php';
 require __DIR__ . '/lib/game.php';
 
 const MAX_BODY = 16384;
-const APP_VERSION = '2026.10.09-leverage';
+const APP_VERSION = '2026.10.25-envelope';
 
 try {
     $cfg = require __DIR__ . '/config.php';

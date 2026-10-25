@@ -1,4 +1,4 @@
-import { el, $, clear, fmt, fmtP, fmtPct, fmtSigned, dir, fmtTime, fmtDuration, api, apiUrl, banner, disclaimerBlock, toast } from './common.js';
+import { el, $, clear, fmt, fmtP, fmtPct, fmtSigned, dir, fmtTime, fmtDuration, api, apiUrl, banner, disclaimerBlock, toast } from './common.js?v=2026.10.25-envelope';
 
 const app = $('#app');
 const KEY = 'safeinvest.admin';
@@ -15,6 +15,7 @@ function login(msg) {
   clearInterval(timer);
   const pw = el('input', { class: 'input', type: 'password', id: 'pw', autocomplete: 'current-password', 'aria-label': '관리자 비밀번호' });
   const err = el('p', { class: 'err', role: 'alert' }, msg ?? '');
+  const verLine = el('p', { class: 'muted small' }, '서버 버전 확인 중…');
   const go = async (e) => {
     e.preventDefault();
     try { tok.v = (await api('/api/admin/login', { method: 'POST', body: { password: pw.value } })).token; dashboard(); }
@@ -22,7 +23,8 @@ function login(msg) {
   };
   clear(app).append(banner(), el('main', { class: 'wrap' }, el('h1', {}, '너굴 관리자'),
     el('form', { class: 'card', onsubmit: go }, el('label', { class: 'field', for: 'pw' }, '관리자 비밀번호'), pw, el('button', { class: 'btn primary block', type: 'submit' }, '로그인'), err),
-    el('p', { class: 'muted small' }, '비밀번호는 서버에 올린 config.php 의 admin_password 에서 설정합니다.'), disclaimerBlock()));
+    el('p', { class: 'muted small' }, '비밀번호는 서버에 올린 config.php 의 admin_password 에서 설정합니다.'), verLine, disclaimerBlock()));
+  api('/api/version').then((v) => { verLine.textContent = `서버 버전 ${v.version} · ${v.runtime}`; }).catch(() => { verLine.textContent = '서버 버전을 확인할 수 없어요 (api.php가 옛 파일이거나 연결에 문제가 있어요)'; });
 }
 
 async function dashboard() {

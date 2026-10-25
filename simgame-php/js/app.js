@@ -1,5 +1,5 @@
-import { el, $, clear, fmtCompact, fmt, fmtP, fmtPct, fmtSigned, dir, arrow, fmtTime, fmtDuration, store, api, banner, disclaimerBlock, toast, COLORS } from './common.js';
-import { drawCandles } from './chart.js';
+import { el, $, clear, fmtCompact, fmt, fmtP, fmtPct, fmtSigned, dir, arrow, fmtTime, fmtDuration, store, api, banner, disclaimerBlock, toast, COLORS } from './common.js?v=2026.10.25-envelope';
+import { drawCandles } from './chart.js?v=2026.10.25-envelope';
 
 // 화면 구성: 실제 증권 앱(MTS)처럼 하단 6개 메뉴. 모든 거래는 가상 포인트로 하는 게임이다.
 const app = $('#app');

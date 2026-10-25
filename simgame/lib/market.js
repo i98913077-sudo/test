@@ -77,8 +77,11 @@ function strHash(s) {
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return h >>> 0;
 }
+export function tickFor(p, fixedTick) {
+  return fixedTick ?? (p < 2000 ? 1 : p < 5000 ? 5 : p < 20000 ? 10 : p < 50000 ? 50 : p < 200000 ? 100 : p < 500000 ? 500 : 1000);
+}
 export function roundTick(p, fixedTick) {
-  const tick = fixedTick ?? (p < 2000 ? 1 : p < 5000 ? 5 : p < 20000 ? 10 : p < 50000 ? 50 : p < 200000 ? 100 : p < 500000 ? 500 : 1000);
+  const tick = tickFor(p, fixedTick);
   return Math.max(tick, Math.round(p / tick) * tick);
 }
 const kstDayStartMin = (m) => Math.floor((m + KST_OFFSET_MIN) / DAY_MIN) * DAY_MIN - KST_OFFSET_MIN;
@@ -114,7 +117,9 @@ export function createMarket({ seed, volatility = 1 }) {
     const b = Math.exp(logAt(ticker, m + 1));
     let p = a + (b - a) * (exact - m);
     const meta = TICKER_MAP.get(ticker);
-    const jitter = (rnd(tSeed(ticker) ^ 0x5bd1e995, Math.floor(ms / 10000)) - 0.5) * BASE_VOL * meta.volFactor * volatility;
+    // 10초 단위 잔떨림. 호가 단위(틱)보다 작으면 분봉이 납작해지므로, 최소한 한 호가 정도는 흔들리게 한다(호가 간 오르내림과 같은 성격)
+    const amp = Math.max(BASE_VOL * meta.volFactor * volatility * 2, (1.2 * tickFor(p, meta.tick)) / p);
+    const jitter = (rnd(tSeed(ticker) ^ 0x5bd1e995, Math.floor(ms / 10000)) - 0.5) * amp;
     return roundTick(p * (1 + jitter), meta.tick);
   }
 

@@ -90,8 +90,11 @@ class Market {
         return ($this->seed ^ self::strHash($ticker)) & 0xFFFFFFFF;
     }
 
+    public static function tickFor(float $p, ?int $fixedTick = null): int {
+        return $fixedTick ?? ($p < 2000 ? 1 : ($p < 5000 ? 5 : ($p < 20000 ? 10 : ($p < 50000 ? 50 : ($p < 200000 ? 100 : ($p < 500000 ? 500 : 1000))))));
+    }
     public static function roundTick(float $p, ?int $fixedTick = null): int {
-        $tick = $fixedTick ?? ($p < 2000 ? 1 : ($p < 5000 ? 5 : ($p < 20000 ? 10 : ($p < 50000 ? 50 : ($p < 200000 ? 100 : ($p < 500000 ? 500 : 1000))))));
+        $tick = self::tickFor($p, $fixedTick);
         return (int)max($tick, round($p / $tick) * $tick);
     }
     private static function kstDayStartMin(int $m): int {
@@ -138,8 +141,11 @@ class Market {
     public function priceAt(string $ticker, int $ms): int {
         $meta = self::TICKERS[$ticker];
         $smooth = $this->smoothLog($ticker, $ms / self::MIN_MS);
-        $jitter = (self::rnd($this->tSeed($ticker) ^ 0x5BD1E995, intdiv($ms, 10000)) - 0.5) * 0.0012 * $meta['volFactor'] * $this->volatility;
-        return self::roundTick($meta['base'] * exp($smooth + $jitter), $meta['tick'] ?? null);
+        $p = $meta['base'] * exp($smooth);
+        // 10초 단위 잔떨림. 호가 단위(틱)보다 작으면 분봉이 납작해지므로, 최소한 한 호가 정도는 흔들리게 한다(호가 간 오르내림과 같은 성격)
+        $amp = max(0.0012 * $meta['volFactor'] * $this->volatility, 1.2 * self::tickFor($p, $meta['tick'] ?? null) / $p);
+        $jitter = (self::rnd($this->tSeed($ticker) ^ 0x5BD1E995, intdiv($ms, 10000)) - 0.5) * $amp;
+        return self::roundTick($p * exp($jitter), $meta['tick'] ?? null);
     }
 
     private function minuteVolume(string $ticker, int $minute): int {

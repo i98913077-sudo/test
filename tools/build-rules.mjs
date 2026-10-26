@@ -31,9 +31,12 @@ const slotRule = [
 
 const rules = {
   rules: {
-    // ── 기존 '1-9반 안전 특공대' 게임 (로그인 없이 사용 중이므로 기존 동작 유지) ──
+    // ── 같은 DB를 쓰는 기존 게임들 (로그인 없이 사용 중이므로 기존 동작 유지) ──
+    // 콘솔 데이터 탭에서 확인된 최상위 노드: rooms, leaderboard, last1rooms, stopGameRooms
     rooms: { '.read': true, '.write': true },
     leaderboard: { '.read': true, '.write': true },
+    last1rooms: { '.read': true, '.write': true },
+    stopGameRooms: { '.read': true, '.write': true },
 
     // ── 사이버 나는 SOLO ──
     solo: {

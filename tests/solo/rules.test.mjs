@@ -35,6 +35,7 @@ await adminWrite('rooms/9999/state', { phase: 'lobby' });
 
 console.log('\n[기존 게임 데이터 경로 유지]');
 await expectOk('기존 안전 특공대 rooms 읽기/쓰기 (로그인 없이 쓰던 경로 유지)', get(ref(A.db, 'rooms/9999/state')).then(() => set(ref(A.db, 'rooms/9999/x'), 1)));
+for(const p of ['leaderboard', 'last1rooms', 'stopGameRooms']) await expectOk('기존 경로 ' + p + ' 읽기/쓰기 유지', set(ref(A.db, p + '/t'), 1).then(() => get(ref(A.db, p))));
 
 console.log('\n[관리자 권한]');
 const sid = 's1';

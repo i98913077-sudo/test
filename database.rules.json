@@ -8,6 +8,14 @@
       ".read": true,
       ".write": true
     },
+    "last1rooms": {
+      ".read": true,
+      ".write": true
+    },
+    "stopGameRooms": {
+      ".read": true,
+      ".write": true
+    },
     "solo": {
       "admins": {
         "$uid": {

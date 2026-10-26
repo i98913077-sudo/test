@@ -22,7 +22,7 @@
 
 ## 기존 Firebase 분석 결과
 
-- 기존 홈페이지는 HTML 파일 하나에 `FIREBASE_CONFIG`를 넣어 compat SDK 10.12.2로 **Realtime Database만** 씁니다. 경로는 `rooms/`와 `leaderboard/` 두 곳입니다.
+- 기존 홈페이지는 HTML 파일 하나에 `FIREBASE_CONFIG`를 넣어 compat SDK 10.12.2로 **Realtime Database만** 씁니다. 경로는 `rooms/`와 `leaderboard/` 두 곳입니다. 콘솔에서 확인해 보니 같은 DB에 다른 게임의 `last1rooms/`, `stopGameRooms/`도 있습니다.
 - Authentication은 쓰지 않습니다. 2026-10-26에 API로 확인했을 때 `CONFIGURATION_NOT_FOUND`가 나왔고, 이 프로젝트에는 아직 Authentication이 설정돼 있지 않습니다.
 - Firestore, Hosting 설정, 보안 규칙 파일, 환경변수는 저장소에 없었습니다.
 - 그래서 새 Firebase 서비스는 도입하지 않았습니다. **같은 Realtime Database의 `solo/` 아래에만** 게임 데이터를 저장합니다. 꼭 필요한 Authentication(익명 로그인)만 켜면 됩니다.
@@ -51,7 +51,7 @@ items/{sid}/{만든사람uid}_{0..9}       참가자가 만든 아이템 (1인 �
 
 1. **익명 로그인 켜기**: Firebase 콘솔 → Authentication → 시작하기 → Sign-in method → *익명* 사용 설정. 운영자용으로 *Google*도 함께 켜기를 권장합니다.
 2. **보안 규칙 적용**: Realtime Database → 규칙에 `database.rules.json` 내용을 붙여넣고 게시합니다. 또는 `firebase deploy --only database`로 배포합니다.
-   - 붙여넣기 전에 **지금 규칙과 데이터 탭의 최상위 노드를 확인하세요.** 새 규칙은 `rooms`와 `leaderboard`를 기존처럼 로그인 없이 쓸 수 있게 열어 두고, 그 외 경로는 `solo/` 규칙대로만 허용합니다. 다른 최상위 노드를 쓰는 앱이 있다면 그 경로 규칙도 추가해야 합니다.
+   - 붙여넣기 전에 **지금 규칙과 데이터 탭의 최상위 노드를 확인하세요.** 새 규칙은 `rooms`, `leaderboard`, `last1rooms`, `stopGameRooms`를 기존처럼 로그인 없이 쓸 수 있게 열어 두고, 그 외 경로는 `solo/` 규칙대로만 허용합니다. 다른 최상위 노드를 쓰는 앱이 있다면 그 경로 규칙도 추가해야 합니다.
 3. **운영자 등록**: `…/solo/admin.html`을 엽니다. Google 로그인을 권장합니다. 화면에 나온 **UID**를 복사한 뒤 콘솔 → Realtime Database → 데이터에서 `solo/admins/<UID>`에 `true`를 추가하고 새로고침합니다. 운영자 권한은 앱 안에서 스스로 부여할 수 없습니다.
 4. **배포**: `public/` 폴더를 지금 홈페이지가 올라가 있는 곳에 올립니다. Firebase Hosting을 쓴다면 `firebase deploy --only hosting`으로 배포합니다.
    - Google 로그인을 쓴다면 배포 도메인을 Authentication → 설정 → 승인된 도메인에 추가하세요. Firebase Hosting 도메인은 자동으로 추가됩니다.

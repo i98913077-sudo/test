@@ -1,0 +1,33 @@
+# Apache 호스팅용 설정 (다른 서버에서는 무시될 수 있음)
+Options -Indexes
+DirectoryIndex index.html
+AddType font/woff2 .woff2
+
+<IfModule mod_headers.c>
+  # 화면 파일은 매번 서버에 새 파일인지 물어보게 한다 (업데이트가 바로 반영되도록)
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "no-referrer"
+  # 같은 도메인의 홈페이지에서 iframe으로 넣는 것은 허용합니다. 다른 도메인에서 넣으려면 'self' 뒤에 주소를 추가하세요.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'"
+</IfModule>
+
+# 글꼴은 오래 보관해도 된다 (바뀌면 파일 이름을 바꿈)
+<IfModule mod_headers.c>
+  <FilesMatch "\.woff2$">
+    Header set Cache-Control "public, max-age=2592000"
+  </FilesMatch>
+</IfModule>
+
+# 설정/코드/DB 파일은 웹에서 직접 열리지 않게 막기
+<FilesMatch "^(config\.php|.*\.sqlite|.*\.md)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>

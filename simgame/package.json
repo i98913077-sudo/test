@@ -1,0 +1,12 @@
+{
+  "name": "safe-invest-simgame",
+  "version": "1.0.0",
+  "private": true,
+  "description": "공개수업용 교육 모의투자 게임 (가상 포인트 전용, 실제 금융거래 없음)",
+  "type": "module",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "test": "node --no-warnings --test test/*.test.js"
+  }
+}

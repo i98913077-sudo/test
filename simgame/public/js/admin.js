@@ -20,7 +20,7 @@ function login(msg) {
     try { tok.v = (await api('/api/admin/login', { method: 'POST', body: { password: pw.value } })).token; dashboard(); }
     catch (ex) { err.textContent = ex.message; }
   };
-  clear(app).append(banner(), el('main', { class: 'wrap' }, el('h1', {}, '너굴 관리자'),
+  clear(app).append(banner(), el('main', { class: 'wrap' }, el('h1', {}, '운영 관리자'),
     el('form', { class: 'card', onsubmit: go }, el('label', { class: 'field', for: 'pw' }, '관리자 비밀번호'), pw, el('button', { class: 'btn primary block', type: 'submit' }, '로그인'), err),
     el('p', { class: 'muted small' }, '비밀번호는 서버 실행 시 ADMIN_PASSWORD 환경변수로 설정합니다. 설정하지 않으면 서버 콘솔에 임시 비밀번호가 출력됩니다.'), disclaimerBlock()));
 }
@@ -43,7 +43,7 @@ async function draw() {
   const ev = ov.event;
   const root = el('main', { class: 'wrap wide', id: 'admin-root' });
   root.append(
-    el('div', { class: 'row between' }, el('h1', {}, '너굴 관리자'), el('div', { class: 'row' },
+    el('div', { class: 'row between' }, el('h1', {}, '운영 관리자'), el('div', { class: 'row' },
       el('a', { class: 'btn sm', href: '/ranking', target: '_blank', rel: 'noopener' }, '🏆 수업용 순위 화면'),
       el('button', { class: 'btn sm', onclick: () => { tok.v = null; login(); } }, '로그아웃'))),
     studentLink(),
@@ -59,9 +59,9 @@ async function draw() {
 
 function studentLink() {
   const url = `${location.origin}/`;
-  return el('div', { class: 'card' }, el('b', {}, '너굴이 접속 주소'), el('div', { class: 'row' },
+  return el('div', { class: 'card' }, el('b', {}, '선생님 접속 주소'), el('div', { class: 'row' },
     el('code', { class: 'grow' }, url), el('button', { class: 'btn sm', onclick: async () => { try { await navigator.clipboard.writeText(url); toast('주소를 복사했어요'); } catch { toast('복사 실패: 직접 선택해 복사해주세요'); } } }, '복사')),
-    el('p', { class: 'muted small' }, '이 주소를 QR코드 생성기(무료 사이트 등)에 넣어 화면에 띄우면 너굴이들이 휴대폰으로 스캔해 접속할 수 있어요.'));
+    el('p', { class: 'muted small' }, '이 주소를 QR코드 생성기(무료 사이트 등)에 넣어 화면에 띄우면 선생님들이 휴대폰으로 스캔해 접속할 수 있어요.'));
 }
 
 function field(label, input, hint) { return el('div', {}, el('label', { class: 'field' }, label), input, hint ? el('div', { class: 'muted small' }, hint) : null); }
@@ -83,7 +83,7 @@ function tickerPicker(selected) {
 }
 
 function createCard() {
-  const name = el('input', { class: 'input', value: '너굴이들 모의투자 챌린지', maxlength: 40 });
+  const name = el('input', { class: 'input', value: '동그라미 선생님들 모의투자 챌린지', maxlength: 40 });
   const bal = el('input', { class: 'input', type: 'number', inputmode: 'numeric', value: '100000000', min: 10000, step: 1000000 });
   const dur = el('input', { class: 'input', type: 'number', inputmode: 'numeric', placeholder: '비우면 직접 종료', min: 1 });
   const mode = el('select', { class: 'input' }, el('option', { value: 'after_end' }, '게임 종료 후 공개 (권장)'), el('option', { value: 'live' }, '실시간 공개'));

@@ -1,0 +1,6 @@
+Pretendard (PretendardVariable.subset.woff2)
+Copyright (c) 2021, Kil Hyung-jin (https://github.com/orioncactus/pretendard)
+SIL Open Font License, Version 1.1 — https://openfontlicense.org
+
+이 파일은 원본 PretendardVariable.woff2에서 KS X 1001 한글 2,350자와 기본 영문·기호만 남긴 부분 집합(subset)입니다.
+OFL에 따라 자유롭게 사용·배포할 수 있으며, 글꼴 자체를 따로 판매할 수는 없습니다.

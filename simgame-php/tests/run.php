@@ -7,6 +7,7 @@ require __DIR__ . '/../lib/util.php';
 require __DIR__ . '/../lib/market.php';
 require __DIR__ . '/../lib/db.php';
 require __DIR__ . '/../lib/game.php';
+require __DIR__ . '/../lib/live.php';
 
 $passed = 0; $failed = 0; $current = '';
 function t(string $name, callable $fn): void {
@@ -510,7 +511,7 @@ t('기본 종목(국내·미국 시총 상위, 지수선물, 달러, 원유) 전
         check(in_array($n, $names, true), "$n 누락");
     }
     $groups = array_values(array_unique(array_column($st['stocks'], 'group'))); sort($groups);
-    eq($groups, ['fx', 'idx', 'kr', 'oil', 'us']);
+    eq($groups, ['crypto', 'fx', 'idx', 'kr', 'oil', 'us']);
     foreach ($g->currentEvent()['tickers'] as $tk) {
         check(is_string($tk), "ticker 타입: " . gettype($tk));
         $r = $g->trade($a, ['ticker' => $tk, 'side' => 'buy', 'quantity' => 1, 'reason' => REASON]);
@@ -550,12 +551,132 @@ t('관리자 현황', function () {
     rmrf($d);
 });
 
+
+// ───────────────── 가상자산 실시간 시세(업비트 공개 API) ─────────────────
+function fakeUpbit(array &$calls, array &$state): callable {
+    return function (string $url) use (&$calls, &$state) {
+        $calls[] = $url;
+        if ($state['down']) return null;
+        $u = parse_url($url); parse_str($u['query'] ?? '', $q);
+        if (str_ends_with($u['path'], '/ticker')) {
+            return json_encode(array_map(fn($m) => ['market' => $m, 'trade_price' => $state['px'][$m], 'prev_closing_price' => $state['px'][$m] * 0.98, 'acc_trade_volume' => 1234.5], explode(',', $q['markets'])));
+        }
+        if (str_contains($u['path'], '/candles/')) {
+            $n = (int)$q['count']; $p = $state['px'][$q['market']]; $rows = [];
+            $step = str_contains($u['path'], 'days') ? 86400 : 60 * (int)basename($u['path']);
+            $end = isset($q['to']) ? strtotime($q['to']) - 1 : intdiv($state['now'], 1000);
+            for ($i = 0; $i < $n; $i++) { // 최신 봉이 먼저
+                $t = intdiv($end, $step) * $step - $i * $step;
+                $c = $p - $i * 100; $o = $c - 1000;
+                $rows[] = ['candle_date_time_utc' => gmdate('Y-m-d\TH:i:s', $t), 'opening_price' => $o, 'high_price' => $c + 5000, 'low_price' => $o - 5000, 'trade_price' => $c, 'candle_acc_trade_volume' => 2.5];
+            }
+            return json_encode($rows);
+        }
+        return null;
+    };
+}
+function liveFresh(array &$calls, array &$state): array {
+    $dir = tmpdir(); $db = sim_open_db($dir);
+    $clock = function () use (&$state) { return $state['now']; };
+    $m = new LiveMarket(sim_price_seed($db), 1.0, $db, fakeUpbit($calls, $state), $clock);
+    return [$m, $db, $dir, $clock];
+}
+t('가상자산: BTC·ETH가 있고, 업비트 원화 시세를 0.001개 단위(P)로 환산한다', function () {
+    eq(Market::TICKERS['BTC']['live']['market'], 'KRW-BTC'); eq(Market::TICKERS['ETH']['unit'], 'mETH');
+    $calls = []; $state = ['down' => false, 'now' => gmmktime(3, 0, 0, 10, 8, 2026) * 1000, 'px' => ['KRW-BTC' => 152345678.0, 'KRW-ETH' => 5432100.0]];
+    [$m, $db, $dir] = liveFresh($calls, $state);
+    eq($m->priceAt('BTC', $state['now']), 152346);
+    eq($m->priceAt('ETH', $state['now']), 5432);
+    eq($m->prevClose('BTC', $state['now']), (int)round(152345678 * 0.98 * 0.001));
+    eq($m->todayVolume('BTC', $state['now']), 1234500);
+    eq($m->sourceOf('BTC'), 'upbit'); eq($m->sourceOf('005930'), 'sample');
+    eq(count($calls), 1, '한 요청 안에서는 한 번만 묻는다');
+    check(str_contains($calls[0], 'markets=KRW-BTC%2CKRW-ETH'), '두 종목을 한 번에');
+    eq($m->priceAt('005930', $state['now']), (new Market(sim_price_seed($db)))->priceAt('005930', $state['now']), '주식은 그대로 샘플');
+    rmrf($dir);
+});
+t('가상자산: 여러 요청이 와도 몇 초에 한 번만 외부에 묻고(캐시), 실패하면 마지막 값 → 1분 쉬었다 재시도', function () {
+    $calls = []; $state = ['down' => false, 'now' => gmmktime(3, 0, 0, 10, 8, 2026) * 1000, 'px' => ['KRW-BTC' => 150000000.0, 'KRW-ETH' => 5000000.0]];
+    [$m, $db, $dir, $clock] = liveFresh($calls, $state);
+    $m->warm();
+    $new = function () use (&$calls, &$state, $db, $clock) { return new LiveMarket(sim_price_seed($db), 1.0, $db, fakeUpbit($calls, $state), $clock); };
+    for ($i = 0; $i < 5; $i++) $new()->warm(); // 다른 요청들(같은 시각)
+    eq(count($calls), 1, '캐시 사용');
+    $state['now'] += 5000; $state['px']['KRW-BTC'] = 151000000.0;
+    eq($new()->priceAt('BTC', $state['now']), 151000, '4초 지나면 새로 받는다');
+    eq(count($calls), 2);
+    $state['now'] += 5000; $state['down'] = true;
+    $a = $new();
+    eq($a->priceAt('BTC', $state['now']), 151000, '실패하면 마지막으로 받은 값');
+    eq(count($calls), 3);
+    $state['now'] += 10000;
+    $new()->warm(); $new()->warm();
+    eq(count($calls), 3, '실패 후 1분간은 묻지 않는다');
+    $state['now'] += 200000;
+    $b = $new();
+    eq($b->sourceOf('BTC'), 'upbit-delayed', '오래되면 지연 표시');
+    eq(count($calls), 4, '1분 뒤 다시 시도');
+    $state['down'] = false; $state['now'] += 70000;
+    eq($new()->sourceOf('BTC'), 'upbit');
+    rmrf($dir);
+});
+t('가상자산: 한 번도 못 받으면 샘플 가격으로 그대로 돌아간다 (호스팅이 외부 접속을 막는 경우)', function () {
+    $calls = []; $state = ['down' => true, 'now' => gmmktime(3, 0, 0, 10, 8, 2026) * 1000, 'px' => []];
+    [$m, $db, $dir] = liveFresh($calls, $state);
+    $sample = new Market(sim_price_seed($db));
+    eq($m->priceAt('BTC', $state['now']), $sample->priceAt('BTC', $state['now']));
+    eq($m->sourceOf('BTC'), 'sample');
+    eq(count($m->candles('BTC', 'm1', $state['now'])), 120);
+    rmrf($dir);
+});
+t('가상자산 차트: 업비트 캔들을 시간순으로 바꾸고, 마지막 봉은 현재가로 마감, 캐시한다', function () {
+    $calls = []; $state = ['down' => false, 'now' => gmmktime(3, 0, 30, 10, 8, 2026) * 1000, 'px' => ['KRW-BTC' => 150000000.0, 'KRW-ETH' => 5000000.0]];
+    [$m, $db, $dir] = liveFresh($calls, $state);
+    foreach (['m1' => [120, 60000], 'm5' => [144, 300000], '1d' => [200, 300000], '1w' => [168, 3600000], '3m' => [90, 86400000]] as $r => [$n, $span]) {
+        $c = $m->candles('BTC', $r, $state['now']);
+        eq(count($c), $n, $r);
+        for ($i = 1; $i < $n; $i++) eq($c[$i]['t'] - $c[$i - 1]['t'], $span, "$r 간격");
+        eq(end($c)['c'], 150000, "$r 마지막=현재가");
+        check(end($c)['t'] <= $state['now'] && end($c)['t'] > $state['now'] - $span, "$r 마지막 봉 시각");
+        foreach ($c as $k) check($k['l'] <= min($k['o'], $k['c']) && $k['h'] >= max($k['o'], $k['c']), "$r 고저");
+        eq($c[0]['v'], 2500);
+    }
+    $n = count($calls);
+    $m->candles('BTC', 'm1', $state['now']);
+    eq(count($calls), $n, '차트 캐시');
+    rmrf($dir);
+});
+t('가상자산 거래: 실시간 가격으로 서버가 계산하고, 종료되면 그 시각 가격으로 고정된다', function () {
+    $calls = []; $state = ['down' => false, 'now' => gmmktime(3, 0, 0, 10, 8, 2026) * 1000, 'px' => ['KRW-BTC' => 150000000.0, 'KRW-ETH' => 5000000.0]];
+    [$m, $db, $dir, $clock] = liveFresh($calls, $state);
+    $g = new Game($db, $m, $clock);
+    $g->createEvent(['tickers' => ['BTC', 'ETH', '005930'], 'duration_min' => 10]);
+    $g->startEvent();
+    $a = $g->join('동그라미');
+    $auth = $g->authenticate($a['token']);
+    $r = $g->trade($auth, ['ticker' => 'BTC', 'side' => 'buy', 'quantity' => 10, 'reason' => '가상자산 공부를 위한 소액 매수']);
+    $st = $g->myState($auth);
+    $btc = array_values(array_filter($st['stocks'], fn($x) => $x['ticker'] === 'BTC'))[0];
+    eq($btc['price'], 150000); eq($btc['source'], 'upbit'); eq($btc['group'], 'crypto');
+    eq($st['me']['cash'], 100000000 - 1500000);
+    fails(fn() => $g->trade($auth, ['ticker' => 'BTC', 'side' => 'sell', 'quantity' => 11, 'reason' => '공매도는 안 되는지 확인합니다']));
+    // 시간이 지나 자동 종료 → 종료 시각(10분 뒤)의 1분봉 종가로 고정
+    $state['now'] += 30 * 60000; $state['px']['KRW-BTC'] = 160000000.0;
+    $g2 = new Game($db, new LiveMarket(sim_price_seed($db), 1.0, $db, fakeUpbit($calls, $state), $clock), $clock);
+    $st2 = $g2->myState($g2->authenticate($a['token']));
+    eq($st2['event']['status'], 'ended');
+    $btc2 = array_values(array_filter($st2['stocks'], fn($x) => $x['ticker'] === 'BTC'))[0];
+    eq($btc2['price'], 160000, '종료 시각 1분봉 종가'); eq($btc2['source'], 'frozen');
+    check(count(array_filter($calls, fn($u) => str_contains($u, 'minutes/1') && str_contains($u, 'to='))) >= 1, '과거 시각 조회');
+    rmrf($dir);
+});
+
 // ───────────────── HTTP 계층 ─────────────────
 echo "── HTTP (실제 PHP 서버) ──\n";
 $root = realpath(__DIR__ . '/..');
 $dataDir = tmpdir();
 $port = random_int(20000, 40000);
-$env = ['SIMGAME_ADMIN_PASSWORD' => 'pw-test', 'SIMGAME_DATA_DIR' => $dataDir, 'SIMGAME_TEST' => '1', 'PATH' => getenv('PATH') ?: '/usr/bin:/bin', 'PHP_CLI_SERVER_WORKERS' => '4'];
+$env = ['SIMGAME_ADMIN_PASSWORD' => 'pw-test', 'SIMGAME_DATA_DIR' => $dataDir, 'SIMGAME_TEST' => '1', 'SIMGAME_LIVE' => '0', 'PATH' => getenv('PATH') ?: '/usr/bin:/bin', 'PHP_CLI_SERVER_WORKERS' => '4'];
 $proc = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", '-t', $root], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $root, $env);
 register_shutdown_function(function () use ($proc, $dataDir) { proc_terminate($proc); rmrf($dataDir); });
 for ($i = 0; $i < 50; $i++) { if (@fsockopen('127.0.0.1', $port)) break; usleep(100000); }
@@ -612,7 +733,7 @@ t('HTTP: 관리자 로그인 → 이벤트 생성/시작 → 참가/거래/랭�
     eq(count($cd['json']['candles']), 168);
     eq(count($H('GET', 'stocks/NVDA/candles', ['query' => '&range=1d'])['json']['candles']), 288, 'NVDA 차트');
     eq($H('GET', 'stocks/NOPE/candles', ['query' => '&range=1d'])['status'], 404);
-    eq(count($H('GET', 'tickers')['json']['groups']), 5);
+    eq(count($H('GET', 'tickers')['json']['groups']), 6);
 });
 
 t('HTTP: 본문을 base64(b64:...)로 감싸 보내도 동일하게 처리되고, 특수문자 이유가 그대로 저장된다', function () use ($H) {
@@ -680,7 +801,7 @@ t('HTTP: 비밀번호 CHANGE_ME/미설정이면 관리자 로그인이 막힌다
     // 별도 서버(환경변수 없음, config.php 기본값 CHANGE_ME)
     $d = tmpdir(); $p = random_int(40001, 60000);
     $pr = proc_open([PHP_BINARY, '-S', "127.0.0.1:$p", '-t', $root], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, $root,
-        ['SIMGAME_DATA_DIR' => $d, 'PATH' => getenv('PATH') ?: '/usr/bin:/bin']);
+        ['SIMGAME_DATA_DIR' => $d, 'SIMGAME_LIVE' => '0', 'PATH' => getenv('PATH') ?: '/usr/bin:/bin']);
     for ($i = 0; $i < 50; $i++) { if (@fsockopen('127.0.0.1', $p)) break; usleep(100000); }
     $ch = curl_init("http://127.0.0.1:$p/api.php?r=admin/login");
     curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode(['password' => 'CHANGE_ME']), CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true]);

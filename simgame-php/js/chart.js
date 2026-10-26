@@ -26,15 +26,17 @@ export function drawCandles(canvas, candles, { onHover, ma = true, timeFmt } = {
   const bw = Math.max(1, Math.min(14, step * 0.7));
   const x = (i) => 2 + step * i + step / 2;
 
-  ctx.font = '11px system-ui, sans-serif';
+  ctx.font = '500 11px Pretendard, system-ui, sans-serif';
   ctx.textBaseline = 'middle';
   ctx.strokeStyle = line; ctx.fillStyle = muted; ctx.lineWidth = 1;
+  ctx.setLineDash([2, 4]);
   for (let g = 0; g <= 4; g++) {
     const p = lo + (hi - lo) * (g / 4), yy = Math.round(y(p)) + 0.5;
     ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(plotW + 2, yy); ctx.stroke();
     ctx.textAlign = 'left';
     ctx.fillText(Math.round(p).toLocaleString('ko-KR'), plotW + 6, yy);
   }
+  ctx.setLineDash([]);
   candles.forEach((c, i) => {
     const col = c.c >= c.o ? up : down;
     ctx.strokeStyle = col; ctx.fillStyle = col;
@@ -57,7 +59,7 @@ export function drawCandles(canvas, candles, { onHover, ma = true, timeFmt } = {
   }
   // 이동평균선 (5, 20)
   if (ma) {
-    for (const [period, color] of [[5, '#e8a317'], [20, '#8a4fd6']]) {
+    for (const [period, color] of [[5, css('--ma5') || '#c9a227'], [20, css('--ma20') || '#7b6cf6']]) {
       if (candles.length < period) continue;
       ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.beginPath();
       let started = false, sum = 0;
@@ -77,7 +79,7 @@ export function drawCandles(canvas, candles, { onHover, ma = true, timeFmt } = {
   ctx.setLineDash([3, 3]); ctx.strokeStyle = last.c >= last.o ? up : down;
   ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(plotW + 2, ly); ctx.stroke(); ctx.setLineDash([]);
   ctx.fillStyle = last.c >= last.o ? up : down;
-  ctx.fillRect(plotW + 2, ly - 8, padR - 2, 16);
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(plotW + 2, ly - 9, padR - 2, 18, 5) : ctx.rect(plotW + 2, ly - 9, padR - 2, 18); ctx.fill();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
   ctx.fillText(last.c.toLocaleString('ko-KR'), plotW + 5, ly);
 

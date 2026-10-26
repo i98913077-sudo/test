@@ -17,7 +17,7 @@ for (const [label, r, method, body] of TESTS) {
     const res = await fetch(url(r), { method, headers: { 'X-Envelope': '1', ...(body ? { 'Content-Type': 'text/plain;charset=UTF-8' } : {}) }, body: body ?? undefined });
     status = res.status;
     const text = (await res.text()).replace(/^﻿/, '').trim();
-    try { const j = JSON.parse(text); kind = 'JSON'; msg = j.error ? `${j.status ?? ''} ${j.error}` : (j.ok ? 'ok' : j.version ? `버전 ${j.version}` : '정상 응답'); }
+    try { const j = JSON.parse(text); kind = 'JSON'; msg = j.error ? `${j.status ?? ''} ${j.error}` : (j.ok ? 'ok' : j.version ? `버전 ${j.version}` + (j.crypto_feed ? ` · 코인 시세: ${{ upbit: '업비트 실시간 연결됨', 'upbit-delayed': '업비트(지연)', sample: '샘플(외부 연결 안 됨)' }[j.crypto_feed] ?? j.crypto_feed}` : '') : '정상 응답'); }
     catch { kind = 'HTML(막힘)'; msg = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 60); }
   } catch (e) { kind = '연결 실패'; msg = e.message; }
   rows.push({ label, r, method, status, kind, msg });

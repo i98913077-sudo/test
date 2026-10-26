@@ -378,7 +378,7 @@ test('기본 종목: 국내·미국 시총 상위, 지수선물, 달러, 원유�
     '코스피200 선물', '코스닥150 선물', 'S&P500 선물', '나스닥100 선물', '다우존스 선물', '달러 선물(원/달러)', '달러인덱스 선물', 'WTI 원유 선물', '브렌트유 선물', '스페이스엑스(SpaceX)']) {
     assert.ok(names.includes(n), `${n} 누락`);
   }
-  assert.deepEqual([...new Set(st.stocks.map((x) => x.group))].sort(), ['fx', 'idx', 'kr', 'oil', 'us']);
+  assert.deepEqual([...new Set(st.stocks.map((x) => x.group))].sort(), ['crypto', 'fx', 'idx', 'kr', 'oil', 'us']);
   assert.ok(st.stocks.every((x) => x.unit && x.price > 0 && x.prev_close > 0));
   for (const s of st.stocks) {
     const r = await t.call('POST', '/api/trade', { token, body: { ticker: s.ticker, side: 'buy', quantity: 1, reason: REASON } });
@@ -396,7 +396,7 @@ test('기본 종목: 국내·미국 시총 상위, 지수선물, 달러, 원유�
   assert.equal((await t.call('GET', '/api/stocks/NOPE/candles?range=1d')).status, 404);
   assert.equal((await t.call('GET', '/api/stocks/bad%24%24/candles?range=1d')).status, 404);
   const tk = await t.call('GET', '/api/tickers');
-  assert.equal(tk.groups.length, 5);
+  assert.equal(tk.groups.length, 6);
   await t.close();
 });
 

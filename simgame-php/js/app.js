@@ -1,10 +1,10 @@
-import { el, $, clear, fmtCompact, fmt, fmtP, fmtPct, fmtSigned, dir, arrow, fmtTime, fmtDuration, store, api, banner, disclaimerBlock, toast, COLORS } from './common.js?v=2026.10.25-check';
-import { drawCandles } from './chart.js?v=2026.10.25-check';
+import { el, $, clear, fmtCompact, fmt, fmtP, fmtPct, fmtSigned, dir, arrow, fmtTime, fmtDuration, store, api, banner, disclaimerBlock, toast, COLORS } from './common.js?v=2026.10.26-premium';
+import { drawCandles } from './chart.js?v=2026.10.26-premium';
 
 // 화면 구성: 실제 증권 앱(MTS)처럼 하단 6개 메뉴. 모든 거래는 가상 포인트로 하는 게임이다.
 const app = $('#app');
 const TABS = [['watch', '⭐', '관심종목'], ['quote', '💹', '현재가'], ['order', '🧾', '주문'], ['chart', '📈', '차트'], ['account', '💼', '계좌'], ['menu', '☰', '메뉴']];
-const GROUP_FILTERS = [['all', '전체', null], ['kr', '국내', ['kr']], ['us', '미국', ['us']], ['etc', '선물', ['idx', 'fx', 'oil']]];
+const GROUP_FILTERS = [['all', '전체', null], ['kr', '국내', ['kr']], ['us', '미국', ['us']], ['etc', '선물', ['idx', 'fx', 'oil']], ['crypto', '코인', ['crypto']]];
 const MIN_RANGES = [['m1', '1분'], ['m3', '3분'], ['m5', '5분'], ['m10', '10분'], ['m30', '30분']];
 const PERIOD_RANGES = [['1d', '1일'], ['1w', '1주'], ['1m', '1개월'], ['3m', '3개월']];
 const RANGE_MIN = { m1: 1, m3: 3, m5: 5, m10: 10, m30: 30, '1d': 5, '1w': 60, '1m': 1440, '3m': 1440 }; // 봉 하나의 길이(분)
@@ -12,18 +12,17 @@ const KST = { timeZone: 'Asia/Seoul' };
 const fmtAxis = (range, t) => (RANGE_MIN[range] >= 1440 ? new Date(t).toLocaleDateString('ko-KR', { ...KST, month: 'numeric', day: 'numeric' })
   : range === '1w' ? new Date(t).toLocaleString('ko-KR', { ...KST, month: 'numeric', day: 'numeric', hour: '2-digit', hour12: false }) + '시'
   : new Date(t).toLocaleTimeString('ko-KR', { ...KST, hour: '2-digit', minute: '2-digit', hour12: false }));
-const kstDayStart = (ms) => Math.floor((ms + 9 * 3600000) / 86400000) * 86400000 - 9 * 3600000;
-const bucketStart = (range, ms) => (RANGE_MIN[range] >= 1440 ? kstDayStart(ms) : Math.floor(ms / (RANGE_MIN[range] * 60000)) * RANGE_MIN[range] * 60000);
 // 실시간: 새 가격이 오면 마지막 봉을 갱신하고, 새 봉 시간이 되면 봉을 하나 추가한다. 봉이 여러 개 비면 false(서버에서 다시 받기)
 function applyLive(candles, range, price, ms) {
   if (!candles?.length) return false;
-  const last = candles[candles.length - 1], start = bucketStart(range, ms), span = RANGE_MIN[range] * 60000;
-  if (start - last.t > span * 1.5) return false;
-  if (start > last.t) { candles.push({ t: start, o: last.c, h: Math.max(last.c, price), l: Math.min(last.c, price), c: price, v: 0 }); candles.shift(); }
+  // 봉 경계는 서버가 준 마지막 봉 시각을 기준으로 잡는다 (샘플은 한국시간 0시, 업비트 일봉은 오전 9시 기준이라 서로 다름)
+  const last = candles[candles.length - 1], span = RANGE_MIN[range] * 60000;
+  if (ms - last.t >= span * 2) return false; // 너무 많이 비었으면 다시 불러온다
+  if (ms >= last.t + span) { candles.push({ t: last.t + span, o: last.c, h: Math.max(last.c, price), l: Math.min(last.c, price), c: price, v: 0 }); candles.shift(); }
   else { last.c = price; last.h = Math.max(last.h, price); last.l = Math.min(last.l, price); }
   return true;
 }
-const GROUP_NAMES = { kr: '국내주식', us: '미국주식', idx: '지수선물', fx: '달러선물', oil: '원유선물' };
+const GROUP_NAMES = { kr: '국내주식', us: '미국주식', idx: '지수선물', fx: '달러선물', oil: '원유선물', crypto: '가상자산' };
 const S = {
   state: null, tab: 'watch', sub: null, selected: null, side: 'buy', range: 'm5', group: 'all', lastPrice: {}, running: false, query: '', watchMode: 'fav',
   candles: null, mini: null, compareCode: null, clockOffset: 0, tradeCtx: null, favs: null,
@@ -123,7 +122,7 @@ async function renderIntro(message) {
   btn.addEventListener('click', submit);
   nick.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(e); });
 
-  const status = !event ? '현재 열려 있는 이벤트가 없습니다. 너굴의 안내를 기다려주세요.'
+  const status = !event ? '현재 열려 있는 이벤트가 없습니다. 운영자의 안내를 기다려주세요.'
     : event.status === 'ended' ? `「${event.name}」 이벤트가 종료되었습니다.`
     : event.status === 'ready' ? `「${event.name}」 · 곧 시작합니다 (참가자 ${event.participants}명 대기 중)`
     : `「${event.name}」 · 진행 중 (참가자 ${event.participants}명)`;
@@ -131,7 +130,7 @@ async function renderIntro(message) {
   app.append(banner(), el('main', { class: 'wrap' },
     el('div', { class: 'hero' },
       el('div', { class: 'logo' }, 'SAFE INVEST'),
-      el('h1', {}, '너굴이들 모의투자 챌린지'),
+      el('h1', {}, '동그라미 선생님들 모의투자 챌린지'),
       el('p', { class: 'muted' }, canJoin ? `가상 포인트 ${event.initial_balance.toLocaleString('ko-KR')}P로 시작해요` : '교육용 가상 모의투자 게임')),
     el('div', { class: 'card' }, el('b', {}, status)),
     el('div', { class: 'notice' },
@@ -208,7 +207,7 @@ function renderSummary() {
       stat('가상현금', fmtCompact(me.cash)), stat('주식 평가', fmtCompact(me.stock_value)),
       stat('현재 순위', me.rank ? `${me.rank}위/${me.participants}명` : '-')));
   const notes = [];
-  if (event.status === 'ready') notes.push(el('div', { class: 'notice' }, '⏳ 아직 게임이 시작되지 않았어요. 너굴의 시작 신호를 기다리는 동안 종목을 살펴보세요.'));
+  if (event.status === 'ready') notes.push(el('div', { class: 'notice' }, '⏳ 아직 게임이 시작되지 않았어요. 운영자의 시작 신호를 기다리는 동안 종목을 살펴보세요.'));
   if (event.status === 'ended') notes.push(el('div', { class: 'notice' }, '🏁 게임이 종료되었어요. 거래는 더 할 수 없고, 메뉴에서 나의 투자 리포트를 확인할 수 있어요.'));
   clear(ui.status).append(...notes);
   tickClock();
@@ -270,6 +269,13 @@ function priceBlock(s) {
 const priceBlockEl = (s, flash) => el('div', { class: 'pricebox' },
   el('div', { class: `bigprice num ${dir(s.change)}${flash}` }, fmt(s.price), el('span', { class: 'unitp' }, 'P')),
   el('div', { class: `num ${dir(s.change)}` }, `${arrow(s.change)} ${fmt(Math.abs(s.change))}P  ${fmtPct(s.change_rate)}`));
+// 가격 출처 배지: 가상자산은 (PHP판에서) 업비트 공개 시세, 나머지는 샘플
+const SRC = { upbit: ['live', '실시간 · 업비트'], 'upbit-delayed': ['delayed', '업비트 · 지연'], frozen: ['', '종료 시점 가격'], sample: ['', '샘플 가격'] };
+const srcTag = (s) => { const [c, t] = SRC[s.source] ?? SRC.sample; return el('span', { class: `src ${c}` }, t); };
+const isLiveSrc = (s) => s.source === 'upbit' || s.source === 'upbit-delayed';
+const priceNote = (s) => (isLiveSrc(s)
+  ? '가격은 업비트 공개 시세(원화)를 0.001개 단위로 환산한 참고값이며, 게임에서는 가상 포인트로만 거래합니다. 실제 가상자산 거래가 아니며 투자 권유가 아닙니다. 시세 제공: 업비트'
+  : '가격은 수업용 샘플(DEMO) 데이터이며 실제 시세가 아닙니다.');
 const leverNotice = (s) => ((s.leverage ?? 1) > 1 ? el('div', { class: 'notice small' }, `⚠️ 레버리지 ${s.leverage}배 상품: 주문금액의 1/${s.leverage}만 증거금으로 내고, 손익도 ${s.leverage}배로 커져요. 가격이 약 ${Math.round(100 / s.leverage)}% 반대로(매수 포지션은 하락, 매도 포지션은 상승) 움직이면 증거금을 모두 잃고 강제청산돼요. 매수와 매도 모두 가능해요. (가상 포인트로 하는 게임이에요)`) : null);
 
 // ───────────── 관심종목 ─────────────
@@ -282,7 +288,7 @@ function renderWatch() {
   const groupChips = el('div', { class: 'chips wrap-chips', role: 'tablist', 'aria-label': '종목 구분' }, ...GROUP_FILTERS.map(([k, label]) =>
     el('button', { class: `chip${k === S.group ? ' active' : ''}`, 'data-g': k, onclick: () => { S.group = k; groupChips.querySelectorAll('.chip').forEach((c) => c.classList.toggle('active', c.dataset.g === k)); updateWatchList(); } }, label)));
   ui.content.append(mode, groupChips, search,
-    el('div', { class: 'notice small' }, '표시되는 가격은 수업을 위한 샘플(DEMO) 가격이며 실제 시세가 아닙니다. 종목 설명은 교육용 정보이며 투자 권유가 아닙니다. ⭐를 누르면 관심종목에 담겨요.'),
+    el('div', { class: 'notice small' }, '주식·선물 가격은 수업을 위한 샘플(DEMO) 가격이며 실제 시세가 아닙니다. 코인(비트코인·이더리움)은 연결되면 업비트 공개 시세를 참고값으로 보여줘요. 종목 설명은 교육용 정보이며 투자 권유가 아닙니다. ⭐를 누르면 관심종목에 담겨요.'),
     ui.list);
   updateWatchList();
 }
@@ -298,7 +304,7 @@ function updateWatchList() {
   if (!items.length) {
     const noneInGroup = !q && allowed && !S.state.stocks.some((x) => allowed.includes(x.group));
     ui.list.append(el('div', { class: noneInGroup ? 'notice' : 'muted' }, noneInGroup
-      ? '이 구분의 종목은 아직 이 게임에 없어요. 너굴(운영자)에게 관리자 화면에서 종목을 추가해 달라고 말해 주세요.'
+      ? '이 구분의 종목은 아직 이 게임에 없어요. 운영자에게 관리자 화면에서 종목을 추가해 달라고 말해 주세요.'
       : S.watchMode === 'fav' && !q ? '관심종목이 비어 있어요. "전체 종목"에서 ⭐를 눌러 담아보세요.' : '검색 결과가 없어요.'));
     return;
   }
@@ -307,7 +313,7 @@ function updateWatchList() {
     const star = el('button', { class: `star${isFav(s.ticker) ? ' on' : ''}`, 'aria-label': isFav(s.ticker) ? '관심종목에서 빼기' : '관심종목에 담기', onclick: (e) => { e.stopPropagation(); toggleFav(s.ticker); updateWatchList(); } }, isFav(s.ticker) ? '★' : '☆');
     ui.list.append(el('div', { class: 'wrow' }, star,
       el('button', { class: 'stock grow', onclick: () => selectStock(s.ticker, 'quote') },
-        el('div', {}, el('div', { class: 'name' }, s.name), el('div', { class: 'sub' }, `${s.ticker} · ${s.sector}${(s.leverage ?? 1) > 1 ? ` · 레버리지 ${s.leverage}배` : ''}${held ? ` · 보유 ${fmt(held.quantity)}${held.unit}` : ''}`)),
+        el('div', {}, el('div', { class: 'name' }, s.name), el('div', { class: 'sub' }, `${s.ticker} · ${s.sector}${(s.leverage ?? 1) > 1 ? ` · 레버리지 ${s.leverage}배` : ''}${held ? ` · 보유 ${fmt(held.quantity)}${held.unit}` : ''}`, isLiveSrc(s) ? ' ' : null, isLiveSrc(s) ? srcTag(s) : null)),
         el('div', { class: 'px num' }, el('div', { class: 'name' }, fmtP(s.price)), el('div', { class: `${dir(s.change)} small` }, `${arrow(s.change)} ${fmtPct(s.change_rate)}`)))));
   }
 }
@@ -324,7 +330,7 @@ function renderQuote() {
     el('div', { class: 'chart-box mini' }, ui.qCanvas),
     ui.qStats,
     el('div', { class: 'card' }, el('b', {}, '종목 기본정보'), el('div', { class: 'muted' }, s.sector), el('div', {}, s.info),
-      el('div', { class: 'muted small' }, '가격은 수업용 샘플(DEMO) 데이터이며 실제 시세가 아닙니다.')));
+      el('div', { class: 'muted small' }, priceNote(s))));
   updateQuote();
   loadMini();
 }
@@ -334,7 +340,7 @@ function updateQuote() {
   const held = posOf(s.ticker);
   const canTrade = S.state.event.status === 'running';
   clear(ui.qHead).append(
-    el('div', { class: 'row between' }, el('div', {}, el('h2', {}, s.name), el('span', { class: 'muted small' }, `${s.ticker} · ${s.sector}`)),
+    el('div', { class: 'row between' }, el('div', {}, el('h2', {}, s.name), el('span', { class: 'muted small' }, `${s.ticker} · ${s.sector} `), srcTag(s)),
       el('button', { class: `star big${isFav(s.ticker) ? ' on' : ''}`, 'aria-label': '관심종목 담기/빼기', onclick: () => { toggleFav(s.ticker); updateQuote(); } }, isFav(s.ticker) ? '★' : '☆')),
     priceBlock(s), leverNotice(s));
   clear(ui.qActions).append(
@@ -368,7 +374,7 @@ function renderChartTab() {
 function updateChartHead() {
   if (!ui.cHead?.isConnected) return;
   const s = curStock(); if (!s) return;
-  clear(ui.cHead).append(el('div', { class: 'row between' }, el('div', {}, el('b', {}, s.name), el('div', { class: 'live small' }, el('span', { class: 'dot' }, '●'), ` 실시간 · ${fmtTime(serverNow())}`)), priceBlock(s)));
+  clear(ui.cHead).append(el('div', { class: 'row between' }, el('div', {}, el('b', {}, s.name), el('div', { class: 'live small' }, srcTag(s), ` ${fmtTime(serverNow())}`)), priceBlock(s)));
 }
 async function fetchCandles(ticker, range) { return (await api(`/api/stocks/${encodeURIComponent(ticker)}/candles?range=${range}`)).candles; }
 async function loadChart() {
@@ -621,7 +627,7 @@ function renderMenu() {
       item('🔴', '매수', running ? '선택한 종목을 가상으로 사요' : '게임 중에만 거래할 수 있어요', () => { S.side = 'buy'; showTab('order'); }),
       item('🔵', '매도', '보유한 종목을 팔아요', () => { S.side = 'sell'; showTab('order'); }),
       item('🧾', '체결내역', '내 거래 기록과 이유', () => openSub('history')),
-      item('🏆', '랭킹 · 수익률 비교', '너굴이들과 순위·수익률을 비교해요', () => openSub('rank')),
+      item('🏆', '랭킹 · 수익률 비교', '동그라미 선생님들과 순위·수익률을 비교해요', () => openSub('rank')),
       item('📝', '나의 투자 리포트', '총자산, 분산 비율, 거래 돌아보기', () => openSub('report')),
       item('💡', '오늘의 미션 · 금융교육', '짧은 카드로 배워요', () => openSub('learn')),
       item('📘', '이용 안내 · 면책', '이 게임은 가상 포인트 교육용이에요', () => openSub('guide')),
@@ -661,9 +667,9 @@ function renderGuide() {
       '이 게임은 금융교육 및 수업 활동을 위한 가상 모의투자 게임입니다. 게임에서 사용하는 포인트는 실제 돈이 아니며 현금으로 교환할 수 없습니다. 게임 결과는 실제 투자수익을 의미하지 않습니다. 실제 투자 판단은 각자의 책임과 충분한 정보 확인이 필요합니다.'),
     el('div', { class: 'card' }, el('h3', {}, '이 게임의 규칙'),
       el('p', {}, '• 모든 주문은 시장가로, 확인하는 순간의 게임 가격에 바로 체결돼요.'),
-      el('p', {}, '• 가격은 수업용 샘플(DEMO)이며 실제 시세가 아니에요.'),
+      el('p', {}, '• 주식·선물 가격은 수업용 샘플(DEMO)이며 실제 시세가 아니에요. 코인은 업비트 공개 시세를 참고값으로 쓸 수 있어요(연결이 안 되면 샘플).'),
       el('p', {}, '• 선물은 레버리지 10배예요. 증거금만 내고 거래하며, 손익도 10배로 커져요. 매수·매도 모두 가능하고(매도는 가격이 내리면 이익), 약 10% 반대로 움직이면(매수는 하락, 매도는 상승) 강제청산돼요. 만기는 없어요. 주식은 가진 만큼만 팔 수 있어요.'),
-      el('p', {}, '• 매수할 때는 이유를 적어야 해요. 다른 사람의 이유는 게임이 끝난 뒤(또는 너굴이 정한 때) 공개돼요.')));
+      el('p', {}, '• 매수할 때는 이유를 적어야 해요. 다른 사람의 이유는 게임이 끝난 뒤(또는 운영자가 정한 때) 공개돼요.')));
 }
 
 // ───────────── 랭킹 / 비교 ─────────────
@@ -673,7 +679,7 @@ async function renderRank(silent) {
   if (S.tab !== 'menu' || S.sub !== 'rank' || S.compareCode) return;
   const me = S.state.me;
   clear(ui.content).append(backBtn('← 메뉴', closeSub),
-    el('div', { class: 'card' }, el('div', { class: 'row between' }, el('h2', {}, '🏆 너굴이들 모의투자 랭킹'), el('a', { class: 'btn sm', href: 'ranking.html', target: '_blank', rel: 'noopener' }, '큰 화면')),
+    el('div', { class: 'card' }, el('div', { class: 'row between' }, el('h2', {}, '🏆 동그라미 선생님들 모의투자 랭킹'), el('a', { class: 'btn sm', href: 'ranking.html', target: '_blank', rel: 'noopener' }, '큰 화면')),
       el('p', { class: 'muted small' }, '순위는 게임 내 총자산 기준이며, 실제 투자 성과나 미래 수익을 의미하지 않습니다. 참가자를 누르면 나와 비교할 수 있어요.'),
       data.rows.length ? null : el('p', { class: 'muted' }, '아직 참가자가 없어요.'),
       ...data.rows.map((r) => el('button', { class: `rank-row${r.code === me.code ? ' me' : ''}`, onclick: () => openCompare(r.code) },
@@ -693,7 +699,7 @@ async function openCompare(code) {
     el('div', { class: 'num' }, `${p.rank}위`), el('div', { class: 'num small' }, fmtP(p.total)),
     el('b', { class: `num ${dir(p.return_rate)}` }, `${arrow(p.return_rate)} ${fmtPct(p.return_rate)}`));
   const detail = (p) => !p.details_visible
-    ? el('div', { class: 'card muted' }, `🔒 ${p.nickname}님의 보유 종목과 매수 이유는 ${c.reveal_mode === 'after_end' ? '게임이 끝난 뒤' : '너굴이 공개하면'} 볼 수 있어요.`)
+    ? el('div', { class: 'card muted' }, `🔒 ${p.nickname}님의 보유 종목과 매수 이유는 ${c.reveal_mode === 'after_end' ? '게임이 끝난 뒤' : '운영자가 공개하면'} 볼 수 있어요.`)
     : el('div', { class: 'card' }, el('h3', {}, `${p.nickname}님의 포트폴리오`),
       p.positions.length ? el('div', {}, ...p.positions.map((x) => el('div', { class: 'sum-line' }, el('span', {}, `${x.name} ${fmt(x.quantity)}${x.unit}${x.leverage > 1 ? ` (${sideLabel(x)})` : ''}`), el('b', { class: `num ${dir(x.return_rate)}` }, fmtPct(x.return_rate))))) : el('p', { class: 'muted small' }, '보유한 주식이 없어요.'),
       el('div', { class: 'sum-line small muted' }, el('span', {}, '가상현금'), el('span', { class: 'num' }, fmtP(p.cash))),
@@ -726,7 +732,7 @@ async function renderReport() {
     el('div', { class: 'card card-edu' }, el('h3', {}, '💡 이번 게임에서 살펴볼 점'), ...r.insights.map((t) => el('p', {}, t))),
     el('div', { class: 'card' }, el('h3', {}, '내가 적은 거래 이유'),
       r.reasons.length ? el('div', {}, ...r.reasons.map((t) => el('div', { class: 'reason-item' }, `${t.type === 'buy' ? '매수' : '매도'} · ${t.name} ${fmt(t.quantity)}${t.unit} @ ${fmtP(t.price)}\n${t.reason}`))) : el('p', { class: 'muted' }, '기록된 이유가 없어요.')),
-    el('a', { class: 'btn block', href: 'ranking.html' }, '🏆 너굴이들 전체 순위 보기'));
+    el('a', { class: 'btn block', href: 'ranking.html' }, '🏆 동그라미 선생님들 전체 순위 보기'));
 }
 function weightsBar(weights) {
   const bar = el('div', { class: 'bar', role: 'img', 'aria-label': '자산 구성 비율' });

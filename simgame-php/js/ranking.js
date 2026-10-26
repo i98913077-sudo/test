@@ -1,4 +1,4 @@
-import { el, $, clear, fmtP, fmtPct, fmt, dir, arrow, api, banner, disclaimerBlock, fmtDuration } from './common.js?v=2026.10.25-check';
+import { el, $, clear, fmtP, fmtPct, fmt, dir, arrow, api, banner, disclaimerBlock, fmtDuration } from './common.js?v=2026.10.26-premium';
 
 const app = $('#app');
 const head = el('div', { class: 'board-head' });
@@ -21,7 +21,7 @@ function draw() {
   const d = last;
   if (!d) return;
   if (!d.event) {
-    clear(head).append(el('h1', {}, '🏆 너굴이들 모의투자 랭킹'));
+    clear(head).append(el('h1', {}, '🏆 동그라미 선생님들 모의투자 랭킹'));
     clear(list).append(el('p', { class: 'muted' }, '진행 중인 이벤트가 없습니다.'));
     return;
   }

@@ -12,7 +12,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const MAX_BODY = 16 * 1024;
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json; charset=utf-8', '.woff2': 'font/woff2',
 };
 const PAGES = { '/': 'index.html', '/ranking': 'ranking.html', '/admin': 'admin.html' };
 
@@ -218,6 +218,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     volatility: Number(process.env.DEMO_VOLATILITY ?? 1),
   });
   server.listen(port, () => {
-    console.log(`SAFE INVEST (DEMO MODE) 실행 중 → 너굴이: http://localhost:${port}/  순위화면: /ranking  너굴 관리자: /admin`);
+    console.log(`SAFE INVEST (DEMO MODE) 실행 중 → 선생님: http://localhost:${port}/  순위화면: /ranking  운영 관리자: /admin`);
   });
 }

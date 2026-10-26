@@ -34,10 +34,11 @@ foreach (['pdo_sqlite', 'mbstring'] as $ext) {
 require __DIR__ . '/lib/util.php';
 require __DIR__ . '/lib/market.php';
 require __DIR__ . '/lib/db.php';
+require __DIR__ . '/lib/live.php';
 require __DIR__ . '/lib/game.php';
 
 const MAX_BODY = 16384;
-const APP_VERSION = '2026.10.25-check';
+const APP_VERSION = '2026.10.26-premium';
 
 try {
     $cfg = require __DIR__ . '/config.php';
@@ -47,7 +48,9 @@ try {
     if (isset($_SERVER['HTTP_X_SIM_NOW']) && getenv('SIMGAME_TEST') === '1') $GLOBALS['SIM_NOW'] = (int)$_SERVER['HTTP_X_SIM_NOW']; // 테스트 전용 시계
 
     $db = sim_open_db($dataDir);
-    $market = new Market(sim_price_seed($db), $volatility);
+    // 가상자산 실시간 시세(업비트 공개 API). config.php의 'live_crypto' => false 또는 환경변수 SIMGAME_LIVE=0 이면 끔
+    $liveOn = getenv('SIMGAME_LIVE') !== false ? getenv('SIMGAME_LIVE') !== '0' : (bool)($cfg['live_crypto'] ?? true);
+    $market = $liveOn ? new LiveMarket(sim_price_seed($db), $volatility, $db, null, null, getenv('SIMGAME_TEST') === '1' ? (getenv('SIMGAME_UPBIT_BASE') ?: null) : null) : new Market(sim_price_seed($db), $volatility);
     $game = new Game($db, $market);
 
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -113,6 +116,9 @@ try {
         return '"' . str_replace('"', '""', $s) . '"';
     };
 
+    // 가격이 필요한 요청은 시세를 먼저 불러 둔다 (거래 트랜잭션 안에서 외부 접속을 기다리지 않도록)
+    if (in_array($route, ['state', 'trade', 'compare', 'report', 'ranking', 'admin/overview', 'admin/event/end'], true) || str_starts_with($route, 'stocks/')) $market->warm();
+
     switch (true) {
         case $route === 'ping': // 진단용: 요청이 PHP까지 닿는지 확인 (GET/POST 모두)
             $got = $method === 'POST' ? $body() : [];
@@ -129,7 +135,7 @@ try {
 
         case $route === 'version':
             $must('GET');
-            out(200, ['version' => APP_VERSION, 'catalog_size' => count(Market::TICKERS), 'runtime' => 'PHP ' . PHP_VERSION]);
+            out(200, ['version' => APP_VERSION, 'catalog_size' => count(Market::TICKERS), 'runtime' => 'PHP ' . PHP_VERSION, 'crypto_feed' => $market->sourceOf('BTC')]);
 
         case $route === 'state':
             $must('GET');

@@ -1,6 +1,6 @@
 // 공통 유틸. innerHTML을 쓰지 않고 항상 textContent로만 그려서 XSS를 구조적으로 막는다.
 export const DISCLAIMER = '본 서비스는 교육 및 게임 목적으로 제작된 가상 모의투자 콘텐츠입니다. 실제 금융투자 또는 증권거래가 아니며, 실제 금전적 가치가 없는 가상 포인트를 사용합니다.';
-export const BANNER = '🎓 교육용 가상 모의투자 · 실제 돈 아님 (가상 P)';
+export const BANNER = 'SAFE INVEST · 교육용 가상 모의투자 · 실제 돈이 아닌 가상 포인트(P)';
 
 // 네이티브 append()는 null/false를 "null"/"false" 글자로 넣어버린다. 조건부 요소(cond ? el : null)를 안전하게 쓰기 위해 걸러낸다.
 const nativeAppend = Element.prototype.append;

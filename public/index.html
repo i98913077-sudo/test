@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>사이버 나는 SOLO · 초등교사 편</title>
+<meta name="description" content="교실 밖에서 시작되는 새로운 인연. QR코드를 찍고 입장하세요. 당신의 인연은 어디에 있을까요?">
+<meta name="theme-color" content="#FBF7EF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="solo/css/solo.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="eyebrow">Cyber · I am Solo</div>
+    <h1 class="brand">사이버 나는 <span class="solo">SOLO</span></h1>
+    <p class="subbrand">초등교사 편</p>
+    <div class="spot"></div>
+    <p class="quote">"교실 밖에서 시작되는 새로운 인연."</p>
+    <p class="lead">QR코드를 찍고 입장하세요. 당신의 인연은 어디에 있을까요?</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="hSeason">-</b><span>현재 기수</span></div>
+    <div class="stat"><b id="hCount">-</b><span>참가자</span></div>
+  </div>
+  <div class="notice navy center" id="hStatus">불러오는 중…</div>
+  <a class="btn big" href="solo/">게임 시작하기</a>
+  <button class="btn navy" id="hQr">QR코드로 입장하기</button>
+  <button class="btn ghost" id="hHow">참가 방법</button>
+
+  <div class="card" style="margin-top:22px;">
+    <h3>이런 프로그램이에요</h3>
+    <div class="item"><div class="ie">🪪</div><div class="im"><div class="in">닉네임 캐릭터</div><div class="id">실명·학교·연락처 없이 닉네임과 캐릭터로만 참여해요.</div></div></div>
+    <div class="item"><div class="ie">💗</div><div class="im"><div class="in">비공개 첫인상 선택</div><div class="id">내 선택은 나와 운영자만. 서로 선택했을 때만 알려드려요.</div></div></div>
+    <div class="item"><div class="ie">🎁</div><div class="im"><div class="in">아이템 공방</div><div class="id">직접 만든 아이템을 마음에 드는 상대에게 선물해요.</div></div></div>
+    <div class="item"><div class="ie">💍</div><div class="im"><div class="in">최종 선택</div><div class="id">기수 마지막, 서로를 선택하면 커플 성사!</div></div></div>
+  </div>
+  <div class="footer">
+    <a href="solo/admin.html">운영자 페이지</a> · <a href="safety-squad.html">1-9반 안전 특공대 (기존 게임)</a>
+  </div>
+</div>
+<div id="modalRoot"></div>
+<script src="solo/js/solo-core.js"></script>
+<script>
+(function(){
+"use strict";
+const S = window.SOLO, $ = S.$, esc = S.esc;
+function modal(html){ const r = $('modalRoot'); r.innerHTML = '<div class="modal"><div class="sheet">' + html + '</div></div>'; r.firstChild.addEventListener('click', function(e){ if(e.target === r.firstChild) r.innerHTML = ''; }); }
+$('hHow').onclick = function(){
+  modal('<h3 class="serif" style="color:var(--wine);margin-top:0;">참가 방법</h3><ol class="guide">' +
+    '<li>스마트폰 카메라로 <b>QR코드</b>를 찍거나 "게임 시작하기"를 눌러요.</li>' +
+    '<li>이용 안내를 확인하고 <b>닉네임</b>을 정해요 (중복 불가).</li>' +
+    '<li>연령대·성별·성격·취미·자기소개를 입력하고 <b>캐릭터</b>를 골라요.</li>' +
+    '<li>솔로 나라 로비에서 참가자들의 프로필을 둘러봐요.</li>' +
+    '<li>운영자가 선택 기간을 열면 <b>첫인상 → 최종 선택</b>을 해요.</li>' +
+    '<li>서로 선택하면 결과 공개 때 알려드려요!</li></ol>' +
+    '<button class="btn" onclick="document.getElementById(\'modalRoot\').innerHTML=\'\'">확인</button>');
+};
+function showQr(url){
+  modal('<div class="center"><h3 class="serif" style="color:var(--wine);margin-top:0;">QR코드로 입장하기</h3><div class="qrbox" id="mQr"></div>' +
+    '<p class="url" style="margin:12px 0;">' + esc(url) + '</p>' +
+    (S.isPublicUrl(url) ? '' : '<p class="hint bad">이 주소는 다른 기기에서 열리지 않을 수 있어요. 운영자 페이지에서 실제 배포 주소를 등록하세요.</p>') +
+    '<p class="muted">QR코드를 스캔하고 사이버 솔로 나라에 입장하세요.<br>닉네임을 만들고 당신의 인연을 찾아보세요.</p>' +
+    '<a class="btn" href="solo/">이 기기로 바로 입장</a></div>');
+  S.makeQR($('mQr'), url, 220);
+}
+$('hQr').onclick = function(){
+  if(!S.db){ showQr(S.computedEntryUrl()); return; }
+  S.db.ref('solo/config/entryUrl').once('value').then(function(s){ showQr(s.val() || S.computedEntryUrl()); }, function(){ showQr(S.computedEntryUrl()); });
+};
+if(S.initError){ $('hStatus').textContent = 'Firebase를 불러오지 못했어요.'; return; }
+let count = null;
+S.watchSeason(function(sid, se){
+  $('hSeason').textContent = se ? se.name : '-';
+  $('hStatus').textContent = se ? S.STATUS[se.status] + ' · ' + S.PHASES[se.phase] : '아직 열린 기수가 없어요.';
+  if(count) count();
+  if(!sid){ $('hCount').textContent = '-'; return; }
+  S.ready().then(function(){
+    const ref = S.db.ref('solo/participants/' + sid);
+    const f = ref.on('value', function(s){ const v = s.val() || {}; $('hCount').textContent = Object.keys(v).filter(function(k){ return v[k].status === 'approved'; }).length + '명'; }, function(){});
+    count = function(){ ref.off('value', f); };
+  }).catch(function(e){ $('hStatus').textContent = e.message; });
+});
+})();
+</script>
+</body>
+</html>

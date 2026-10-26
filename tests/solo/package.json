@@ -1,0 +1,17 @@
+{
+  "name": "cyber-solo-tests",
+  "private": true,
+  "type": "module",
+  "description": "사이버 나는 SOLO — Firebase 에뮬레이터 기반 보안 규칙/브라우저 테스트",
+  "scripts": {
+    "emulators": "firebase emulators:start --only auth,database --project kimkyeongtae-85921 --config ../../firebase.json",
+    "test:rules": "node rules.test.mjs",
+    "test:e2e": "node e2e.test.mjs"
+  },
+  "devDependencies": {
+    "firebase": "10.12.2",
+    "firebase-tools": "13.29.1",
+    "jsqr": "1.4.0",
+    "qrcodejs": "1.0.0"
+  }
+}

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>사이버 나는 SOLO · 초등교사 편</title>
+<meta name="description" content="교실 밖에서 시작되는 새로운 인연. QR코드를 찍고 사이버 솔로 나라에 입장하세요.">
+<meta name="theme-color" content="#FBF7EF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/solo.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<!-- 첫 화면 -->
+<div class="wrap" id="s-intro">
+  <div class="hero">
+    <div class="eyebrow">Cyber · I am Solo</div>
+    <h1 class="brand">사이버 나는 <span class="solo">SOLO</span></h1>
+    <p class="subbrand">초등교사 편</p>
+    <div class="spot"></div>
+    <p class="quote">"이번 기수의 주인공은 당신입니다."</p>
+    <p class="lead">교실 밖에서 시작되는 새로운 인연.</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="iSeason">-</b><span>현재 기수</span></div>
+    <div class="stat"><b id="iCount">-</b><span>참가자</span></div>
+  </div>
+  <div class="notice navy center" id="iStatus">불러오는 중…</div>
+  <button class="btn big" id="iEnter" disabled>사이버 솔로 나라 입장</button>
+  <button class="btn navy" id="iQr">QR코드로 입장하기</button>
+  <button class="btn ghost" id="iGuide">프로그램 안내</button>
+  <div class="hint bad center" id="iErr"></div>
+  <div class="footer"><a href="../">홈으로</a> · <a href="admin.html">운영자</a></div>
+</div>
+
+<!-- 캐릭터 생성 -->
+<div class="wrap hidden" id="s-onboard">
+  <div class="eyebrow center" style="margin-top:6px;">캐릭터 만들기</div>
+  <div class="steps" id="obSteps"></div>
+  <div id="obBody"></div>
+  <div class="row" style="margin-top:16px;">
+    <button class="btn ghost" id="obPrev">이전</button>
+    <button class="btn" id="obNext">다음</button>
+  </div>
+</div>
+
+<!-- 대기/차단 등 안내 -->
+<div class="wrap hidden" id="s-wait">
+  <div class="hero">
+    <h1 class="brand" style="font-size:32px;" id="wTitle"></h1>
+    <p class="lead" id="wText"></p>
+  </div>
+  <button class="btn ghost" onclick="location.reload()">새로고침</button>
+</div>
+
+<!-- 게임 본편 -->
+<div class="hidden" id="s-app">
+  <div class="topbar">
+    <div class="in">
+      <span class="logo">사이버 나는 SOLO</span>
+      <span class="me" id="aMe"></span>
+    </div>
+    <div class="phasebar"><span class="pill" id="aPhase"></span><span class="muted" id="aLeft"></span></div>
+  </div>
+  <div class="wrap">
+    <section id="t-lobby"></section>
+    <section id="t-picks" class="hidden"></section>
+    <section id="t-items" class="hidden"></section>
+    <section id="t-news" class="hidden"></section>
+  </div>
+  <nav class="tabs"><div class="in">
+    <button data-t="lobby" class="on"><b>🏝️</b>솔로 나라</button>
+    <button data-t="picks"><b>💌</b>나의 선택</button>
+    <button data-t="items"><b>🎁</b>아이템</button>
+    <button data-t="news"><b>📣</b>소식·결과<i class="dot hidden" id="newsDot"></i></button>
+  </div></nav>
+</div>
+
+<div id="modalRoot"></div>
+
+<script src="js/solo-core.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

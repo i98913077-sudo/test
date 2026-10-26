@@ -1,0 +1,1746 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>1-9반 안전 특공대</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1f2530; --border:#2a313d;
+    --yellow:#FFC800; --orange:#FF6A13; --red:#E8342A; --blue:#1C7ED6; --green:#2FA84F; --purple:#8B5CF6;
+    --white:#F5F3ED; --muted:#9aa3b2;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg); color:var(--white); font-family:'Noto Sans KR',system-ui,sans-serif; min-height:100vh; overflow-x:hidden;}
+  .display{font-family:'Black Han Sans','Noto Sans KR',sans-serif; letter-spacing:.5px;}
+  .stripe{height:8px; background:repeating-linear-gradient(45deg,var(--yellow) 0 16px,#141414 16px 32px);}
+  .hidden{display:none !important;}
+  .wrap{max-width:480px; margin:0 auto; min-height:calc(100vh - 8px); padding:20px 18px 40px; display:flex; flex-direction:column;}
+  h1.title{font-size:34px; color:var(--yellow); margin:10px 0 6px; line-height:1.25; text-shadow:2px 2px 0 #000;}
+  p.sub{color:var(--muted); font-size:16px; line-height:1.7; margin:0 0 16px;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px; margin-bottom:12px;}
+  input.txt{width:100%; padding:15px; border-radius:12px; border:2px solid var(--border); background:var(--panel2); color:var(--white); font-size:18px; margin-bottom:12px; font-family:inherit; outline:none; text-align:center;}
+  input.txt:focus{border-color:var(--yellow);}
+  .btn{background:var(--yellow); color:#141414; border:none; padding:16px; border-radius:14px; font-size:18px; cursor:pointer; width:100%; font-family:'Black Han Sans',sans-serif; letter-spacing:1px; box-shadow:0 5px 0 #b98d00;}
+  .btn:active{transform:translateY(3px); box-shadow:0 2px 0 #b98d00;}
+  .btn:disabled{opacity:.35;}
+  .btn.alt{background:var(--panel2); color:var(--white); box-shadow:0 5px 0 #05070a; border:1px solid var(--border);}
+  .btn.alt.active{background:var(--yellow); color:#141414; box-shadow:0 5px 0 #b98d00;}
+  .btn.small{padding:11px; font-size:15px;}
+  .row{display:flex; gap:10px;}
+  .row .btn{flex:1;}
+  .chip{background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:6px 12px; font-size:14px; font-weight:700; display:inline-block; margin:3px;}
+  .muted-center{color:var(--muted); text-align:center; font-size:15px; padding:14px 0;}
+  .story{background:var(--panel); border-left:5px solid var(--purple); border-radius:12px; padding:16px 18px; font-size:18px; line-height:1.75;}
+  .story b.t{color:var(--yellow); display:block; font-size:21px; margin-bottom:6px;}
+  .setup-box{background:var(--panel); border:1px dashed var(--orange); border-radius:14px; padding:20px; line-height:1.8;}
+
+  /* team badge */
+  .tbadge{display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:999px; font-weight:900; color:#fff; font-size:15px;}
+  .tbig{text-align:center; border-radius:20px; padding:22px 10px; margin:6px 0 14px; color:#fff;}
+  .tbig .em{font-size:60px; line-height:1.1;}
+  .tbig .nm{font-family:'Black Han Sans',sans-serif; font-size:34px;}
+
+  /* phone question */
+  .topbar{display:flex; align-items:center; gap:10px; margin-bottom:10px;}
+  .qnum{font-weight:900; color:var(--yellow); font-size:17px; white-space:nowrap;}
+  .ptrack{flex:1; height:8px; background:var(--panel2); border-radius:6px; overflow:hidden;}
+  .pfill{height:100%; background:var(--yellow);}
+  .timerwrap{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .ttrack{flex:1; height:12px; background:var(--panel2); border-radius:8px; overflow:hidden; border:1px solid var(--border);}
+  .tfill{height:100%; background:linear-gradient(90deg,var(--green),var(--yellow),var(--red));}
+  .tnum{font-family:'Black Han Sans',sans-serif; font-size:26px; width:40px; text-align:center;}
+  .qtag{font-size:14px; color:var(--muted); font-weight:700; margin-bottom:6px;}
+  .qtext{font-size:23px; font-weight:700; line-height:1.45; margin-bottom:16px;}
+  .dbl-banner{display:none; text-align:center; font-family:'Black Han Sans',sans-serif; font-size:20px; color:#141414; background:linear-gradient(90deg,var(--yellow),#ffe27a); border-radius:12px; padding:10px; margin-bottom:12px; animation:pulse 1s infinite;}
+  .dbl-banner.show{display:block;}
+  @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.03);}}
+  .opts-ox{display:flex; flex-direction:column; gap:12px;}
+  .opts-mc{display:flex; flex-direction:column; gap:10px;}
+  .opt{border:none; border-radius:16px; padding:16px 14px; color:#fff; font-size:18px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:12px; font-family:inherit; min-height:68px; text-align:left; line-height:1.35; width:100%;}
+  .opt .sh{font-size:26px; width:34px; text-align:center; flex:none;}
+  .opt:active{transform:scale(.97);}
+  .opt.red{background:var(--red);} .opt.blue{background:var(--blue);} .opt.yellow{background:#D9A400;color:#1a1400;} .opt.green{background:var(--green);}
+  .opt-ox{justify-content:center; font-size:34px; min-height:92px;}
+  .opt[disabled]{opacity:.4;}
+  .opt.chosen{opacity:1 !important; outline:4px solid #fff;}
+  .boost-btn{background:var(--panel2); border:2px dashed var(--purple); color:var(--white); padding:12px; border-radius:12px; font-size:15px; font-weight:800; width:100%; margin-bottom:12px; font-family:inherit; cursor:pointer;}
+  .boost-btn.on{background:var(--purple); border-style:solid;}
+  .boost-btn:disabled{opacity:.35;}
+  .live-count{text-align:center; color:var(--muted); font-size:15px; margin-top:12px;}
+  .streakline{text-align:center; font-weight:900; color:var(--orange); font-size:16px; margin-bottom:8px; min-height:22px;}
+
+  /* phone reveal */
+  .reveal-badge{text-align:center; font-family:'Black Han Sans',sans-serif; font-size:36px; padding:10px 0 4px;}
+  .reveal-badge.ok{color:var(--green);} .reveal-badge.no{color:var(--red);}
+  .pts{text-align:center; font-size:20px; font-weight:900; color:var(--yellow); margin-bottom:10px; line-height:1.6;}
+  .explain{background:var(--panel); border-left:4px solid var(--yellow); border-radius:10px; padding:14px; font-size:16px; line-height:1.7; margin:10px 0;}
+  .explain b{color:var(--yellow);}
+  .emojis{display:flex; gap:8px; justify-content:center; margin:8px 0;}
+  .emojis button{font-size:30px; background:var(--panel2); border:1px solid var(--border); border-radius:14px; width:60px; height:60px; cursor:pointer;}
+  .emojis button:active{transform:scale(.9);}
+  .speaker-banner{background:linear-gradient(90deg,var(--purple),#c084fc); color:#fff; text-align:center; font-family:'Black Han Sans',sans-serif; font-size:24px; padding:16px; border-radius:14px; margin:10px 0; animation:pulse 1s infinite;}
+  .lb-row{display:flex; align-items:center; gap:10px; background:var(--panel2); border-radius:12px; padding:10px 14px; margin-bottom:6px;}
+  .lb-rank{font-family:'Black Han Sans',sans-serif; font-size:20px; color:var(--yellow); width:34px;}
+  .lb-name{flex:1; font-weight:700; font-size:16px;}
+  .lb-score{font-weight:900; font-size:16px;}
+  .lb-row.me{border:2px solid var(--yellow);}
+
+  /* ===== HOST (projector) ===== */
+  .stage{width:100%; max-width:1400px; margin:0 auto; padding:14px 3vw 28px;}
+  .hhead{display:flex; gap:18px; align-items:center; padding:10px 3vw; max-width:1400px; margin:0 auto; flex-wrap:wrap;}
+  .gauge{display:flex; align-items:center; gap:12px; flex:1 1 320px; min-width:280px;}
+  .gauge .bs{width:64px; height:64px; flex:none;}
+  .gauge .gwrap{flex:1;}
+  .gauge .gname{font-weight:900; color:#ff8a80; font-size:clamp(14px,1.4vw,20px);}
+  .hp-track{height:20px; background:#3a1418; border-radius:10px; overflow:hidden; border:1px solid #5a2028;}
+  .hp-fill{height:100%; background:linear-gradient(90deg,var(--green),var(--yellow),var(--red)); transition:width .8s ease;}
+  .hp-label{font-size:clamp(12px,1.1vw,16px); color:var(--muted); margin-top:2px;}
+  .boss-shake{animation:shake .5s;}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px) rotate(-6deg)}40%{transform:translateX(8px) rotate(6deg)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+  .teams-bar{display:flex; gap:10px; flex:2 1 520px; flex-wrap:wrap;}
+  .tpill{flex:1 1 110px; border-radius:14px; padding:8px 12px; color:#fff; text-align:center; font-weight:900; min-width:110px;}
+  .tpill .n{font-size:clamp(14px,1.4vw,20px);}
+  .tpill .s{font-family:'Black Han Sans',sans-serif; font-size:clamp(22px,2.4vw,34px);}
+  .hmeta{display:flex; align-items:center; gap:18px; margin:6px 0 10px;}
+  .hmeta .qnum{font-size:clamp(20px,2vw,30px);}
+  .hmeta .ttrack{height:18px;}
+  .hmeta .tnum{font-size:clamp(34px,3.5vw,54px); width:80px;}
+  .hq{font-size:clamp(28px,3.6vw,54px); font-weight:900; line-height:1.4; margin:6px 0 20px; text-shadow:0 2px 0 #000;}
+  .hqtag{font-size:clamp(15px,1.5vw,22px); color:var(--yellow); font-weight:900; margin-bottom:4px;}
+  .hopts{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .hopts.ox{grid-template-columns:1fr 1fr;}
+  .hopt{border-radius:20px; padding:20px 24px; display:flex; align-items:center; gap:18px; color:#fff; font-weight:900; font-size:clamp(20px,2.4vw,36px); line-height:1.35; min-height:clamp(80px,12vh,140px); position:relative; overflow:hidden;}
+  .hopt .sh{font-size:clamp(34px,4vw,60px); flex:none; width:1.3em; text-align:center;}
+  .hopt.red{background:var(--red);} .hopt.blue{background:var(--blue);} .hopt.yellow{background:#D9A400; color:#1a1400;} .hopt.green{background:var(--green);}
+  .hopts.ox .hopt{justify-content:center; min-height:clamp(120px,22vh,220px); font-size:clamp(34px,5vw,80px);}
+  .hopt.dim{opacity:.28;}
+  .hopt.right{outline:8px solid #fff; box-shadow:0 0 40px 6px rgba(255,255,255,.55); animation:pulse 1s 2;}
+  .hopt .cnt{margin-left:auto; font-family:'Black Han Sans',sans-serif; font-size:clamp(26px,3vw,46px); background:rgba(0,0,0,.35); padding:4px 18px; border-radius:14px; flex:none;}
+  .hsub{margin-top:18px; font-size:clamp(18px,2vw,30px); font-weight:900; text-align:center; color:var(--yellow);}
+  .hsub.muted{color:var(--muted); font-weight:700;}
+  .bigtitle{font-family:'Black Han Sans',sans-serif; font-size:clamp(30px,4.2vw,64px); color:var(--yellow); margin:10px 0; text-shadow:3px 3px 0 #000; line-height:1.2;}
+  .hstory{background:var(--panel); border-left:8px solid var(--purple); border-radius:18px; padding:26px 30px; font-size:clamp(20px,2.3vw,34px); line-height:1.7; margin:14px 0 20px;}
+  .hstory b.t{display:block; color:var(--yellow); font-size:clamp(24px,2.8vw,40px); margin-bottom:8px; font-family:'Black Han Sans',sans-serif;}
+  .hbtn{font-size:clamp(20px,2.2vw,30px); padding:18px; max-width:620px; margin:14px auto 0; display:block;}
+  .qrbox{background:#fff; border-radius:18px; padding:16px; display:inline-block;}
+  .codebig{font-family:'Black Han Sans',sans-serif; font-size:clamp(50px,7vw,100px); color:var(--yellow); letter-spacing:14px; text-align:center;}
+  .lobby-grid{display:grid; grid-template-columns:minmax(260px,380px) 1fr; gap:22px; align-items:start;}
+  .teamcols{display:grid; grid-template-columns:repeat(4,1fr); gap:12px;}
+  .tcol{border-radius:16px; padding:12px; background:var(--panel); border-top:8px solid #fff; min-height:150px;}
+  .tcol h3{margin:0 0 6px; font-size:clamp(16px,1.7vw,24px);}
+  .tcol .chip{font-size:clamp(13px,1.3vw,18px);}
+  .rev-grid{display:grid; grid-template-columns:1.2fr 1fr; gap:18px; margin-top:12px;}
+  .panel{background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:16px 20px;}
+  .panel h4{margin:0 0 8px; color:var(--yellow); font-size:clamp(16px,1.6vw,22px);}
+  .hexplain{font-size:clamp(17px,1.9vw,28px); line-height:1.65;}
+  .hexplain b{color:var(--yellow);}
+  .hl{font-size:clamp(16px,1.7vw,24px); line-height:1.8;}
+  .spk{font-family:'Black Han Sans',sans-serif; font-size:clamp(40px,6vw,90px); text-align:center; color:#fff; background:linear-gradient(90deg,var(--purple),#c084fc); border-radius:20px; padding:16px; margin-top:12px;}
+  .podium{display:flex; gap:14px; align-items:flex-end; justify-content:center; margin:18px 0; flex-wrap:wrap;}
+  .pod{border-radius:16px 16px 0 0; padding:14px 22px; text-align:center; color:#fff; min-width:160px;}
+  .pod .m{font-size:clamp(34px,4vw,60px);}
+  .pod .n{font-family:'Black Han Sans',sans-serif; font-size:clamp(22px,2.6vw,38px);}
+  .pod .s{font-weight:900; font-size:clamp(18px,2vw,28px);}
+  .awards{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px;}
+  .award{background:var(--panel2); border:2px solid var(--yellow); border-radius:16px; padding:14px; text-align:center;}
+  .award .a{font-size:clamp(15px,1.5vw,20px); color:var(--yellow); font-weight:900;}
+  .award .w{font-family:'Black Han Sans',sans-serif; font-size:clamp(24px,2.6vw,38px);}
+  #reactLayer{position:fixed; left:0; right:0; bottom:0; top:0; pointer-events:none; overflow:hidden; z-index:50;}
+  .floater{position:absolute; bottom:-60px; font-size:56px; animation:floatup 3.2s ease-out forwards;}
+  .floater small{display:block; font-size:14px; font-weight:900; text-align:center; color:#fff; text-shadow:0 1px 2px #000;}
+  @keyframes floatup{0%{transform:translateY(0) scale(.6); opacity:0;}15%{opacity:1;}100%{transform:translateY(-85vh) scale(1.3); opacity:0;}}
+  .study-top{position:sticky;top:0;z-index:6;background:#141414;border-bottom:3px solid var(--yellow);display:flex;justify-content:space-between;align-items:center;padding:10px 16px;font-weight:900;color:var(--yellow);}
+  .study-top .tm{font-family:'Black Han Sans',sans-serif;font-size:28px;font-variant-numeric:tabular-nums;}
+  .sc{background:var(--panel);border-radius:16px;padding:16px 18px;margin:12px 0;border-left:8px solid var(--yellow);}
+  .sc h3{margin:0 0 8px;font-size:20px;color:#fff;}
+  .sc ul{margin:0;padding-left:20px;line-height:1.75;font-size:16px;}
+  .sc li{margin-bottom:4px;}
+  .sc b{background:rgba(255,200,0,.22);color:#ffe27a;padding:0 3px;border-radius:4px;}
+  .sc .tip{background:#1f2530;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:15px;line-height:1.65;}
+  .sc .warn{background:#2a1517;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:15px;line-height:1.65;}
+  .hstudy .sc{margin:0;padding:22px 30px;}
+  .hstudy .sc h3{font-size:clamp(26px,3.2vw,46px);}
+  .hstudy .sc ul{font-size:clamp(19px,2.3vw,34px);line-height:1.7;}
+  .hstudy .sc .tip,.hstudy .sc .warn{font-size:clamp(17px,2vw,28px);}
+  .dots{display:flex;gap:8px;justify-content:center;margin:12px 0;flex-wrap:wrap;}
+  .dots span{width:16px;height:16px;border-radius:50%;background:#2a313d;}
+  .dots span.on{background:var(--yellow);}
+  .items{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+  .itm{background:var(--panel2);border:2px solid var(--border);color:#fff;border-radius:12px;padding:8px 10px;display:flex;gap:8px;align-items:center;text-align:left;font-family:inherit;cursor:pointer;}
+  .itm:nth-child(5){grid-column:span 2;}
+  .itm .ie{font-size:24px;}
+  .itm b{display:block;font-size:14px;}
+  .itm small{display:block;color:var(--muted);font-size:11px;line-height:1.3;}
+  .itm.on{border-color:var(--purple);background:#2a2150;}
+  .itm:disabled{opacity:.3;}
+  .swapbox{background:var(--panel);border:2px solid var(--purple);border-radius:14px;padding:12px;margin-bottom:12px;}
+  .swapbox .lb-row{width:100%;border:0;color:#fff;font-family:inherit;cursor:pointer;}
+  .lives-line{text-align:center;font-weight:900;color:#ff6b6b;margin-bottom:8px;font-size:16px;}
+  .alivebig{font-family:'Black Han Sans',sans-serif;color:var(--yellow);font-size:clamp(16px,1.8vw,26px);}
+  .btabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+  .btabs .btn{width:auto;flex:1 1 150px;}
+  .brow{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:14px;padding:12px 16px;margin-bottom:8px;font-size:clamp(16px,1.8vw,24px);}
+  .brow .rk{font-family:'Black Han Sans',sans-serif;font-size:1.5em;width:56px;color:var(--yellow);text-align:center;}
+  .brow .nm{flex:1;font-weight:900;}
+  .brow .nm small{display:block;color:var(--muted);font-weight:500;font-size:.62em;}
+  .brow .sc2{font-family:'Black Han Sans',sans-serif;font-size:1.4em;}
+  .brow.hl2{border:3px solid var(--yellow);background:linear-gradient(90deg,#3a2f0a,var(--panel));}
+  .brow .x{background:none;border:0;color:#666;font-size:18px;cursor:pointer;}
+  @media (max-width:900px){ .lobby-grid{grid-template-columns:1fr;} .teamcols{grid-template-columns:1fr 1fr;} .rev-grid{grid-template-columns:1fr;} .hopts{grid-template-columns:1fr;} .hopts.ox{grid-template-columns:1fr 1fr;} }
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<div id="reactLayer"></div>
+
+<!-- ============== 설정 안 됨 ============== -->
+<div class="wrap hidden" id="screen-setup">
+  <h1 class="title display">⚙️ Firebase 설정 필요</h1>
+  <div class="setup-box">이 파일에 Firebase 연결 정보가 없어요. <code>FIREBASE_CONFIG</code> 를 채워주세요.</div>
+</div>
+
+<!-- ============== 랜딩 ============== -->
+<div class="wrap hidden" id="screen-landing">
+  <h1 class="title display">🛡️ 1-9반<br>안전 특공대</h1>
+  <p class="sub">공장을 지켜라! 4개 팀이 힘을 합쳐 폭주한 안전 AI "아차차"를 멈춰 세우는 팀 대항전.</p>
+  <div class="card"><button class="btn" id="landingHostBtn">🖥️ 선생님 — 게임 만들기</button></div>
+  <div class="card"><button class="btn alt" id="landingBoardBtn">🏆 역대 랭킹 보기</button></div>
+  <div class="card">
+    <div style="font-weight:800; margin-bottom:10px; color:var(--muted);">학생 — 참가 코드 입력</div>
+    <input class="txt" id="manualCode" placeholder="4자리 코드" maxlength="4" inputmode="numeric">
+    <button class="btn alt" id="manualJoinBtn">참가하기</button>
+  </div>
+</div>
+
+<!-- ============== 학생 ============== -->
+<div class="wrap hidden" id="screen-join">
+  <h1 class="title display">🎮 특공대 등록</h1>
+  <p class="sub">참가 코드 <b id="joinRoomLabel" style="color:var(--yellow);"></b> · 이름(별명)을 입력하세요</p>
+  <input class="txt" id="playerNameInput" placeholder="이름 입력" maxlength="8">
+  <button class="btn" id="joinBtn" disabled>입장하기</button>
+</div>
+
+<div class="wrap hidden" id="screen-player-lobby">
+  <h1 class="title display" style="text-align:center;">✅ 입장 완료!</h1>
+  <div class="tbig" id="pTeamBig"><div class="em">⚡</div><div class="nm">팀</div></div>
+  <p class="sub" id="pTeamMates" style="text-align:center;"></p>
+  <div class="card"><div class="muted-center">같은 팀 친구들과 눈을 맞추세요 👀<br>선생님이 시작할 때까지 대기!</div></div>
+</div>
+
+<div class="wrap hidden" id="screen-player-story">
+  <div class="story" id="pStory"></div>
+  <div class="card" style="margin-top:14px;"><div class="muted-center">📺 앞 화면을 보세요!<br>곧 첫 번째 미션이 시작돼요</div></div>
+</div>
+
+<div class="wrap hidden" id="screen-player-study" style="padding-top:0;">
+  <div class="study-top" style="margin:0 -18px;"><span>📚 10분 공부 타임</span><span class="tm" id="pStudyTimer">10:00</span></div>
+  <p class="sub" style="margin:12px 0 0;">📺 앞 화면과 함께 보면서 <b style="color:var(--yellow);">노란 부분</b>을 외워요! 끝나면 바로 게임 시작!</p>
+  <div id="pStudyList"></div>
+</div>
+
+<div class="wrap hidden" id="screen-player-question">
+  <div class="topbar"><span class="qnum" id="pQnum">Q1</span><div class="ptrack"><div class="pfill" id="pProgress" style="width:0%"></div></div><span class="tbadge" id="pTeamTag"></span></div>
+  <div class="timerwrap"><div class="ttrack"><div class="tfill" id="pTimerFill" style="width:100%"></div></div><div class="tnum" id="pTimerNum">10</div></div>
+  <div class="dbl-banner" id="pDbl">🔥 더블 라운드! 이번 문제 점수 2배!</div>
+  <div class="streakline" id="pStreak"></div>
+  <div class="qtag" id="pQtag"></div>
+  <div class="qtext" id="pQtext"></div>
+  <div class="lives-line" id="pLives"></div>
+  <div class="items" id="pItems"></div>
+  <div class="swapbox hidden" id="pSwapBox"></div>
+  <div id="pOptions"></div>
+  <div class="live-count" id="pWait"></div>
+</div>
+
+<div class="wrap hidden" id="screen-player-out">
+  <h1 class="title display" style="text-align:center;">🏳️ 탈락!</h1>
+  <div class="card" style="text-align:center; font-size:17px; line-height:1.7;">아쉽지만 여기까지! 하지만 아직 끝난 게 아니에요.<br>남은 친구들을 <b style="color:var(--yellow);">응원</b>하고, 문제를 속으로 풀어보세요 👀<br>최후의 1인이 가려질 때까지!</div>
+  <div class="card" id="pOutQ" style="display:none;"></div>
+  <div class="emojis" id="pEmojis3"><button data-e="👏">👏</button><button data-e="🔥">🔥</button><button data-e="😱">😱</button><button data-e="😂">😂</button><button data-e="💪">💪</button></div>
+  <div class="card"><div style="font-weight:800; margin-bottom:8px;">🔥 생존자 현황</div><div id="pOutAliveList"></div></div>
+</div>
+
+<div class="wrap hidden" id="screen-player-reveal">
+  <div class="reveal-badge" id="pRevealBadge"></div>
+  <div class="pts" id="pPts"></div>
+  <div class="speaker-banner hidden" id="pSpeaker">🎤 발표 차례! 정답 이유를 말해주세요!</div>
+  <div class="explain"><b id="pExplainAns"></b><br><span id="pExplainText"></span></div>
+  <div class="card"><div id="pRankLine" style="text-align:center; font-weight:800; line-height:1.7;"></div></div>
+  <div class="emojis" id="pEmojis"><button data-e="👏">👏</button><button data-e="🔥">🔥</button><button data-e="😱">😱</button><button data-e="😂">😂</button><button data-e="💪">💪</button></div>
+  <div class="muted-center">이모지를 누르면 앞 화면에 날아가요!</div>
+</div>
+
+<div class="wrap hidden" id="screen-player-event">
+  <div class="story" id="pEventBox"></div>
+  <div class="emojis" id="pEmojis2" style="margin-top:14px;"><button data-e="👏">👏</button><button data-e="🔥">🔥</button><button data-e="😱">😱</button><button data-e="😂">😂</button><button data-e="💪">💪</button></div>
+  <div class="muted-center">📺 앞 화면을 보세요!</div>
+</div>
+
+<div class="wrap hidden" id="screen-player-final">
+  <h1 class="title display" style="text-align:center;" id="pFinalTitle">🏆 게임 종료!</h1>
+  <div class="story" id="pEnding"></div>
+  <div class="card" style="text-align:center; margin-top:14px;">
+    <div style="color:var(--muted);" id="pFinalName"></div>
+    <div class="display" style="font-size:44px; color:var(--yellow);" id="pFinalScore"></div>
+    <div style="font-weight:800; margin-top:4px;" id="pFinalRank"></div>
+    <div style="font-weight:900; margin-top:8px; color:var(--yellow);" id="pClassRank"></div>
+  </div>
+  <div class="card"><div style="font-weight:800; margin-bottom:8px;">🏅 팀 순위</div><div id="pFinalTeams"></div></div>
+  <div class="card"><div style="font-weight:800; margin-bottom:8px;">⭐ 개인 TOP 5</div><div id="pFinalTop"></div></div>
+</div>
+
+<!-- ============== 선생님 (프로젝터) ============== -->
+<div id="hostHeader" class="hhead hidden">
+  <div class="gauge">
+    <div class="bs" id="hBoss"></div>
+    <div class="gwrap">
+      <div class="gname">👹 "아차차" 폭주 게이지 · <span id="hClassTag"></span></div>
+      <div class="hp-track"><div class="hp-fill" id="hHpFill" style="width:100%"></div></div>
+      <div class="hp-label" id="hHpLabel"></div>
+      <div class="alivebig" id="hAlive"></div>
+    </div>
+  </div>
+  <div class="teams-bar" id="hTeams"></div>
+</div>
+
+<div class="stage hidden" id="screen-board">
+  <div class="bigtitle">🏆 반 대항전 — 역대 랭킹</div>
+  <div class="btabs" id="bTabs">
+    <button class="btn small alt active" data-tab="cls">반별 최고 기록</button>
+    <button class="btn small alt" data-tab="all">전체 경기 기록</button>
+    <button class="btn small alt" data-tab="ind">개인 TOP 10</button>
+  </div>
+  <div id="bList"></div>
+  <button class="btn alt hbtn" id="bBack">← 돌아가기</button>
+</div>
+
+<div class="stage hidden" id="screen-host-lobby">
+  <div class="bigtitle">🛡️ 1-9반 안전 특공대 — 집합!</div>
+  <div class="lobby-grid">
+    <div class="panel" style="text-align:center;">
+      <div class="codebig" id="hCode">0000</div>
+      <div class="qrbox"><div id="qrcode"></div></div>
+      <div class="hl" style="margin-top:10px;">📱 QR 스캔 또는 코드 입력</div>
+    </div>
+    <div>
+      <div class="panel" style="margin-bottom:14px;">
+        <h4>참가자 <span id="hCount">0</span>명 · 입장하면 자동으로 팀이 정해져요</h4>
+        <div class="teamcols" id="hTeamCols"></div>
+      </div>
+      <div class="panel">
+        <h4>수업 설정</h4>
+        <div style="color:var(--muted); font-weight:700; margin-bottom:6px;">🏫 우리 반 (역대 랭킹에 이 이름으로 기록돼요)</div>
+        <input class="txt" id="classNameInput" value="1-9반" maxlength="8" style="max-width:260px;text-align:left;margin-bottom:12px;">
+        <div style="color:var(--muted); font-weight:700; margin-bottom:6px;">문제 범위</div>
+        <div class="row" id="scopeRow">
+          <button class="btn small alt active" data-scope="official">🏆 공식 대결 60문제</button>
+          <button class="btn small alt" data-scope="old">연습 7~8차시</button>
+          <button class="btn small alt" data-scope="new">연습 1~6차시</button>
+          <button class="btn small alt" data-scope="extra">연습 9~12</button>
+        </div>
+        <div style="color:var(--muted); font-weight:700; margin:12px 0 6px;">📚 문제 전 공부 시간</div>
+        <div class="row" id="studyRow">
+          <button class="btn small alt" data-study="0">건너뛰기</button>
+          <button class="btn small alt" data-study="300">5분</button>
+          <button class="btn small alt active" data-study="600">10분</button>
+          <button class="btn small alt" data-study="900">15분</button>
+        </div>
+        <div style="color:var(--muted); font-weight:700; margin:12px 0 6px;">문제 수 (연습 모드만 · 공식 대결은 60문제 고정)</div>
+        <div class="row" id="countRow">
+          <button class="btn small alt" data-count="10">10문제</button>
+          <button class="btn small alt active" data-count="15">15문제</button>
+          <button class="btn small alt" data-count="20">20문제</button>
+          <button class="btn small alt" data-count="30">30문제</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="btn hbtn" id="hStartBtn">🚀 게임 시작 (프롤로그부터)</button>
+</div>
+
+<div class="stage hidden" id="screen-host-story">
+  <div class="hstory" id="hStoryBox"></div>
+  <div class="panel hl" id="hStoryRules"></div>
+  <button class="btn hbtn" id="hStoryBtn">▶ 미션 시작</button>
+</div>
+
+<div class="stage hidden hstudy" id="screen-host-study">
+  <div class="hmeta"><span class="qnum" id="hStudyNo">📚</span><div class="ttrack" style="flex:1;"><div class="tfill" id="hStudyFill" style="width:100%"></div></div><div class="tnum" id="hStudyTimer" style="width:150px;">10:00</div></div>
+  <div id="hStudyCard"></div>
+  <div class="dots" id="hStudyDots"></div>
+  <div class="row" style="max-width:900px;margin:0 auto;">
+    <button class="btn alt hbtn" style="margin:0;" id="hStudyPrev">◀ 이전</button>
+    <button class="btn alt hbtn" style="margin:0;" id="hStudyNext">다음 ▶</button>
+  </div>
+  <button class="btn hbtn" id="hStudyGo">✅ 공부 끝! 미션 시작</button>
+</div>
+
+<div class="stage hidden" id="screen-host-question">
+  <div class="hmeta">
+    <span class="qnum" id="hQnum">Q1</span>
+    <div class="ttrack" style="flex:1;"><div class="tfill" id="hTimerFill" style="width:100%"></div></div>
+    <div class="tnum" id="hTimerNum">10</div>
+  </div>
+  <div class="dbl-banner" id="hDbl" style="font-size:clamp(20px,2.4vw,34px);">🔥 더블 라운드! 이번 문제 점수 2배!</div>
+  <div class="hqtag" id="hQtag"></div>
+  <div class="hq" id="hQtext"></div>
+  <div class="hopts" id="hOptions"></div>
+  <div class="hsub muted" id="hSubmit">제출 0 / 0</div>
+</div>
+
+<div class="stage hidden" id="screen-host-reveal">
+  <div class="hmeta"><span class="qnum" id="hRQnum"></span><span class="hsub" id="hRStats" style="margin:0;"></span></div>
+  <div class="hqtag" id="hRQtag"></div>
+  <div class="hq" id="hRQtext" style="font-size:clamp(22px,2.6vw,40px);"></div>
+  <div class="hopts" id="hROptions"></div>
+  <div class="rev-grid">
+    <div>
+      <div class="panel hexplain" id="hRExplain"></div>
+      <div class="spk hidden" id="hSpeaker"></div>
+    </div>
+    <div class="panel hl" id="hRInfo"></div>
+  </div>
+  <div class="row" style="max-width:900px; margin:14px auto 0;">
+    <button class="btn alt hbtn" style="margin:0;" id="hSpeakBtn">🎤 발표자 뽑기</button>
+    <button class="btn hbtn" style="margin:0;" id="hNextBtn">다음 →</button>
+  </div>
+</div>
+
+<div class="stage hidden" id="screen-host-event">
+  <div class="hstory" id="hEventStory"></div>
+  <div class="hstory" id="hEventBox" style="border-left-color:var(--yellow); text-align:center;"></div>
+  <button class="btn hbtn" id="hEventBtn">다음 구역으로 →</button>
+</div>
+
+<div class="stage hidden" id="screen-host-final">
+  <div class="bigtitle" style="text-align:center;" id="hFinalTitle"></div>
+  <div class="hstory" id="hEnding"></div>
+  <div class="podium" id="hPodium"></div>
+  <div class="rev-grid">
+    <div class="panel"><h4>⭐ 개인 TOP 5</h4><div id="hTop" class="hl"></div></div>
+    <div class="panel"><h4>🏅 특별상</h4><div class="awards" id="hAwards"></div></div>
+  </div>
+  <div class="panel" style="margin-top:16px;"><h4>🏆 반 대항 역대 랭킹 <span id="hBoardNote" style="color:var(--muted);font-size:.8em;"></span></h4><div id="hBoardMini"></div></div>
+  <button class="btn alt hbtn" id="hRestartBtn">새 게임</button>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCQgIMPsnAGL046rAy_nK9Mh37WPnqi2k8",
+  authDomain: "kimkyeongtae-85921.firebaseapp.com",
+  databaseURL: "https://kimkyeongtae-85921-default-rtdb.firebaseio.com",
+  projectId: "kimkyeongtae-85921",
+  storageBucket: "kimkyeongtae-85921.firebasestorage.app",
+  messagingSenderId: "608235504523",
+  appId: "1:608235504523:web:688cffd9b9747f9d01258e"
+};
+
+const QUESTIONS = [
+  /* ===== 7차시 안전장구 분류·보관·검사 ===== */
+  {lesson:7, type:'ox', q:"안전장구란 외부에서 가해질 수 있는 불특정 위험 요소로부터 신체를 보호하기 위한 장비류 전체를 의미한다.", answer:1, explain:"안전장구는 외부의 불특정 위험 요소로부터 몸을 보호하는 장비류의 모든 것을 뜻해요."},
+  {lesson:7, type:'ox', q:"보호구는 작업자가 신체에 직접 착용하여 사용하고, 방호구와 방호장치는 설비나 장치에 설치하여 사용한다.", answer:1, explain:"착용위치에 따른 분류예요. 보호구는 신체에 직접 착용, 방호구·방호장치는 설비·장치에 설치해요."},
+  {lesson:7, type:'ox', q:"안전장구는 직사광선을 피한 건조하고 서늘한 곳에 보관해야 하지만, 화학물과는 함께 보관해도 무방하다.", answer:0, explain:"화학물과는 반드시 격리해서 보관해야 해요."},
+  {lesson:7, type:'ox', q:"안전장구 검사는 육안 검사에서 손상이 발견된 경우에만 실시하면 되며, 추락이 발생했더라도 별도의 검사는 필요하지 않다.", answer:0, explain:"1년에 1회 이상 정기검사 외에도 손상이 발견되거나 추락이 발생했을 때 반드시 검사해야 해요."},
+  {lesson:7, type:'mc', q:"안전장구의 분류에 대한 설명으로 옳은 것은?", options:["착용 위치에 따라 설비성, 준소모성, 소모성 안전장구로 나눈다.","사용 용도에 따라 설비성, 준소모성, 소모성 안전장구로 나눈다.","사용 목적에 따라 보호구와 방호장치로 나눈다.","사용 용도에 따라 작업장치, 검출장치, 접지장치로 나눈다."], answer:1, explain:"사용 용도는 설비성·준소모성·소모성, 착용 위치는 보호구/방호구·방호장치, 사용 목적은 작업·검출·접지·표시·시험측정장치예요."},
+  {lesson:7, type:'mc', q:"다음 설명에 해당하는 안전장구는? \"성능 유지를 위해 검·교정이 필요하며 내용연수가 1년 이상이다.\"", options:["소모성 안전장구","준소모성 안전장구","설비성 안전장구","방호구"], answer:2, explain:"설비성 안전장구는 검·교정이 필요하고 내용연수가 1년 이상인 안전장구예요."},
+  {lesson:7, type:'mc', q:"안전장구 보관 장소의 조건으로 옳지 않은 것은?", options:["직사광선에 노출되지 않는 곳에 보관한다.","품목별 저장 관리와 수불이 쉬운 곳에 보관한다.","화학물과 가까운 곳에 두어 함께 관리한다.","건조하고 서늘한 곳에 보관한다."], answer:2, explain:"화학물과는 격리해야 해요. 나머지는 모두 올바른 보관 조건이에요."},
+  {lesson:7, type:'mc', q:"안전장구 검사에 관한 설명으로 옳은 것은?", options:["검사는 인증받은 자에게 받으며 1년에 1회 이상 실시한다.","추락이 발생했더라도 다음 정기검사 때까지 기다린다.","육안 검사에서 손상이 발견되어도 정기검사에서 확인하면 된다.","검사 빈도는 1년을 넘겨서 늘릴 수 있다."], answer:0, explain:"인증받은 자의 검사를 연 1회 이상 받고, 손상 발견·추락 발생 시에도 추가로 검사해요."},
+  {lesson:7, type:'mc', q:"작업 시행 전 휴전 또는 정전 중인 전선로에 설치하여 작업자의 전격 재해를 방지하는 장치는?", options:["검출장치","표시장치","접지장치","시험장치"], answer:2, explain:"접지장치는 휴전·정전 중인 전선로에 설치해 감전(전격) 재해를 막아요."},
+
+  /* ===== 8차시 안전대 ===== */
+  {lesson:8, type:'ox', q:"안전대 로프를 지지하는 구조물의 위치는 벨트 위치보다 높게 설치하는 것이 원칙이며, 가능하면 더 높은 위치를 선정한다.", answer:1, explain:"로프 지지 구조물은 반드시 벨트 위치보다 높아야 해요."},
+  {lesson:8, type:'ox', q:"U자걸이 작업에서 1종과 3종은 보조후크를, 4종은 보조로프를 사용한다.", answer:0, explain:"반대예요. 1종·3종은 보조로프, 4종은 보조후크를 사용해요."},
+  {lesson:8, type:'ox', q:"4종 안전대에서 보조후크를 사용할 때에는 로프 길이를 1.5m 이내로 사용해야 한다.", answer:1, explain:"4종 안전대의 보조후크 사용 시 로프 길이는 1.5m 범위 내예요."},
+  {lesson:8, type:'ox', q:"수평지지로프는 안전대를 걸 구조물이 없고 횡방향 이동이 잦은 작업 구간에서 벨트보다 높은 위치에 설치한다.", answer:1, explain:"횡방향 이동이 잦은 구간에서 벨트 높이보다 높게 수평지지로프를 설치해요."},
+  {lesson:8, type:'mc', q:"4종 안전대(U자걸이)를 착용한 작업자가 다음 구조물로 옮겨 가려 할 때 올바른 절차는?", options:["후크를 D링에서 먼저 분리한 뒤 다음 구조물에 보조후크를 건다.","후크를 분리하기 전에 보조후크를 구조물에 먼저 건다.","보조로프만 있으면 후크는 언제든 분리해도 된다.","짧은 구간이므로 보조장치 없이 이동한다."], answer:1, explain:"보조후크를 구조물에 먼저 건 뒤 D링에서 후크를 분리해야 추락을 막을 수 있어요."},
+  {lesson:8, type:'mc', q:"보조로프 양단의 후크에 대한 설명으로 옳은 것은?", options:["구조물 쪽은 2중, D링 쪽은 단일 구조이면 충분하다.","양쪽 모두 단일 구조여도 안전에 지장이 없다.","D링이나 각링에 거는 후크는 반드시 2중 이탈방지 구조여야 한다.","이탈방지 구조 여부는 작업자가 상황에 맞게 판단한다."], answer:2, explain:"D링·각링에 거는 후크는 반드시 2중 이탈방지 구조여야 해요."},
+  {lesson:8, type:'mc', q:"클립 부착 안전대(1·2종)의 사용 방법으로 옳은 것은?", options:["로프 끝의 클립을 수평지지로프에 건다.","로프 끝의 클립을 합성섬유 수직지지로프에 설치하고 상하 방향 표시를 지킨다.","금속 체인에 클립을 직접 건다.","클립의 방향 표시는 무시해도 안전에 지장이 없다."], answer:1, explain:"클립은 합성수지(섬유) 수직지지로프에 설치하고 상하방향 표시를 반드시 지켜야 해요."},
+  {lesson:8, type:'mc', q:"다음 중 수평지지로프를 설치해야 하는 상황은?", options:["작업자가 수직으로만 오르내리는 구간이다.","한 자세로 고정하여 작업하는 구간이다.","안전대를 걸 구조물이 없고 횡방향 이동이 잦은 구간이다.","이동이 거의 없는 짧은 구간이다."], answer:2, explain:"구조물이 없고 횡방향 이동이 잦은 구간에서 수평지지로프를 설치해요."},
+
+  /* ===== 1차시 ===== */
+  {lesson:1, type:'mc', q:"프레스의 안전검사 대상에 대한 설명으로 옳은 것은?", options:["압력 능력이 1톤 이상인 프레스는 모두 대상이다.","압력 능력이 3톤 이상인 프레스는 안전검사 대상이다(일부 제외).","압력 능력이 5톤 이상인 프레스만 대상이다.","압력 능력과 관계없이 모든 프레스가 대상이다."], answer:1, explain:"프레스는 압력 능력이 3톤 이상인 경우(일부 제외) 안전검사 대상이에요."},
+  {lesson:1, type:'mc', q:"범용 선반의 주요 구조에 대한 설명으로 옳지 않은 것은?", options:["스핀들(주축)은 공작물을 고정해 회전시키는 부분이다.","베드는 선반의 각 부분을 지지하는 몸체이다.","심압대는 긴 공작물의 반대쪽을 지지한다.","안전 덮개는 선반의 주요 구조에 포함된다."], answer:3, explain:"주요 구조는 스핀들, 베드, 주축기어박스, 왕복대·횡이송대·공구대, 심압대예요. 안전 덮개는 방호장치예요."},
+
+  /* ===== 2차시 ===== */
+  {lesson:2, type:'ox', q:"프레스 금형을 교체하는 작업에서는 금형이 떨어져 다칠 위험이 있다.", answer:1, explain:"금형 교체 중 낙하 위험은 프레스의 대표적인 위험 요인이에요."},
+  {lesson:2, type:'ox', q:"지게차는 정격 하중을 초과해도 차체 균형이 유지되므로 전도 위험이 커지지 않는다.", answer:0, explain:"정격 하중을 초과하면 전도·전복 위험이 오히려 커져요."},
+  {lesson:2, type:'ox', q:"사출성형기 호퍼에 원재료(레진)를 투입하는 작업은 중량물을 취급하므로 근골격계 질환 위험이 있다.", answer:1, explain:"원재료 투입은 중량물 취급 작업이라 근골격계 질환 위험이 있어요."},
+  {lesson:2, type:'ox', q:"선반 작업에서는 회전하는 부위에 장갑이나 옷이 말려 들어가는 사고가 발생할 수 있다.", answer:1, explain:"회전 부위에 의한 말림 사고가 선반의 대표적인 위험이에요."},
+  {lesson:2, type:'mc', q:"안전 관련 법령을 확인하는 사이트에 대한 설명으로 옳은 것은?", options:["환경부 me.go.kr에서 산업안전보건법 원문을 확인한다.","국토교통부 molit.go.kr에서만 안전 법령을 확인할 수 있다.","법제처 국가법령정보센터(law.go.kr)에서 산업안전보건법 등 법령을 확인한다.","정부 포털 korea.kr은 법령 원문을 제공하는 유일한 사이트이다."], answer:2, explain:"국가법령정보센터(law.go.kr)에서 산업안전보건법 등 관련 법령을 확인해요."},
+  {lesson:2, type:'mc', q:"변압기, 모선 애자, 차단기 절연유, 축전지 등의 절연 저항 측정 주기로 옳은 것은?", options:["연 1회 이상 실시한다.","연 2회 이상 실시한다.","연 3회 이상 실시한다.","연 4회 이상 실시한다."], answer:1, explain:"절연 저항 측정은 연 2회 이상 점검 항목이에요."},
+  {lesson:2, type:'mc', q:"프레스 작업의 대표적인 위험 요인에 대한 설명으로 옳은 것은?", options:["소음 발생이 가장 대표적인 위험이다.","금형 사이에 손(손등)이 끼이는 사고가 발생할 수 있다.","전력 과부하가 주된 위험이다.","분진 발생이 주된 위험이다."], answer:1, explain:"프레스의 대표 위험은 금형 사이 손·손등 끼임이에요."},
+
+  /* ===== 3차시 ===== */
+  {lesson:3, type:'ox', q:"안전검사는 기계·기구를 새로 설치할 때 한 번만 받으면 되는 제도이다.", answer:0, explain:"안전검사는 성능이 안전기준에 적합한지 주기적으로 확인하는 제도예요."},
+  {lesson:3, type:'mc', q:"다음 중 안전검사 대상 기계·기구에서 제외되는 것은?", options:["압력 능력이 3톤 이상인 프레스","정격 하중이 2톤 미만인 크레인","리프트","압력용기"], answer:1, explain:"크레인은 정격 하중 2톤 미만인 경우 안전검사 대상에서 제외돼요."},
+  {lesson:3, type:'mc', q:"방호장치의 목적에 대한 설명으로 옳은 것은?", options:["위험한 기계·기구나 장소에 작업자가 접근하지 못하게 한다.","생산 속도를 높이기 위해 설치한다.","기계의 소음을 줄이기 위해 설치한다.","전력 소비를 줄이기 위해 설치한다."], answer:0, explain:"방호장치는 위험 기계·장소에 작업자가 접근하지 못하게 막는 장치예요."},
+  {lesson:3, type:'mc', q:"건설용 리프트의 운반구가 승강로 바닥에 충돌할 때 충격을 완화해 주는 장치는?", options:["권과 방지장치","비상 정지장치","안전 고리","완충 스프링"], answer:3, explain:"완충 스프링은 운반구가 승강로 바닥에 충돌할 때 충격을 완화해요."},
+  {lesson:3, type:'mc', q:"크레인에서 돌발 상황이 발생했을 때 모든 전원을 차단하여 급정지시키는 장치는?", options:["과부하 방지장치","권과 방지장치","비상 정지장치","훅 해지장치"], answer:2, explain:"비상 정지장치는 돌발 사태 시 모든 전원을 차단해 급정지시켜요."},
+  {lesson:3, type:'mc', q:"권과 방지장치에 대한 설명으로 옳은 것은?", options:["운반구(훅)가 과도하게 하강하는 것을 방지한다.","운반구(훅)가 과도하게 상승하는 것을 방지한다.","운반구의 회전 속도를 줄여 준다.","운반구의 진동을 감소시킨다."], answer:1, explain:"권과 방지장치는 과도한 상승(권상)을 막는 장치예요."},
+  {lesson:3, type:'mc', q:"건설용 리프트에서 상·하한 정지장치가 작동하지 않을 때 전원을 차단해 운전을 정지시키는 장치는?", options:["1상 전원 차단장치","2상 전원 차단장치","3상 전원 차단장치","단상 전원 차단장치"], answer:2, explain:"상·하한 정지장치 미작동 시 전원을 차단하는 장치는 3상 전원 차단장치예요."},
+
+  /* ===== 4차시 ===== */
+  {lesson:4, type:'ox', q:"위험요인 분석의 4M은 사람(Man), 기계(Machine), 물질·환경(Media), 관리(Management)를 의미한다.", answer:1, explain:"기계·기구의 위험요소를 사람, 기계, 물질·환경, 관리 4가지 측면에서 파악하는 것이 4M이에요."},
+  {lesson:4, type:'ox', q:"정기 점검은 매일 실시하며, 기계·기구와 공구의 불안전한 상태와 행동을 확인하는 점검이다.", answer:0, explain:"매일 하는 점검은 일상 점검이고, 정기 점검은 매주 또는 매월 실시해요."},
+  {lesson:4, type:'mc', q:"기계·기구 설비를 변경하거나 새로 설치할 때 실시하는 점검에 대한 설명으로 옳은 것은?", options:["일상 점검으로, 매일 실시하며 작업 전에 확인한다.","정기 점검으로, 매주 또는 매월 실시한다.","특별 점검으로, 설비의 변경이나 신규 설치 시 실시한다.","서류 점검으로, 관련 문서만 확인한다."], answer:2, explain:"특별 점검은 기계·기구 설비의 변경 또는 신규 설치 시 실시해요."},
+
+  /* ===== 5차시 ===== */
+  {lesson:5, type:'ox', q:"안전점검은 사람의 불안전한 행동과 설비의 불안정한 상태를 모두 대상으로 해야 한다.", answer:1, explain:"안전점검 대상은 불안전한 행동과 불안정한 상태 모두예요."},
+  {lesson:5, type:'ox', q:"현장작업자는 자신이 사용하는 기계·기구·설비·공구·보호구의 성능을 주 1회 점검하면 충분하다.", answer:0, explain:"현장작업자는 사용하는 설비와 보호구의 성능을 매일 점검해야 해요."},
+  {lesson:5, type:'mc', q:"공장장이 수행하는 안전점검 업무로 보기 어려운 것은?", options:["작업 방법의 자동화 가능 여부를 검토한다.","설비 배치가 적합한지 점검한다.","보호구와 방호장치의 성능을 1일 1회 이상 점검한다.","현장 감독자의 안전의식을 함양한다."], answer:2, explain:"보호구·방호장치를 1일 1회 이상 점검하는 것은 안전관리자의 업무예요."},
+  {lesson:5, type:'mc', q:"안전점검을 효과적으로 실시하는 요령으로 옳지 않은 것은?", options:["점검자의 능력을 고려한다.","불량이 발견되면 원인을 파악하고 즉시 대책을 세운다.","점검 시간을 줄이기 위해 일부 항목은 생략한다.","과거 재해에 대한 조치 여부를 확인한다."], answer:2, explain:"점검 항목을 생략하면 위험을 놓칠 수 있어요."},
+  {lesson:5, type:'mc', q:"안전점검 방법 중 육안 점검에 해당하는 것은?", options:["누전차단시험기로 전기 설비 상태를 측정한다.","시동 장치를 작동시켜 동작 상태를 확인한다.","설비의 변형, 균열, 부식을 눈과 촉각으로 확인한다.","비파괴 검사장비로 마모 상태를 점검한다."], answer:2, explain:"육안 점검은 눈과 촉각으로 변형·균열·부식 등을 확인하는 점검이에요."},
+  {lesson:5, type:'mc', q:"안전점검의 목적으로 옳지 않은 것은?", options:["불안전한 상태와 잠재 위험요소를 찾아내어 개선한다.","사고 발생을 사전에 예방한다.","작업 속도를 높여 생산성을 향상시킨다.","안전을 확보한다."], answer:2, explain:"안전점검의 목적은 위험요소 개선과 사고 예방, 안전 확보예요."},
+  {lesson:5, type:'mc', q:"안전점검을 실행할 때 항목을 정확하고 빠짐없이 점검하기 위해 작성하고 활용해야 하는 것은?", options:["작업일지","생산계획서","안전점검표","인사기록카드"], answer:2, explain:"항목을 정확히 점검하기 위해 안전점검표를 작성·활용해요."},
+  {lesson:5, type:'mc', q:"비상정지장치처럼 안전장치가 정상 작동하는지 정해진 순서로 직접 동작시켜 확인하는 점검 방법은?", options:["육안 점검","정밀 점검","서류 점검","기능 점검"], answer:3, explain:"기능 점검은 안전장치·시동장치·차단장치를 정해진 순서로 동작시켜 확인하는 점검이에요."},
+
+  /* ===== 6차시 ===== */
+  {lesson:6, type:'mc', q:"지게차의 외관 점검 항목으로 알맞지 않은 것은?", options:["차체에서 기름이 새는 곳이 없는지 확인한다.","균열이나 헐거운 부분이 없는지 확인한다.","브레이크 오일량이 적정한지 확인한다.","타이어에 손상이 없는지 확인한다."], answer:2, explain:"브레이크 오일량은 '브레이크' 항목의 점검 내용이에요."},
+  {lesson:6, type:'mc', q:"지게차 점검 중 브레이크 오일량이 눈에 띄게 줄어든 것을 발견했을 때 가장 먼저 해야 할 조치는?", options:["그냥 사용해도 무방하다고 판단한다.","브레이크 계통의 누유 여부를 확인하고 보충 또는 수리한다.","타이어 공기압을 조정한다.","엔진오일을 교체한다."], answer:1, explain:"오일량 감소는 누유 가능성이 있으므로 확인 후 보충·수리해야 해요."},
+  {lesson:6, type:'mc', q:"지게차 운전 중 급선회로 차량이 불안정하게 흔들렸다. 올바른 예방 조치는?", options:["급정지·급출발을 반복하여 균형을 맞춘다.","화물을 높이 들어 시야를 확보한다.","급출발·급정지·급선회를 피하고 적정 하중을 준수한다.","운전 중 화물의 위치를 수시로 바꾼다."], answer:2, explain:"급조작을 피하고 적정 하중을 지키는 것이 전도·전복 예방의 핵심이에요."},
+  {lesson:6, type:'mc', q:"고소작업대의 전도 사고를 예방하기 위한 조치로 옳은 것은?", options:["아웃트리거 설치를 생략해 작업 시간을 줄인다.","이동 중에도 작업대를 상승시켜 둔다.","허용 작업 반경과 적재하중을 초과하지 않도록 한다.","작업이 급하면 적재하중을 일시적으로 초과해도 된다."], answer:2, explain:"허용 작업 반경·적재하중 초과 금지와 아웃트리거 설치가 핵심이에요."},
+  {lesson:6, type:'mc', q:"고소작업대의 주요 위험으로 제시되는 전도, 낙하, 추락에 해당하지 않는 것은?", options:["장비가 넘어진다.","작업대가 떨어진다.","작업자가 감전된다.","작업자가 떨어진다."], answer:2, explain:"고소작업대의 주요 위험은 전도, 낙하, 추락이에요."},
+  {lesson:6, type:'mc', q:"아웃트리거를 설치하지 않은 채 고소작업대를 사용할 때 발생할 수 있는 가장 큰 위험은?", options:["장비가 넘어지는 전도 사고가 발생할 수 있다.","작업자의 피로가 누적된다.","장비가 과열된다.","작업 속도가 느려진다."], answer:0, explain:"아웃트리거 미설치는 전도 사고의 주요 원인이에요."},
+  {lesson:6, type:'mc', q:"고소작업대에서 균형을 잃고 떨어질 뻔한 사고를 예방하기 위한 가장 적절한 조치는?", options:["탑승 인원을 줄인다.","개인보호구를 착용하고 안전난간대를 설치한다.","장비의 이동 속도를 높인다.","작업대의 높이를 더 낮춘다."], answer:1, explain:"안전난간대 설치와 개인보호구 착용·체결이 추락 예방의 핵심이에요."},
+  {lesson:6, type:'mc', q:"고소작업대에서 추락 사고가 자주 발생하는 이유와 가장 관련 깊은 것은?", options:["작업대에 안전난간이 설치되지 않았다.","적재하중을 초과했다.","아웃트리거를 설치하지 않았다.","비상정지 버튼이 고장 났다."], answer:0, explain:"추락 사고는 안전난간 미설치와 가장 직접적으로 관련돼요."},
+
+  /* ===== 9차시 ===== */
+  {lesson:9, type:'ox', q:"안전대 벨트와 로프가 더러워지면 미지근한 물이나 중성세제로 씻고 잘 헹군 뒤, 직사광선을 피해 통풍이 잘되는 곳에서 자연 건조한다.", answer:1, explain:"벨트·로프는 미지근한 물이나 중성세제로 씻고, 직사광선을 피해 자연 건조해요."},
+  {lesson:9, type:'ox', q:"활선접근경보기는 검전기와 기능이 같으므로 검전기가 없을 때 대신 사용해도 된다.", answer:0, explain:"활선접근경보기는 검전기 대용으로 사용하면 안 돼요."},
+  {lesson:9, type:'ox', q:"다전압 휴대용 검전기는 여름철 차 안에 두면 안 되지만, 낙하나 충격에는 비교적 강해서 크게 신경 쓰지 않아도 된다.", answer:0, explain:"고온 장소 방치 금지는 맞지만, 낙하·충격·강한 힘도 주의해야 해요."},
+  {lesson:9, type:'ox', q:"안전장구는 6개월에 1회 이상 정기점검하고, 부족한 수량은 즉시 보충할 수 있도록 조치한다.", answer:1, explain:"정기점검은 6개월에 1회 이상, 수량이 부족하면 즉시 보충해요."},
+  {lesson:9, type:'mc', q:"안전대 철물류 관리 방법으로 옳은 것은?", options:["물에 젖으면 별도 처리 없이 자연건조만 한다.","녹 방지 기름은 두껍게 발라 보호한다.","도료가 묻으면 용제를 충분히 사용해 닦는다.","회전부는 정기적으로 주유한다."], answer:3, explain:"철물류 회전부는 정기적으로 주유해요. 젖으면 마른 헝겊으로 닦고 녹방지 기름을 엷게 발라요."},
+  {lesson:9, type:'mc', q:"안전모 착용 및 관리에 대한 설명으로 옳은 것은?", options:["턱끈은 답답하지 않게 느슨하게 맨다.","머리고정 조절기로 머리 크기에 맞추고 턱끈을 완전히 조인다.","절연 목적의 안전모는 외상이 생겨도 계속 사용한다.","머리에 쓰는 것이므로 별도의 청소는 필요하지 않다."], answer:1, explain:"머리고정 조절기로 맞추고 턱끈을 완전히 조여야 해요. 파손품은 즉시 폐기해요."},
+  {lesson:9, type:'mc', q:"활선접근경보기에 대한 설명으로 옳지 않은 것은?", options:["전기 근접 시 경고음을 내 접근 위험을 알려 준다.","물이 들어가지 않도록 주의해서 사용한다.","검전기가 없을 때에는 검전기 대용으로 사용한다.","안테나가 충전부 정면을 향하도록 착용한다."], answer:2, explain:"검전기 대용으로 사용하면 안 돼요."},
+  {lesson:9, type:'mc', q:"다전압 휴대용 검전기 보관 시 주의사항으로 옳지 않은 것은?", options:["여름철 자동차 안 같은 고온 장소에 두지 않는다.","낙하·충격·강한 힘이 가해지지 않도록 한다.","온도차가 심할 때 결로가 생기지 않도록 주의한다.","화학약품으로 닦아 깨끗하게 관리한다."], answer:3, explain:"화학약품으로 닦으면 안 돼요."},
+  {lesson:9, type:'mc', q:"안전장구 정기점검(6개월 1회 이상) 시 확인할 사항으로 가장 알맞은 것은?", options:["오염 상태·청결·보관 상태만 확인한다.","외관의 균열·파손만 확인한다.","오염 상태·청결·보관 상태, 외관 이상, 적정 수량 여부를 모두 확인한다.","적정 수량 여부만 확인한다."], answer:2, explain:"외관 이상, 오염·청결·보관 상태, 적정 수량 여부를 모두 확인해요."},
+
+  /* ===== 10차시 ===== */
+  {lesson:10, type:'ox', q:"보호구 보관 장소는 습기·진동·약품에 의한 부식 위험이 없고 통풍이 잘되며, 먼지·기름기가 있는 곳과는 격리되어야 한다.", answer:1, explain:"보호구 보관 장소의 기본 조건이에요."},
+  {lesson:10, type:'ox', q:"안전모가 충격을 받았더라도 겉모습이 멀쩡하다면 계속 사용해도 된다.", answer:0, explain:"충격을 받았거나 변형된 안전모는 폐기해야 해요."},
+  {lesson:10, type:'ox', q:"안전대 죔줄은 2.5m 이내로 가능한 한 짧게 사용하고, 마모나 변형 등 훼손이 있으면 교체한다.", answer:1, explain:"걸이 설비는 가능한 높게, 죔줄은 2.5m 이내로 짧게 사용해요."},
+  {lesson:10, type:'ox', q:"방진마스크는 필터가 습하거나 흡·배기 저항이 클 때 교체해야 한다.", answer:1, explain:"필터가 습하거나 저항이 크면 교체해야 해요."},
+  {lesson:10, type:'ox', q:"고무·합성수지 제품은 자외선에 강하므로 직사광선이 드는 곳에 보관해도 된다.", answer:0, explain:"고무·합성수지 제품은 자외선에 약해서 직사광선을 피해 보관해야 해요."},
+  {lesson:10, type:'mc', q:"보호구 보관 원칙으로 옳은 것은?", options:["사용 빈도가 높은 것은 출입구에서 먼 상단에 보관한다.","고무류는 직사광선이 드는 곳에 보관한다.","중량물은 하단에, 자외선·약품 위험이 없는 통풍 좋은 곳에 보관한다.","반납된 보호구는 상태를 확인하지 않고 바로 재배치한다."], answer:2, explain:"사용 빈도 많은 것은 출입구 가까이, 중량물은 하단에 두고 반납 시 상태를 확인·정비해요."},
+  {lesson:10, type:'mc', q:"안전모 관리에 대한 설명으로 옳지 않은 것은?", options:["턱 끈을 바르게 착용하도록 지도·감독한다.","착장체의 머리고정대를 머리 크기에 맞게 조절한다.","충격을 받은 안전모는 폐기한다.","통풍이 잘되도록 모체에 구멍을 낸다."], answer:3, explain:"안전모 모체에 구멍을 내면 안 돼요."},
+  {lesson:10, type:'mc', q:"안전대 사용·점검에 대한 설명으로 옳은 것은?", options:["안전대 걸이 설비는 가능한 낮은 지점에 설치한다.","죔줄의 길이는 2.5m 이내로 가능한 짧게 하여 사용한다.","마모나 변형이 있어도 임시로 쓰다가 나중에 교체한다.","죔줄의 강도는 안전대보다 약해도 무방하다."], answer:1, explain:"걸이 설비는 높은 지점에, 죔줄은 2.5m 이내로 짧게, 훼손 시 즉시 교체해요."},
+  {lesson:10, type:'mc', q:"눈·안면 보호구에 대한 설명으로 옳은 것은?", options:["용접·용단작업에는 적합한 차광번호의 차광보안경을 지급한다.","무거울수록 내구성이 좋으므로 우선 지급한다.","시력이 정상이 아니어도 도수렌즈는 지급할 수 없다.","렌즈에 흠이나 깨짐이 있어도 계속 사용한다."], answer:0, explain:"용접에는 적합한 차광번호의 보안경을 쓰고, 가볍고 시야가 넓어야 하며 렌즈 이상 시 교체해요."},
+
+  /* ===== 안전관리 이론 ===== */
+  {lesson:11, type:'mc', q:"다음 중 '중대재해'에 해당하지 않는 것은?", options:["사망자가 1명 이상 발생한 재해","3개월 이상 요양이 필요한 부상자가 동시에 2명 이상 발생한 재해","부상자 또는 직업성 질병자가 동시에 10명 이상 발생한 재해","1개월 요양이 필요한 부상자가 1명 발생한 재해"], answer:3, explain:"중대재해는 사망 1명 이상 / 3개월 이상 요양 부상자 동시 2명 이상 / 부상·질병자 동시 10명 이상이에요."},
+  {lesson:11, type:'mc', q:"하인리히 도미노 이론에서 사고의 직접 원인(3단계)에 대한 설명으로 옳은 것은?", options:["사회적 환경 및 유전적 요소가 직접 원인이다.","개인적 결함이 직접 원인이다.","불안전한 행동과 불안전한 상태가 직접 원인이다.","재해 자체가 직접 원인이다."], answer:2, explain:"3단계는 불안전한 행동 및 불안전한 상태예요."},
+  {lesson:11, type:'ox', q:"하인리히 도미노 이론에서 3단계인 불안전한 행동과 불안전한 상태의 요인을 제거하면 사고와 재해로 이어지지 않는다.", answer:1, explain:"3단계의 중추적 요인을 제거하면 도미노가 쓰러지지 않아요."},
+  {lesson:11, type:'mc', q:"하인리히 법칙(1 : 29 : 300)에 대한 설명으로 옳은 것은?", options:["중상 또는 사망 1회, 경상 29회, 무상해사고 300회의 비율로 발생한다.","중상 또는 사망 29회, 경상 1회, 무상해사고 300회의 비율로 발생한다.","경상 1회, 중상 29회, 무상해사고 300회의 비율로 발생한다.","무상해사고 1회, 경상 29회, 중상 300회의 비율로 발생한다."], answer:0, explain:"330회 사고 중 중상·사망 1회, 경상 29회, 무상해사고 300회예요."},
+  {lesson:11, type:'mc', q:"다음 중 '불안전한 상태'에 해당하는 것은?", options:["작업 중 부주의","안전조치 미이행","방호장치 결함","작업 중 실수와 착오"], answer:2, explain:"기계·설비 결함, 방호장치 결함, 작업환경 결함은 불안전한 상태이고, 부주의·실수·착오·안전조치 미이행은 불안전한 행동이에요."},
+  {lesson:11, type:'mc', q:"재해예방의 4원칙에 해당하지 않는 것은?", options:["손실우연의 원칙","원인계기의 원칙","예방가능의 원칙","결과책임의 원칙"], answer:3, explain:"4원칙은 손실우연, 원인계기(원인연계), 예방가능, 대책선정의 원칙이에요."},
+  {lesson:11, type:'mc', q:"'재해는 원칙적으로 원인만 제거하면 예방이 가능하다'는 내용과 가장 가까운 재해예방 원칙은?", options:["손실우연의 원칙","원인계기의 원칙","예방가능의 원칙","대책선정의 원칙"], answer:2, explain:"예방가능의 원칙이에요. 원인계기의 원칙은 '재해에는 반드시 원인이 있다'는 뜻이에요."},
+  {lesson:11, type:'mc', q:"버드의 신도미노 이론에서 재해발생의 근원적 요인(1단계)에 해당하는 것은?", options:["통제의 부족(관리소홀)","개인적 또는 과업과 관련된 기본 원인","불완전한 행동 및 상태인 직접 원인","사고(접촉)"], answer:0, explain:"버드는 1단계를 '통제의 부족(관리소홀)'으로 봤어요."},
+  {lesson:11, type:'ox', q:"무재해 운동의 목적에는 노사 간 화합 분위기를 조성하여 노사 신뢰도를 향상시키는 것도 포함된다.", answer:1, explain:"손실 방지와 생산성 향상, 자율적 문제해결 능력, 밝은 직장 풍토, 노사 신뢰도 향상이 목적이에요."},
+  {lesson:11, type:'mc', q:"'작업자가 개인 보호구를 착용하지 않았다'는 위험요인은 4M 중 어디에 해당하는가?", options:["사람(Man) 요인이다.","기계(Machine) 요인이다.","물질·환경(Media) 요인이다.","관리(Management) 요인이다."], answer:0, explain:"작업자 특성, 작업 자세, 보호구 미착용은 사람(Man) 요인이에요."},
+  {lesson:11, type:'mc', q:"'안전 표지판과 안전 수칙을 게시하지 않았다'는 위험요인은 4M 중 어디에 해당하는가?", options:["사람(Man) 요인이다.","기계(Machine) 요인이다.","물질·환경(Media) 요인이다.","관리(Management) 요인이다."], answer:3, explain:"관리계획·매뉴얼, 교육·훈련, 표지판 게시, 사후관리는 관리(Management) 요인이에요."},
+  {lesson:11, type:'mc', q:"브레인스토밍의 규칙으로 옳지 않은 것은?", options:["남의 의견을 비판하지 않는다.","자유롭게 발언한다.","가능한 한 많은 의견을 낸다.","남의 의견은 즉시 평가해서 걸러낸다."], answer:3, explain:"브레인스토밍은 비판금지·자유분방·대량발언·수정발언이 규칙이에요."},
+  {lesson:11, type:'mc', q:"왼손을 맞잡고 함께 소리쳐 팀의 일체감과 연대감을 만드는 무재해 소집단 활동은?", options:["지적확인","터치 앤 콜","롤플레잉","브레인스토밍"], answer:1, explain:"터치 앤 콜은 왼손을 맞잡고 같이 소리치는 활동이에요."},
+  {lesson:11, type:'mc', q:"작업 전에 감각기관을 이용해 뇌를 자극함으로써 작업의 정확성과 안전을 확인하는 기법은?", options:["지적확인","터치 앤 콜","롤플레잉","원포인트 위험예지훈련"], answer:0, explain:"지적확인은 감각기관을 이용해 작업 전에 안전을 확인하는 기법이에요."},
+
+  /* ===== 보호구 교재·기계 위험요인 ===== */
+  {lesson:12, type:'mc', q:"다음 중 안전인증 대상 보호구가 아니라 자율안전확인 신고 대상인 것은?", options:["안전화","방진마스크","안전대","잠수기"], answer:3, explain:"자율안전확인 대상은 안전모·보안경·보안면(안전인증 대상 제외)과 잠수기예요."},
+  {lesson:12, type:'ox', q:"산업안전보건법상 안전인증 대상 보호구는 안전모, 안전화, 안전장갑, 안전대 등 모두 12종이다.", answer:1, explain:"안전모, 안전화, 안전장갑, 방진·방독·송기마스크, 전동식 호흡보호구, 보호복, 안전대, 보안경, 용접용 보안면, 귀마개·귀덮개의 12종이에요."},
+  {lesson:12, type:'mc', q:"보호구 선정 시 유의사항으로 옳지 않은 것은?", options:["사용목적에 적합한 것을 선택한다.","안전인증을 받아 성능이 보장되는 것을 선택한다.","작업에 방해가 되지 않는 것을 선택한다.","디자인이 예쁜 것을 가장 먼저 선택한다."], answer:3, explain:"사용목적 적합, 안전인증, 작업에 방해 없음, 착용이 쉽고 크기가 맞을 것이 기준이에요."},
+  {lesson:12, type:'mc', q:"사출성형기의 형식에 대한 설명으로 옳은 것은?", options:["수평식은 기구가 상하로 배열되어 설치 공간이 작다.","수직식은 기구가 상하로 배열되어 설치 공간이 적고 인서트 작업이 안정적이다.","수평식은 금형 부착이 어렵고 점검이 불편하다.","수직식은 성형의 자동화와 고속화에 가장 유리하다."], answer:1, explain:"수직식은 설치 공간이 작고 인서트 작업에 유리해요. 수평식은 금형 부착·점검이 쉽고 자동화·고속화에 유리해요."},
+  {lesson:12, type:'mc', q:"지게차의 주요 위험요인에 해당하지 않는 것은?", options:["급정지·급출발·급선회를 한다.","정격 하중을 초과하여 사용한다.","작업 유도자를 배치하지 않는다.","정격 하중 이내로 적재하여 사용한다."], answer:3, explain:"정격 하중 이내로 사용하는 것이 올바른 작업이에요."},
+  {lesson:12, type:'mc', q:"크레인에서 줄걸이 용구가 훅에서 임의로 이탈하는 것을 막는 장치는?", options:["과부하 방지장치","훅 해지장치","경보장치","레일 정지 기구"], answer:1, explain:"훅 해지장치는 줄걸이 용구가 훅에서 빠지지 않게 해줘요."},
+  {lesson:12, type:'mc', q:"크레인에서 미리 설정된 하중을 초과하여 들어 올리지 못하게 하는 장치는?", options:["과부하 방지장치","권과 방지장치","비상 정지장치","훅 해지장치"], answer:0, explain:"과부하 방지장치는 설정된 하중 초과를 막아요."},
+  {lesson:12, type:'mc', q:"건설용 리프트에서 원심력을 이용한 브레이크로 과속 시 전원을 차단하고 운반구를 정지시키는 장치는?", options:["완충 스프링","안전 고리","출입문 연동장치","낙하방지장치"], answer:3, explain:"낙하방지장치는 원심력을 이용한 브레이크 시스템이에요."},
+  {lesson:12, type:'mc', q:"건설용 리프트에서 출입문이 열려 있으면 리프트가 운행되지 않도록 하는 장치는?", options:["안전 고리","권과 방지장치","3상 전원 차단장치","출입문 연동장치"], answer:3, explain:"출입문 연동장치는 출입문 개방 시 리프트 운행을 불가능하게 해요."}
+];
+
+
+/* ---------------- 공부 자료 (문제 전 학습) ---------------- */
+const STUDY = [
+ {lesson:1, color:'#2FA84F', title:'1차시 · 기계 안전검사와 선반 구조', points:[
+   '프레스 안전검사 대상 : 압력능력 <b>3톤 이상</b>',
+   '선반 주요 구조 : <b>스핀들(주축) · 베드 · 주축기어박스 · 왕복대(횡이송대·공구대) · 심압대</b>',
+   '안전 덮개는 구조가 아니라 <b>방호장치</b>'],
+  tip:'🧠 선반 = "주-베-기-왕-심" (주축·베드·기어박스·왕복대·심압대)',
+  warn:'⚠️ "안전 덮개"는 선반의 주요 구조가 <b>아니에요</b>!'},
+ {lesson:2, color:'#8B5CF6', title:'2차시 · 기계별 위험요인과 법령', points:[
+   '안전 관련 법령 확인 : 국가법령정보센터 <b>law.go.kr</b>',
+   '변압기·모선 애자·차단기 절연유·축전지 절연저항 측정 : <b>연 2회 이상</b>',
+   '<b>프레스</b> : 금형 교체 시 <b>금형 낙하</b>, 금형 사이 <b>손(손등) 끼임</b>',
+   '<b>지게차</b> : 정격하중을 <b>초과하면 전도·전복</b> 위험이 커진다',
+   '<b>사출성형기</b> : 호퍼에 원재료(레진) 투입 = 중량물 취급 → <b>근골격계 질환</b>',
+   '<b>선반</b> : 회전부에 옷·장갑이 <b>말림</b>'],
+  tip:'🧠 기계마다 "대표 사고"를 하나씩 짝지어 외워요 : 프레스=끼임 / 선반=말림 / 지게차=전도 / 사출기=근골격계',
+  warn:'⚠️ 프레스 대표 위험은 소음·분진이 아니라 <b>손 끼임</b>!'},
+ {lesson:3, color:'#FF6A13', title:'3차시 · 안전검사와 방호장치', points:[
+   '안전검사 = 성능이 안전기준에 맞는지 <b>주기적으로 확인</b>하는 제도',
+   '안전검사 <b>제외</b> : 정격하중 <b>2톤 미만 크레인</b>',
+   '방호장치의 목적 : 위험 기계·장소에 작업자가 <b>접근하지 못하게</b> 막는 것',
+   '<b>비상정지장치</b> : 돌발 상황 시 모든 전원을 차단해 <b>급정지</b>',
+   '<b>권과방지장치</b> : 운반구·훅이 과도하게 <b>상승</b>하는 것 방지',
+   '<b>완충 스프링</b> : 운반구가 바닥에 충돌할 때 <b>충격 완화</b> (건설용 리프트)',
+   '상·하한 정지장치 미작동 시 전원 차단 : <b>3상 전원 차단장치</b>'],
+  tip:'🧠 권과 = "감다가 넘침" → 너무 높이 올라가는 것 / 비상정지 = 다 끄고 멈춤 / 완충 = 쿵! 하고 닿을 때 부드럽게',
+  warn:'⚠️ 방호장치는 생산속도·소음·전력과 <b>관계없어요</b>. 접근 차단이 목적!'},
+ {lesson:4, color:'#D9A400', title:'4차시 · 위험요인 4M과 점검 종류', points:[
+   '<b>4M</b> = 사람(Man) · 기계(Machine) · 물질·환경(Media) · 관리(Management)',
+   '<b>일상점검</b> : <b>매일</b> 불안전한 상태·행동 확인',
+   '<b>정기점검</b> : <b>매주 또는 매월</b> 실시',
+   '<b>특별점검</b> : 기계·설비의 <b>변경 또는 신규 설치</b> 시'],
+  tip:'🧠 일(매일)·정(주/월)·특(바뀔 때) — 이름 그대로 외우기',
+  warn:'⚠️ "정기점검은 매일 한다"는 <b>X</b>! 매일은 일상점검이에요.'},
+ {lesson:5, color:'#0d9488', title:'5차시 · 안전점검의 목적과 요령', points:[
+   '점검 대상 : 사람의 <b>불안전한 행동</b> + 설비의 <b>불안정한 상태</b> 모두',
+   '점검 목적 : 위험요소를 찾아 개선하고 <b>사고를 예방</b> (생산속도 향상 ✕)',
+   '현장작업자 : 사용하는 기계·설비·공구·보호구를 <b>매일</b> 점검 (주 1회 ✕)',
+   '보호구·방호장치 성능 <b>1일 1회 이상</b> 점검 → <b>안전관리자</b> 업무 (공장장 업무 ✕)',
+   '점검 요령 : 점검자 능력 고려, 불량은 <b>원인 파악 후 즉시 대책</b>, 과거 재해 조치 확인 — 항목을 <b>생략하면 안 됨</b>',
+   '<b>안전점검표</b>를 작성·활용해 항목을 정확히 점검',
+   '<b>육안점검</b> : 눈·촉각으로 변형·균열·부식 확인',
+   '<b>기능점검</b> : 비상정지장치 등 안전장치를 <b>직접 작동</b>시켜 확인'],
+  tip:'🧠 육안 = 눈으로 보기 / 기능 = 눌러서 작동 확인 / 정밀 = 측정 장비 사용',
+  warn:'⚠️ "빨리 하려고 항목을 생략"은 항상 오답! 안전점검 목적은 속도가 아니에요.'},
+ {lesson:6, color:'#be185d', title:'6차시 · 지게차·고소작업대 점검', points:[
+   '지게차 <b>외관</b> 점검 : 기름 누설, 균열·헐거움 (브레이크 오일량은 브레이크 항목)',
+   '브레이크 오일이 눈에 띄게 줄면 → <b>누유 확인 후 보충·수리</b>',
+   '지게차 전도 예방 : <b>급출발·급정지·급선회 금지</b> + <b>적정 하중</b> 준수',
+   '고소작업대 주요 위험 : <b>전도 · 낙하 · 추락</b> (감전은 주요 위험 아님)',
+   '전도 예방 : <b>아웃트리거 설치</b>, 허용 작업반경·적재하중 <b>초과 금지</b>',
+   '추락 예방 : <b>안전난간대 설치 + 개인보호구 착용</b>'],
+  tip:'🧠 고소작업대 3대 위험 "전·낙·추"(전도·낙하·추락) / 아웃트리거 = 넘어짐 방지 다리',
+  warn:'⚠️ 아웃트리거를 생략하거나 이동 중 작업대를 올리면 <b>전도 사고</b>!'},
+ {lesson:7, color:'#E8342A', title:'7차시 · 안전장구 분류·보관·검사', points:[
+   '안전장구 = 외부 위험요소로부터 <b>신체를 보호</b>하기 위한 장비',
+   '<b>착용위치별</b> : 보호구 = 신체에 직접 착용 / 방호구·방호장치 = <b>설비·장치에 설치</b>',
+   '<b>사용용도별</b> : <b>설비성 · 준소모성 · 소모성</b>',
+   '<b>사용목적별</b> : 작업장치 · 검출장치 · 접지장치 · 표시장치 · 시험·측정장치',
+   '<b>보관</b> : 직사광선 차단, 건조·서늘한 곳, <b>화학물과 분리</b>, 품목별 저장·수불이 쉬운 곳',
+   '<b>검사</b> : 인증기관 <b>연 1회 이상</b> 정기검사 + 육안 손상 발견·<b>추락 발생</b> 시 추가 검사'],
+  tip:'🧠 분류 3가지 = 어디에(착용위치) / 얼마나 쓰나(용도) / 뭘 하려고(목적)',
+  warn:'⚠️ "방호장치"는 <b>착용위치</b> 분류이지 사용용도 분류가 아니에요!'},
+ {lesson:8, color:'#1C7ED6', title:'8차시 · 안전대 사용', points:[
+   '로프 지지 구조물은 벨트 위치보다 <b>높게</b> 설치',
+   'U자걸이 작업 : <b>1·3종 = 보조로프</b>, <b>4종 = 보조후크</b>',
+   '4종 보조후크 사용 시 로프 길이 <b>1.5m 이내</b>',
+   '4종 사용 순서 : <b>보조후크를 구조물에 먼저 건 뒤</b> → D링에서 후크 분리 (추락 방지)',
+   'D링·각링에 거는 후크는 반드시 <b>2중 이탈방지 구조</b>',
+   '클립 부착 안전대(1·2종) : 클립을 <b>합성섬유 수직지지로프</b>에 설치, <b>상하 방향 표시</b> 지키기',
+   '<b>수평지지로프</b> : 구조물이 없고 <b>횡방향 이동이 잦은</b> 구간, 벨트보다 높게'],
+  tip:'🧠 "먼저 걸고 나중에 풀기" — 한 순간도 몸이 무방비가 되면 안 돼요!',
+  warn:'⚠️ 후크를 D링에서 <b>바로</b> 분리하면 추락 위험! 보조 후크 먼저!'},
+ {lesson:9, color:'#7c3aed', title:'9차시 · 안전장구 착용·점검 관리', points:[
+   '<b>안전대 세척</b> : 미지근한 물·중성세제로 씻고 잘 헹군 뒤 <b>그늘(직사광선 ✕)에서 자연 건조</b>',
+   '벨트·로프에 도료가 묻으면 <b>용제 ✕</b>, 헝겊으로 닦아내기',
+   '철물류가 젖으면 마른 헝겊 + <b>녹방지 기름을 엷게</b>, 회전부는 <b>정기적으로 주유</b>',
+   '<b>안전모</b> : 머리고정 조절기로 맞추고 <b>턱끈을 완전히 조이기</b>, 파손품은 즉시 폐기',
+   '<b>활선접근경보기</b> : 접근 위험을 경고 → <b>검전기 대용 ✕</b>, 물 유입 주의, 안테나는 충전부 정면',
+   '<b>다전압 휴대용 검전기</b> : 고온(여름 차 안) ✕, 충격·결로 주의, <b>화학약품으로 닦기 ✕</b>',
+   '안전장구 정기점검 : <b>6개월에 1회 이상</b> + 부족 수량 즉시 보충'],
+  tip:'🧠 점검 공통 3가지 = 외관(균열·파손) · 오염/청결/보관 · 적정 수량',
+  warn:'⚠️ "검전기 대신 써도 된다", "고온 차량에 둬도 된다" 는 항상 <b>X</b>!'},
+ {lesson:10, color:'#0891b2', title:'10차시 · 보호구 관리규정과 사용법', points:[
+   '보관 : 습기·진동·약품 부식 ✕, <b>통풍 OK</b>, 먼지·기름기와 격리',
+   '사용 빈도 많은 것은 <b>출입구 가까이</b>, <b>중량물은 하단</b>, 고무·합성수지는 <b>직사광선 피하기</b>',
+   '<b>안전모</b> : 충격 받았거나 변형되면 <b>폐기</b>, <b>모체에 구멍 ✕</b>',
+   '<b>안전대</b> : 걸이 설비는 <b>가능한 높게</b>, 죔줄은 <b>2.5m 이내로 짧게</b>, 훼손 시 교체',
+   '<b>눈·안면 보호구</b> : 용접엔 <b>차광번호</b> 맞는 보안경, 가볍고 시야 넓게, 렌즈 흠집·깨짐 시 교체',
+   '<b>방진마스크</b> : 필터가 습하거나 <b>호흡 저항이 크면 교체</b>, 직사광선 피하기',
+   '<b>송기마스크</b> : 호스 변형·파열 시 교환, 관리감독자 점검 + <b>1개월 1회 이상</b> 정기점검'],
+  tip:'🧠 "무겁고 튼튼한 게 최고"는 함정! 보호구는 <b>가볍고 편하고 작업에 방해 안 돼야</b> 해요',
+  warn:'⚠️ 충격 받은 안전모는 겉이 멀쩡해도 <b>폐기</b>!'},
+ {lesson:11, color:'#dc2626', title:'안전관리 이론 · 재해 이론과 소집단 활동', points:[
+   '<b>중대재해</b> : 사망 <b>1명 이상</b> / 3개월 이상 요양 부상자 동시 <b>2명 이상</b> / 부상·질병자 동시 <b>10명 이상</b>',
+   '<b>하인리히 도미노</b> : ①사회환경·유전 ②개인적 결함 ③<b>불안전한 행동·상태(직접 원인)</b> ④사고 ⑤재해 → ③을 제거!',
+   '<b>하인리히 법칙 1 : 29 : 300</b> = 중상·사망 : 경상 : 무상해사고',
+   '<b>버드 신도미노</b> : 1단계 <b>통제 부족(관리소홀)</b> → 기본원인 → 직접원인 → 사고 → 상해',
+   '<b>재해예방 4원칙</b> : 손실우연 · 원인계기 · <b>예방가능</b> · 대책선정',
+   '불안전한 <b>행동</b> = 부주의·실수·착오·조치 미이행 / 불안전한 <b>상태</b> = 설비·방호장치·환경 결함',
+   '<b>4M</b> : 사람(보호구 미착용) · 기계(방호장치 고장) · 물질·환경(분진·소음) · 관리(교육·표지판)',
+   '<b>소집단 활동</b> : 브레인스토밍(비판금지·자유분방·대량·수정) / 지적확인 / <b>터치 앤 콜(왼손 맞잡고 외침)</b> / 롤플레잉 / 원포인트 위험예지'],
+  tip:'🧠 도미노 이름 순서 = "사·개·불·사·재", 법칙 숫자 = 1(중상) 29(경상) 300(무상해)',
+  warn:'⚠️ 브레인스토밍에서 <b>남의 의견을 바로 평가·비판하는 것은 금지</b>!'},
+ {lesson:12, color:'#ca8a04', title:'보호구 교재 · 기계 위험요인·방호장치', points:[
+   '<b>안전인증 대상 보호구 12종</b> : 안전모, 안전화, 안전장갑, 방진·방독·송기마스크, 전동식 호흡보호구, 보호복, <b>안전대</b>, 보안경, 용접용 보안면, 귀마개·귀덮개',
+   '<b>자율안전확인 대상 4종</b> : 안전모·보안경·보안면(안전인증 제외분), <b>잠수기</b>',
+   '보호구 선정 : <b>사용목적 적합</b> · <b>안전인증 받음</b> · 작업에 방해 ✕ · 착용 쉽고 크기 맞음',
+   '<b>사출성형기</b> : 수평식(금형 부착·점검 쉬움, 자동화·고속화) / <b>수직식(설치 공간 작고 인서트 작업 안정)</b>',
+   '<b>지게차 위험</b> : 급정지·급출발·급선회, 정격하중 초과, 유도자 미배치, 불안전한 노면',
+   '<b>크레인</b> : 과부하방지(설정 하중 초과 방지) · 권과방지 · 비상정지 · <b>훅 해지장치(줄걸이 용구 이탈 방지)</b>',
+   '<b>건설용 리프트</b> : <b>낙하방지장치(원심력 브레이크)</b> · 완충 스프링 · 안전 고리 · <b>출입문 연동장치</b> · 3상 전원 차단장치'],
+  tip:'🧠 크레인·리프트 장치는 "이름 = 하는 일"! (과부하=무거운 것 막기, 훅 해지=훅 안 빠지게, 출입문 연동=문 열리면 정지)',
+  warn:'⚠️ 안전대는 안전인증 대상, <b>잠수기는 자율안전확인 대상</b>!'}
+];
+function studyHtml(it){
+  return '<div class="sc" style="border-left-color:'+it.color+';"><h3>'+it.title+'</h3><ul>'+it.points.map(function(p){return '<li>'+p+'</li>';}).join('')+'</ul>'+
+    '<div class="tip">'+it.tip+'</div><div class="warn">'+it.warn+'</div></div>';
+}
+function studyFor(scope){
+  return STUDY.filter(function(s){
+    if(scope==='old') return s.lesson===7||s.lesson===8;
+    if(scope==='new') return s.lesson>=1&&s.lesson<=6;
+    if(scope==='extra') return s.lesson>=9;
+    return true;
+  });
+}
+function fmtTime(sec){ sec=Math.max(0,Math.ceil(sec)); const m=Math.floor(sec/60), s=sec%60; return (m<10?'0':'')+m+':'+(s<10?'0':'')+s; }
+
+/* ---------------- 설정 ---------------- */
+const TIME_LIMIT = {ox:12, mc:20};
+const BOSS_MAX_HP = 1000;
+const LIVES_START = 3;
+const ITEM_DEFS = [
+  {k:'boost',  e:'⚡', n:'부스터',   d:'맞으면 점수 ×2 / 틀리면 -300점'},
+  {k:'shield', e:'🛡️', n:'방패',     d:'틀려도 목숨이 깎이지 않음'},
+  {k:'heal',   e:'💊', n:'회복',     d:'목숨 +1 (최대 3)'},
+  {k:'fifty',  e:'🔍', n:'힌트',     d:'오답 2개 제거 (객관식)'},
+  {k:'swap',   e:'🔄', n:'점수 교환', d:'다른 친구와 점수를 맞바꿈!'}
+];
+function itemsOf(m){ return Object.assign({boost:1,shield:1,heal:1,fifty:1,swap:1}, (m&&m.items)||{}); }
+function qLabel(i, main){ return i>=main ? ('⚔️ 서든데스 '+(i-main+1)) : ('Q'+(i+1)+' / '+main); }
+function aliveCount(ps){ return Object.keys(ps||{}).filter(function(k){ return ps[k].alive!==false; }).length; }
+function pickChampion(ps){
+  const arr = Object.keys(ps||{}).map(function(k){ return Object.assign({id:k}, ps[k]); });
+  const al = arr.filter(function(p){ return p.alive!==false; });
+  const pool = al.length ? al : arr;
+  pool.sort(function(a,b){ return (b.score||0)-(a.score||0); });
+  return {champion:pool[0]||null, isSurvivor:al.length===1, aliveCount:al.length};
+}
+const DOUBLE_CHANCE = 0.2;
+const TEAMS = [
+  {n:'스파크팀', e:'⚡', c:'#E8342A'},
+  {n:'볼트팀',   e:'🔋', c:'#1C7ED6'},
+  {n:'앰프팀',   e:'💡', c:'#B8860B'},
+  {n:'옴팀',     e:'🔌', c:'#2FA84F'}
+];
+
+/* ---------------- 스토리 ---------------- */
+const PROLOGUE = {
+  title:'🏭 NUGUL TECH 입사 첫날!',
+  text:'1-9반 19명은 오늘 <b>"안전 특공대"</b> 수습사원으로 배치됐다. 그런데 공장 안전 관리 AI <b>"아차차"</b>가 위험 데이터를 잘못 먹고 <b>폭주</b>해 버렸다! 4개 팀(⚡스파크·🔋볼트·💡앰프·🔌옴)이 구역을 나눠 점검 미션(=문제)을 풀 때마다 아차차의 폭주 게이지가 내려간다. 각자 목숨은 3개! 우리 반 전체가 힘을 합쳐 아차차를 멈추되, 끝까지 살아남는 <b>최후의 1인</b>이 오늘의 안전왕이다! 그리고 이 기록은 <b>역대 반 대항 랭킹</b>에 남는다!'
+};
+const RULES = [
+  '❤️ <b>목숨 3개</b> : 틀리거나 시간 안에 못 내면 -1, <b>0이 되면 탈락</b>! 끝까지 살아남는 <b>최후의 1인</b>이 우승!',
+  '🤝 <b>협동</b> : 반 전체가 많이 맞힐수록 아차차 게이지 ↓',
+  '🏁 <b>팀 대항</b> : 팀 점수 = 팀원 평균 점수 (탈락해도 점수는 팀에 남아요)',
+  '⚡ <b>빠를수록 고득점</b> + 🔥 연속 정답 콤보 보너스',
+  '🎒 <b>아이템 5종, 각 1번씩</b> : ⚡부스터 · 🛡️방패 · 💊회복 · 🔍힌트 · 🔄점수교환 — 언제 쓸지가 승부!',
+  '🎁 구역이 바뀔 때마다 <b>랜덤 이벤트</b> (역전 찬스, 럭키 드로우, 견제 공격!)',
+  '🏆 <b>반 대항전</b> : 모든 반이 <b>똑같은 60문제</b>! 우리 반 평균 점수가 <b>역대 랭킹</b>에 기록돼요',
+  '🎤 정답 후엔 <b>발표자</b>로 뽑힐 수 있으니 이유를 설명할 준비!'
+];
+const CH5 = [
+  {title:'🚧 1구역 돌파!', text:'아차차의 경고음이 점점 커진다. 지금 선두는 <b>{leader}</b>! 아직 방심은 금물 — 다음은 "보관고 구역"이다.'},
+  {title:'📦 2구역 클리어!', text:'보관고 깊숙이서 아차차가 위험 데이터를 뿜어낸다… 선두 <b>{leader}</b>, 뒤집을 기회는 충분하다!'},
+  {title:'⚠️ 중간 지점 도착!', text:'아차차가 "안전수칙 따위 필요 없어!"라며 방해 신호를 쏜다! 현재 선두 <b>{leader}</b>. 여기서부터가 진짜다.'},
+  {title:'🔥 4구역 돌파!', text:'아차차의 코어가 희미하게 보이기 시작했다. 선두는 <b>{leader}</b>! 우리 반 평균 점수가 역대 기록을 노린다.'},
+  {title:'🔓 최종 관문 앞!', text:'코어가 눈앞이다. 선두는 <b>{leader}</b>! 마지막 구역에서는 한 문제가 승부를 가른다. 숨 고르고… 가자!'}
+];
+function chapterFor(idx, nb){
+  const arr = nb >= 5 ? CH5 : (nb >= 3 ? [CH5[0],CH5[2],CH5[4]] : [CH5[2]]);
+  return arr[idx-1] || null;
+}
+const ENDING_WIN = '번쩍! 아차차의 몸에서 검은 연기가 빠져나가고 원래의 말끔한 안전 파트너로 돌아왔다. "고맙습니다, 1-9반! 진짜 승리는 점수가 아니라, 현장에서 스스로 안전장구를 챙기는 습관입니다."';
+const ENDING_LOSE = '아차차의 폭주가 완전히 멈추진 않았지만, 특공대 덕분에 공장은 무사했다. "다음엔 더 정확히 점검하자!" — 오늘 틀린 문제가 내일의 안전 습관이 된다.';
+
+const EVENTS = [
+  {key:'double',   title:'🔥 더블 라운드 확정!', desc:'다음 문제는 <b>전원 점수 2배</b>!'},
+  {key:'comeback', title:'🤝 역전 찬스!',       desc:'현재 <b>꼴찌 팀</b> 전원에게 <b>+300점</b>!'},
+  {key:'rival',    title:'🧨 견제 공격!',       desc:'현재 <b>1위 팀</b> 전원이 <b>-100점</b>… 방심하면 이렇게 됩니다!'},
+  {key:'lucky',    title:'🎲 럭키 드로우!',     desc:'무작위 <b>3명</b>에게 <b>+300점</b>!'},
+  {key:'gauge',    title:'🎯 급소 발견!',       desc:'아차차의 약점 노출! 폭주 게이지 <b>-100</b>!'}
+];
+
+const BOSS_SVG = '<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">'+
+  '<ellipse cx="60" cy="70" rx="42" ry="36" fill="#7c2d3a"/>'+
+  '<path d="M25 45 L35 20 L45 45 Z" fill="#5a1e28"/><path d="M95 45 L85 20 L75 45 Z" fill="#5a1e28"/>'+
+  '<circle cx="42" cy="62" r="9" fill="#fff"/><circle cx="78" cy="62" r="9" fill="#fff"/>'+
+  '<circle cx="44" cy="64" r="4" fill="#1a0508"/><circle cx="76" cy="64" r="4" fill="#1a0508"/>'+
+  '<path d="M38 90 Q60 105 82 90 L78 82 Q60 92 42 82 Z" fill="#1a0508"/>'+
+  '<path d="M46 84 L50 92 L54 84 Z M58 84 L62 92 L66 84 Z M70 84 L74 92 L78 84 Z" fill="#fff"/>'+
+  '</svg>';
+
+/* ---------------- Firebase ---------------- */
+let db = null, fbReady = false, tOff = 0;
+try{
+  firebase.initializeApp(FIREBASE_CONFIG);
+  db = firebase.database();
+  fbReady = true;
+  db.ref('.info/serverTimeOffset').on('value', function(s){ tOff = s.val() || 0; });
+}catch(e){ fbReady = false; }
+function nowS(){ return Date.now() + tOff; }
+
+/* ---------------- helpers ---------------- */
+const $ = function(id){ return document.getElementById(id); };
+const SCREENS = ['screen-setup','screen-landing','screen-join','screen-player-lobby','screen-player-story','screen-player-out','screen-player-study','screen-player-question','screen-player-reveal','screen-player-event','screen-player-final',
+  'screen-board','screen-host-lobby','screen-host-story','screen-host-study','screen-host-question','screen-host-reveal','screen-host-event','screen-host-final'];
+const HEADER_ON = ['screen-host-question','screen-host-reveal','screen-host-event'];
+function show(id){
+  SCREENS.forEach(function(s){ $(s).classList.toggle('hidden', s!==id); });
+  $('hostHeader').classList.toggle('hidden', HEADER_ON.indexOf(id)===-1);
+  window.scrollTo(0,0);
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function genCode(){ return String(Math.floor(1000 + Math.random()*9000)); }
+function genId(){ return 'p_' + Math.random().toString(36).slice(2,10); }
+function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function lessonName(l){
+  const m = {7:'7차시 · 안전장구 분류', 8:'8차시 · 안전대', 9:'9차시 · 안전장구 착용·점검', 10:'10차시 · 보호구 관리규정', 11:'안전관리 이론', 12:'보호구·기계 위험요인'};
+  return m[l] || (l+'차시 · 산업안전 점검');
+}
+const TEACHER_PIN = '1234';   // ← 선생님만 아는 숫자로 바꾸세요 (기록 삭제할 때 사용)
+const OFFICIAL_QUOTA = {1:2,2:4,3:5,4:3,5:6,6:6,7:6,8:5,9:6,10:6,11:7,12:4};   // 합계 60
+function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function seededShuffle(arr, seed){ const r=mulberry(seed), a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(r()*(i+1)); const x=a[i]; a[i]=a[j]; a[j]=x; } return a; }
+function officialOrder(){
+  let pick = [];
+  Object.keys(OFFICIAL_QUOTA).forEach(function(l){
+    const idxs = []; QUESTIONS.forEach(function(q,i){ if(String(q.lesson)===l) idxs.push(i); });
+    pick = pick.concat(seededShuffle(idxs, 1000+Number(l)).slice(0, OFFICIAL_QUOTA[l]));
+  });
+  return seededShuffle(pick, 20261012);   // 모든 반이 똑같은 60문제, 똑같은 순서!
+}
+function qTag(q){ return lessonName(q.lesson) + (q.type==='ox' ? ' · O/X' : ' · 객관식'); }
+function optionsFor(q){
+  if(q.type==='ox') return [{idx:1,cls:'blue',sh:'○',text:'O  맞다'},{idx:0,cls:'red',sh:'✕',text:'X  틀리다'}];
+  const sh = [['red','▲'],['blue','◆'],['yellow','●'],['green','■']];
+  return q.options.map(function(t,i){ return {idx:i, cls:sh[i][0], sh:sh[i][1], text:t}; });
+}
+function answerText(q){ return q.type==='ox' ? (q.answer===1?'O (맞다)':'X (틀리다)') : ((q.answer+1)+'번 · '+q.options[q.answer]); }
+function poolFromOrder(order){ return (order||[]).map(function(i){ return QUESTIONS[i]; }); }
+function breaksFor(n){
+  if(n < 8) return [Math.floor(n/2)-1].filter(function(x){return x>=0;});
+  const k = n >= 40 ? 5 : 3, arr = [];
+  for(let j=1;j<=k;j++){ const v = Math.round(n*j/(k+1))-1; if(arr.indexOf(v)===-1 && v < n-1) arr.push(v); }
+  return arr;
+}
+function teamStats(players){
+  const st = TEAMS.map(function(t,i){ return {i:i, n:0, total:0, avg:0}; });
+  Object.keys(players||{}).forEach(function(k){
+    const p = players[k]; const t = st[p.team != null ? p.team : 0];
+    if(!t) return; t.n++; t.total += (p.score||0);
+  });
+  st.forEach(function(t){ t.avg = t.n ? Math.round(t.total/t.n) : 0; });
+  return st;
+}
+function rankedTeams(players){
+  return teamStats(players).filter(function(t){ return t.n>0; }).sort(function(a,b){ return b.avg - a.avg; });
+}
+function teamTag(i){ const t = TEAMS[i]; return '<span class="tbadge" style="background:'+t.c+';">'+t.e+' '+t.n+'</span>'; }
+function sortedPlayers(players){
+  return Object.keys(players||{}).map(function(k){ return Object.assign({id:k}, players[k]); }).sort(function(a,b){ return (b.score||0)-(a.score||0); });
+}
+function fillStory(txt, st, players){
+  const rt = rankedTeams(players||{});
+  const lead = rt.length ? TEAMS[rt[0].i].e+' '+TEAMS[rt[0].i].n : '선두 팀';
+  return txt.replace('{leader}', lead);
+}
+function floatEmoji(e, name){
+  const d = document.createElement('div');
+  d.className = 'floater';
+  d.style.left = (5 + Math.random()*85) + 'vw';
+  d.innerHTML = esc(e) + '<small>'+esc(name||'')+'</small>';
+  $('reactLayer').appendChild(d);
+  setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 3400);
+}
+
+/* ---------------- 역대 랭킹 ---------------- */
+function recordsFrom(v){ return Object.keys(v||{}).map(function(k){ return Object.assign({key:k}, v[k]); }); }
+function fmtDate(ts){ const d=new Date(ts); return (d.getMonth()+1)+'/'+d.getDate(); }
+function renderBoardList(el, tab, all, hlKey, mini){
+  el.innerHTML = '';
+  if(!all.length){ el.innerHTML = '<div class="muted-center">아직 기록이 없어요. 첫 번째 주인공이 되어보세요!</div>'; return; }
+  let rows = [];
+  if(tab==='cls'){
+    const best = {};
+    all.forEach(function(r){ const c = r.cls||'?'; if(!best[c] || r.avg > best[c].avg) best[c] = r; });
+    const plays = {}; all.forEach(function(r){ plays[r.cls] = (plays[r.cls]||0)+1; });
+    rows = Object.keys(best).map(function(c){ return {key:best[c].key, nm:c, sub:'최고 기록 '+fmtDate(best[c].ts)+' · '+best[c].n+'명 · 정답률 '+best[c].acc+'% · '+plays[c]+'회 도전', sc:best[c].avg+'점'}; });
+    rows.sort(function(a,b){ return parseInt(b.sc,10)-parseInt(a.sc,10); });
+  }else if(tab==='all'){
+    rows = all.slice().sort(function(a,b){ return b.avg-a.avg; }).map(function(r){ return {key:r.key, nm:r.cls, sub:fmtDate(r.ts)+' · '+r.n+'명 · 정답률 '+r.acc+'%'+(r.win?' · 🏭 구출 성공':''), sc:r.avg+'점', del:true}; });
+  }else{
+    const ind = [];
+    all.forEach(function(r){ (r.tops||[]).forEach(function(p){ ind.push({key:r.key, nm:p.name, sub:(r.cls||'')+' · '+fmtDate(r.ts), sc:p.score+'점', n:p.score}); }); });
+    ind.sort(function(a,b){ return b.n-a.n; }); rows = ind.slice(0,10);
+  }
+  if(mini) rows = rows.slice(0,8);
+  rows.forEach(function(r,i){
+    const d = document.createElement('div');
+    d.className = 'brow' + (r.key===hlKey && tab!=='ind' ? ' hl2' : '');
+    d.innerHTML = '<div class="rk">'+(i===0?'👑':i===1?'🥈':i===2?'🥉':(i+1))+'</div><div class="nm">'+esc(r.nm)+'<small>'+esc(r.sub)+'</small></div><div class="sc2">'+esc(r.sc)+'</div>'+(r.del && !mini?'<button class="x" title="삭제(선생님)">✕</button>':'');
+    const x = d.querySelector('.x');
+    if(x) x.addEventListener('click', function(){
+      if(prompt('선생님 PIN을 입력하세요') !== TEACHER_PIN){ return; }
+      if(confirm('이 기록을 삭제할까요?')) db.ref('leaderboard/'+r.key).remove().then(function(){ openBoard(tab); });
+    });
+    el.appendChild(d);
+  });
+}
+function openBoard(tabIn){
+  show('screen-board');
+  let tab = tabIn || 'cls';
+  $('bBack').onclick = function(){ location.href = location.pathname; };
+  db.ref('leaderboard').once('value').then(function(s){
+    const all = recordsFrom(s.val());
+    function draw(){
+      document.querySelectorAll('#bTabs .btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-tab')===tab); });
+      renderBoardList($('bList'), tab, all, null, false);
+    }
+    document.querySelectorAll('#bTabs .btn').forEach(function(b){ b.onclick = function(){ tab = b.getAttribute('data-tab'); draw(); }; });
+    draw();
+  }).catch(function(){ $('bList').innerHTML = '<div class="muted-center">랭킹을 불러오지 못했어요.</div>'; });
+}
+
+/* ---------------- boot ---------------- */
+if(!fbReady){ show('screen-setup'); } else { boot(); }
+function boot(){
+  const roomParam = new URLSearchParams(location.search).get('room');
+  if(roomParam){ startPlayerFlow(roomParam.toUpperCase()); }
+  else{
+    if(new URLSearchParams(location.search).get('board')){ openBoard(null); return; }
+    show('screen-landing');
+    $('landingBoardBtn').addEventListener('click', function(){ openBoard(null); });
+    $('landingHostBtn').addEventListener('click', startHostFlow);
+    $('manualJoinBtn').addEventListener('click', function(){
+      const c = $('manualCode').value.trim();
+      if(c.length===4) startPlayerFlow(c);
+    });
+  }
+}
+
+/* ================================================================
+   PLAYER
+   ================================================================ */
+function startPlayerFlow(roomCode){
+  const saveKey = 'sqd_' + roomCode;
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(saveKey) || 'null'); }catch(e){}
+  const roomRef = db.ref('rooms/'+roomCode);
+  roomRef.child('state').once('value').then(function(snap){
+    if(!snap.exists()){ alert('참가 코드를 찾을 수 없어요. 코드를 다시 확인해주세요.'); location.href = location.pathname; return; }
+    if(saved && saved.id){
+      roomRef.child('players/'+saved.id).once('value').then(function(ps){
+        if(ps.exists()) attachPlayer(roomCode, saved.id, saved.name);
+        else showJoin();
+      });
+    }else showJoin();
+  });
+  function showJoin(){
+    $('joinRoomLabel').textContent = roomCode;
+    show('screen-join');
+    const nameInput = $('playerNameInput'), joinBtn = $('joinBtn');
+    nameInput.addEventListener('input', function(){ joinBtn.disabled = nameInput.value.trim().length===0; });
+    joinBtn.addEventListener('click', function(){
+      joinBtn.disabled = true;
+      const name = nameInput.value.trim() || '참가자';
+      const pid = genId();
+      roomRef.child('players').once('value').then(function(s){
+        const ps = s.val() || {};
+        const counts = [0,0,0,0];
+        Object.keys(ps).forEach(function(k){ counts[ps[k].team||0]++; });
+        const min = Math.min.apply(null, counts);
+        const cands = []; counts.forEach(function(c,i){ if(c===min) cands.push(i); });
+        const team = cands[Math.floor(Math.random()*cands.length)];
+        return roomRef.child('state/phase').once('value').then(function(ph){
+          return roomRef.child('players/'+pid).set({name:name, team:team, score:0, streak:0, best:0, fast:0, ok:0, ans:0, lives:LIVES_START, alive:(ph.val()==='lobby'), items:{boost:1,shield:1,heal:1,fifty:1,swap:1}, joinedAt:Date.now()});
+        });
+      }).then(function(){
+        try{ localStorage.setItem(saveKey, JSON.stringify({id:pid, name:name})); }catch(e){}
+        attachPlayer(roomCode, pid, name);
+      });
+    });
+  }
+}
+
+function attachPlayer(roomCode, pid, name){
+  const roomRef = db.ref('rooms/'+roomCode);
+  let players = {}, curState = null, viewKey = '', timerIv = null;
+  let lastEmoji = 0, myAlive = true, aliveAtQStart = true;
+
+  roomRef.child('players').on('value', function(s){
+    players = s.val() || {};
+    if(players[pid]){
+      const was = myAlive; myAlive = players[pid].alive !== false;
+      if(was && !myAlive && curState && ['question','event','story','study'].indexOf(curState.phase)!==-1){ if(timerIv){clearInterval(timerIv);timerIv=null;} renderOut(curState); }
+    }
+    const ol = $('pOutAliveList');
+    if(ol){ ol.innerHTML=''; Object.keys(players).filter(function(k){ return players[k].alive!==false; }).forEach(function(k){ const c=document.createElement('span'); c.className='chip'; c.textContent = players[k].name+(k===pid?' (나)':''); ol.appendChild(c); }); }
+    if(curState && curState.phase==='lobby') renderLobby();
+    if(curState && curState.phase==='question') refreshLives();
+  });
+  roomRef.child('state').on('value', function(s){
+    const st = s.val(); if(!st) return;
+    curState = st;
+    const key = [st.phase, st.qIndex, st.chapterIdx, st.eventKey, st.round].join('|');
+    if(st.phase==='reveal'){ $('pSpeaker').classList.toggle('hidden', !(st.speaker && st.speaker.pid===pid));
+      if(st.speaker && st.speaker.pid===pid && navigator.vibrate){ try{ navigator.vibrate([200,100,200]); }catch(e){} } }
+    if(key === viewKey) return;
+    viewKey = key;
+    if(timerIv){ clearInterval(timerIv); timerIv = null; }
+    if(st.phase==='question') aliveAtQStart = myAlive;
+    if(!myAlive && ['question','event','story','study'].indexOf(st.phase)!==-1){ renderOut(st); return; }
+    if(st.phase==='reveal' && !aliveAtQStart){ renderOut(st); return; }
+    if(st.phase==='lobby') renderLobby();
+    else if(st.phase==='story') renderStory(st);
+    else if(st.phase==='study') renderStudy(st);
+    else if(st.phase==='question') renderQuestion(st);
+    else if(st.phase==='reveal') renderReveal(st);
+    else if(st.phase==='event') renderEvent(st);
+    else if(st.phase==='final') renderFinal(st);
+  });
+
+  ['pEmojis','pEmojis2','pEmojis3'].forEach(function(id){
+    $(id).querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){
+        const t = Date.now(); if(t - lastEmoji < 500) return; lastEmoji = t;
+        roomRef.child('reactions').push({e:b.getAttribute('data-e'), n:name, t:t});
+      });
+    });
+  });
+
+  function renderOut(st){
+    show('screen-player-out');
+    const box = $('pOutQ');
+    if(st && st.phase==='question'){
+      const q = poolFromOrder(st.order)[st.qIndex];
+      if(q){ box.style.display='block'; box.innerHTML = '<div style="color:var(--yellow);font-weight:900;margin-bottom:6px;">📺 지금 문제 (속으로 풀어보기!)</div>'+esc(q.q); return; }
+    }
+    box.style.display='none';
+  }
+  function refreshLives(){
+    const m = me(); const lv = m.lives!=null ? m.lives : LIVES_START;
+    const el = $('pLives'); if(el) el.textContent = '❤️'.repeat(Math.max(0,lv)) + '🖤'.repeat(Math.max(0,LIVES_START-lv)) + '  목숨 '+lv+' — 틀리면 -1, 0이 되면 탈락!';
+  }
+
+  function me(){ return players[pid] || {team:0, score:0, streak:0, lives:LIVES_START}; }
+
+  function renderLobby(){
+    const m = me(), t = TEAMS[m.team||0];
+    show('screen-player-lobby');
+    const big = $('pTeamBig'); big.style.background = t.c;
+    big.innerHTML = '<div class="em">'+t.e+'</div><div class="nm">'+t.n+'</div><div style="font-weight:700;margin-top:4px;">'+esc(name)+'</div>';
+    const mates = Object.keys(players).filter(function(k){ return (players[k].team||0)===(m.team||0); }).map(function(k){ return esc(players[k].name); });
+    $('pTeamMates').innerHTML = '우리 팀원: ' + mates.join(', ');
+  }
+  function renderStudy(st){
+    show('screen-player-study');
+    const list = $('pStudyList');
+    list.innerHTML = studyFor(st.scope||'all').map(studyHtml).join('') + '<div class="muted-center">여기까지! 📺 선생님 신호를 기다려요</div>';
+    const total = st.studySec||600, startAt = st.studyStart||nowS();
+    function tick(){ const left = total - (nowS()-startAt)/1000; $('pStudyTimer').textContent = left>0 ? fmtTime(left) : '⏰ 끝!'; }
+    tick(); timerIv = setInterval(tick, 500);
+  }
+  function renderStory(st){
+    show('screen-player-story');
+    $('pStory').innerHTML = '<b class="t">'+PROLOGUE.title+'</b>'+PROLOGUE.text;
+  }
+
+  function renderQuestion(st){
+    const pool = poolFromOrder(st.order), q = pool[st.qIndex];
+    if(!q) return;
+    const m = me(), main = st.mainCount || pool.length;
+    show('screen-player-question');
+    $('pQnum').textContent = qLabel(st.qIndex, main);
+    $('pProgress').style.width = Math.min(100, Math.round((st.qIndex/main)*100))+'%';
+    $('pTeamTag').outerHTML = teamTag(m.team||0).replace('<span','<span id="pTeamTag"');
+    $('pDbl').classList.toggle('show', !!st.isDouble);
+    $('pQtag').textContent = qTag(q);
+    $('pQtext').textContent = q.q;
+    $('pWait').textContent = '';
+    $('pSwapBox').classList.add('hidden');
+    refreshLives();
+    const stk = m.streak||0;
+    $('pStreak').textContent = stk>=2 ? ('🔥 '+stk+'연속 정답 중!') : '';
+
+    let boostOn = false, shieldOn = false, answered = false, over = false;
+    const usedLocal = {};
+    const wrap = $('pOptions'); wrap.innerHTML = '';
+    const box = document.createElement('div'); box.className = q.type==='ox' ? 'opts-ox' : 'opts-mc';
+    optionsFor(q).forEach(function(o){
+      const b = document.createElement('button');
+      b.className = 'opt ' + (q.type==='ox'?'opt-ox ':'') + o.cls;
+      b.setAttribute('data-idx', o.idx);
+      b.innerHTML = '<span class="sh">'+o.sh+'</span>' + (q.type==='ox' ? '' : '<span>'+esc(o.text)+'</span>');
+      b.addEventListener('click', function(){ submit(o.idx); });
+      box.appendChild(b);
+    });
+    wrap.appendChild(box);
+
+    const limit = TIME_LIMIT[q.type];
+    const startAt = st.questionStartAt || nowS();
+
+    function drawItems(){
+      const it = itemsOf(me()), bx = $('pItems'); bx.innerHTML = '';
+      ITEM_DEFS.forEach(function(d){
+        const left = it[d.k] !== 0 && !usedLocal[d.k];
+        const on = (d.k==='boost'&&boostOn) || (d.k==='shield'&&shieldOn);
+        const b = document.createElement('button');
+        b.className = 'itm'+(on?' on':'');
+        b.disabled = !left || over || (answered && (d.k==='boost'||d.k==='shield'||d.k==='fifty')) || (d.k==='fifty' && q.type==='ox');
+        b.innerHTML = '<span class="ie">'+d.e+'</span><span><b>'+d.n+(on?' ON':'')+'</b><small>'+(left ? d.d : '사용 완료')+'</small></span>';
+        b.addEventListener('click', function(){ useItem(d.k); });
+        bx.appendChild(b);
+      });
+    }
+    function consume(k){ usedLocal[k] = true; roomRef.child('players/'+pid+'/items/'+k).set(0); drawItems(); }
+    function useItem(k){
+      if(over) return;
+      if(itemsOf(me())[k]===0 || usedLocal[k]) return;
+      if(k==='boost'){ if(answered) return; boostOn = !boostOn; drawItems(); return; }
+      if(k==='shield'){ if(answered) return; shieldOn = !shieldOn; drawItems(); return; }
+      if(k==='heal'){
+        const lv = me().lives!=null ? me().lives : LIVES_START;
+        if(lv >= LIVES_START){ $('pWait').textContent = '💊 목숨이 가득 차 있어요! 목숨이 깎였을 때 쓰세요.'; return; }
+        roomRef.child('players/'+pid).transaction(function(cur){
+          if(!cur) return cur;
+          const itx = Object.assign({}, cur.items||{});
+          if(itx.heal===0 || (cur.lives||0) >= LIVES_START) return cur;
+          cur.lives = (cur.lives||0) + 1; itx.heal = 0; cur.items = itx; return cur;
+        });
+        usedLocal.heal = true; $('pWait').textContent = '💊 목숨 +1 회복!'; drawItems(); return;
+      }
+      if(k==='fifty'){
+        if(answered || q.type==='ox') return;
+        const wrongs = [0,1,2,3].filter(function(i){ return i!==q.answer; });
+        shuffle(wrongs).slice(0,2).forEach(function(i){ const b = wrap.querySelector('[data-idx="'+i+'"]'); if(b) b.style.visibility='hidden'; });
+        $('pWait').textContent = '🔍 오답 2개를 지웠어요!';
+        consume('fifty'); return;
+      }
+      if(k==='swap'){ openSwap(); return; }
+    }
+    function openSwap(){
+      const sb = $('pSwapBox'); sb.classList.remove('hidden');
+      sb.innerHTML = '<div style="font-weight:900;margin-bottom:8px;">🔄 점수를 맞바꿀 친구를 고르세요 (1회)</div>';
+      Object.keys(players).filter(function(k){ return k!==pid && players[k].alive!==false; })
+        .sort(function(a,b){ return (players[b].score||0)-(players[a].score||0); })
+        .forEach(function(k){
+          const r = document.createElement('button'); r.className = 'lb-row';
+          r.innerHTML = '<div class="lb-name" style="text-align:left;">'+esc(players[k].name)+'</div><div class="lb-score">'+(players[k].score||0)+'점</div>';
+          r.addEventListener('click', function(){ doSwap(k); });
+          sb.appendChild(r);
+        });
+      const c = document.createElement('button'); c.className='btn alt small'; c.textContent='취소';
+      c.addEventListener('click', function(){ sb.classList.add('hidden'); });
+      sb.appendChild(c);
+    }
+    function doSwap(tid){
+      $('pSwapBox').classList.add('hidden');
+      const tname = players[tid] ? players[tid].name : '';
+      roomRef.child('players').transaction(function(cur){
+        if(!cur || !cur[pid] || !cur[tid]) return;
+        if(cur[pid].items && cur[pid].items.swap===0) return;
+        const a = cur[pid].score||0, b = cur[tid].score||0;
+        cur[pid].score = b; cur[tid].score = a;
+        cur[pid].items = Object.assign({}, cur[pid].items||{}, {swap:0});
+        return cur;
+      }, function(err, committed){
+        if(committed){
+          usedLocal.swap = true;
+          roomRef.child('swaps').push({a:name, b:tname, t:Date.now()});
+          $('pWait').textContent = '🔄 '+tname+'님과 점수를 맞바꿨어요!';
+        }else{ $('pWait').textContent = '교환에 실패했어요. 다시 시도해 보세요.'; }
+        drawItems();
+      });
+    }
+    drawItems();
+
+    function lock(choice){
+      wrap.querySelectorAll('.opt').forEach(function(b){
+        b.disabled = true;
+        if(String(b.getAttribute('data-idx'))===String(choice)) b.classList.add('chosen');
+      });
+      drawItems();
+    }
+    roomRef.child('answers/'+st.qIndex+'/'+pid).once('value').then(function(s){
+      if(s.exists()){ answered = true; lock(s.val().choice); $('pWait').textContent = '제출 완료! 📺 앞 화면을 보세요'; }
+    });
+    timerIv = setInterval(function(){
+      const left = Math.max(0, limit - (nowS()-startAt)/1000);
+      $('pTimerFill').style.width = (left/limit*100)+'%';
+      $('pTimerNum').textContent = Math.ceil(left);
+      if(left<=0){ clearInterval(timerIv); timerIv=null; over = true; if(!answered){ answered=true; lock(-9); $('pWait').textContent='⏰ 시간 종료!'; } else drawItems(); }
+    }, 100);
+
+    function submit(choice){
+      if(answered) return;
+      answered = true; lock(choice);
+      const tClick = nowS();
+      const speedFrac = Math.max(0, (limit - (tClick-startAt)/1000)/limit);
+      const correct = (choice === q.answer);
+      let delta = 0, info = {};
+      roomRef.child('players/'+pid).transaction(function(cur){
+        if(!cur) return cur;
+        const itx = Object.assign({boost:1,shield:1,heal:1,fifty:1,swap:1}, cur.items||{});
+        const useBoost = boostOn && itx.boost!==0, useShield = shieldOn && itx.shield!==0;
+        let base = 0, combo = 0, sub = 0;
+        const newStreak = correct ? (cur.streak||0)+1 : 0;
+        if(correct){
+          base = Math.round(500 + speedFrac*500);
+          combo = newStreak>=3 ? Math.min(300,(newStreak-2)*100) : 0;
+          sub = base + combo;
+          if(st.isDouble) sub *= 2;
+          if(useBoost) sub *= 2;
+        }else if(useBoost){ sub = -300; }
+        const newScore = Math.max(0, (cur.score||0) + sub);
+        delta = newScore - (cur.score||0);
+        info = {base:base, combo:combo, boost:useBoost, shield:useShield, dbl:!!st.isDouble, streak:newStreak};
+        cur.score = newScore; cur.streak = newStreak;
+        cur.best = Math.max(cur.best||0, newStreak);
+        cur.ok = (cur.ok||0) + (correct?1:0); cur.ans = (cur.ans||0) + 1;
+        if(useBoost) itx.boost = 0; if(useShield) itx.shield = 0;
+        cur.items = itx;
+        return cur;
+      }, function(){
+        roomRef.child('answers/'+st.qIndex+'/'+pid).set({choice:choice, correct:correct, points:delta, info:info, ts:tClick});
+      });
+      $('pWait').textContent = '제출 완료! 📺 앞 화면을 보세요';
+    }
+  }
+
+  function renderReveal(st){
+    const pool = poolFromOrder(st.order), q = pool[st.qIndex];
+    show('screen-player-reveal');
+    $('pSpeaker').classList.toggle('hidden', !(st.speaker && st.speaker.pid===pid));
+    $('pExplainAns').textContent = '정답: ' + answerText(q);
+    $('pExplainText').textContent = q.explain;
+    $('pRevealBadge').textContent = '…'; $('pRevealBadge').className='reveal-badge'; $('pPts').textContent=''; $('pRankLine').textContent='';
+    roomRef.child('answers/'+st.qIndex+'/'+pid).once('value').then(function(s){
+      const a = s.val();
+      const ok = a && a.correct;
+      $('pRevealBadge').textContent = !a ? '⏰ 시간 초과' : (ok ? '✅ 정답!' : '❌ 아쉬워요');
+      $('pRevealBadge').className = 'reveal-badge ' + (ok?'ok':'no');
+      let line = '';
+      if(a){
+        const i = a.info||{};
+        line = (a.points>=0?'+':'') + a.points + '점';
+        const parts = [];
+        if(ok && i.combo) parts.push('🔥 콤보 +'+i.combo);
+        if(i.dbl && ok) parts.push('🔥 더블 라운드 ×2');
+        if(i.boost) parts.push(ok ? '⚡ 부스터 성공 ×2' : '⚡ 부스터 실패 -300');
+        if(i.shield) parts.push(ok ? '🛡️ 방패 사용(안 써도 됐어요)' : '🛡️ 방패로 목숨을 지켰어요!');
+        if(parts.length) line += '<br><span style="font-size:15px;">'+parts.join(' · ')+'</span>';
+      }else line = '0점';
+      $('pPts').innerHTML = line;
+    });
+    // 순위: 점수 반영 후 표시 (조금 지연)
+    setTimeout(function(){
+      roomRef.child('players').once('value').then(function(s){
+        const ps = s.val()||{}; const arr = sortedPlayers(ps);
+        const idx = arr.findIndex(function(p){ return p.id===pid; });
+        const m = ps[pid]; if(!m) return;
+        const rt = rankedTeams(ps); const tr = rt.findIndex(function(t){ return t.i===(m.team||0); });
+        const lv = m.lives!=null ? m.lives : LIVES_START;
+        $('pRankLine').innerHTML = (m.alive===false ? '<div style="color:#ff6b6b;font-size:20px;">💀 탈락했어요… 다음 문제부터 응원 모드!</div>' : '<div>'+'❤️'.repeat(Math.max(0,lv))+'🖤'.repeat(Math.max(0,LIVES_START-lv))+' 남은 목숨 '+lv+'</div>') +
+          '내 점수 <span style="color:var(--yellow);">'+(m.score||0)+'</span> · 개인 '+(idx+1)+'위 / '+arr.length+'명<br>'+teamTag(m.team||0)+' 팀 '+(tr+1)+'위';
+      });
+    }, 900);
+  }
+
+  function renderEvent(st){
+    show('screen-player-event');
+    const ch = chapterFor(st.chapterIdx, st.nBreaks);
+    if(st.eventKey==='sudden'){
+      $('pEventBox').innerHTML = '<b class="t">⚔️ 서든데스 돌입!</b>60문제를 다 풀었는데 아직 <b>'+aliveCount(players)+'명</b>이 살아있다! 이제부터 한 문제씩 — 최후의 1인이 가려질 때까지!';
+      return;
+    }
+    const ev = EVENTS.find(function(e){ return e.key===st.eventKey; }) || EVENTS[0];
+    let extra = '';
+    if(st.eventKey==='lucky' && st.eventPids){
+      extra = st.eventPids.indexOf(pid)!==-1 ? '<br><br><b style="color:var(--yellow);font-size:1.2em;">🎉 축하! 너 뽑혔다! +300점</b>' : '<br><br>아쉽지만 이번엔 못 뽑혔어요…';
+    }
+    if(st.eventKey==='comeback' || st.eventKey==='rival'){
+      const my = me().team||0;
+      if(st.eventTeam===my) extra = st.eventKey==='comeback' ? '<br><br><b style="color:var(--yellow);">우리 팀이 받았다! +300점 🎉</b>' : '<br><br><b style="color:var(--red);">우리 팀이 견제당했다… -100점 😱</b>';
+    }
+    $('pEventBox').innerHTML = (ch ? '<b class="t">'+ch.title+'</b>'+fillStory(ch.text, st, players)+'<hr style="border-color:var(--border);margin:14px 0;">' : '') +
+      '<b class="t">'+ev.title+'</b>'+ev.desc+extra;
+  }
+
+  function renderFinal(st){
+    show('screen-player-final');
+    const arr = sortedPlayers(players), m = players[pid] || {score:0, team:0};
+    const idx = arr.findIndex(function(p){ return p.id===pid; });
+    const rt = rankedTeams(players);
+    const winTeam = rt[0] ? rt[0].i : 0;
+    const champ = pickChampion(players);
+    $('pFinalTitle').textContent = (champ.champion && champ.champion.id===pid) ? '👑 최후의 1인은 나!!' : (m.alive!==false ? '🎖️ 끝까지 살아남았어요!' : ((m.team===winTeam) ? '🏆 우리 팀 우승!' : '🎮 게임 종료!'));
+    $('pEnding').innerHTML = (st.bossHp<=0 ? ENDING_WIN : ENDING_LOSE);
+    $('pFinalName').textContent = '👑 '+(champ.isSurvivor?'최후의 1인':'최종 우승')+' : '+(champ.champion?champ.champion.name:'-')+'\n'+name+'님의 최종 점수';
+    $('pFinalName').style.whiteSpace = 'pre-line';
+    $('pFinalScore').textContent = (m.score||0)+'점';
+    $('pFinalRank').textContent = '개인 '+(idx+1)+'위 / '+arr.length+'명';
+    $('pClassRank').textContent = '';
+    if(st.official){
+      setTimeout(function(){
+        db.ref('leaderboard').once('value').then(function(s){
+          const all = recordsFrom(s.val()).sort(function(a,b){ return b.avg-a.avg; });
+          const rk = all.findIndex(function(r){ return r.key===st.recordKey; });
+          if(rk>=0) $('pClassRank').textContent = '🏫 '+(st.className||'')+' 역대 '+(rk+1)+'위 / '+all.length+'경기 (평균 '+all[rk].avg+'점)';
+        }).catch(function(){});
+      }, 3500);
+    }
+    const tl = $('pFinalTeams'); tl.innerHTML = '';
+    rt.forEach(function(t,i){
+      const row = document.createElement('div'); row.className='lb-row'+(t.i===m.team?' me':'');
+      row.innerHTML = '<div class="lb-rank">'+(i+1)+'</div><div class="lb-name">'+TEAMS[t.i].e+' '+TEAMS[t.i].n+'</div><div class="lb-score">'+t.avg+'</div>';
+      tl.appendChild(row);
+    });
+    const top = $('pFinalTop'); top.innerHTML = '';
+    arr.slice(0,5).forEach(function(p,i){
+      const row = document.createElement('div'); row.className='lb-row'+(p.id===pid?' me':'');
+      row.innerHTML = '<div class="lb-rank">'+(i+1)+'</div><div class="lb-name">'+esc(p.name)+'</div><div class="lb-score">'+(p.score||0)+'</div>';
+      top.appendChild(row);
+    });
+  }
+}
+
+/* ================================================================
+   HOST (프로젝터)
+   ================================================================ */
+function startHostFlow(){
+  const roomCode = genCode();
+  db.ref('rooms/'+roomCode).set({
+    state:{phase:'lobby', qIndex:-1, round:0, bossHp:BOSS_MAX_HP},
+    players:{}, createdAt:Date.now()
+  }).then(function(){ runHost(roomCode); });
+}
+
+function runHost(roomCode){
+  const roomRef = db.ref('rooms/'+roomCode);
+  let players = {}, selectedScope = 'official', selectedCount = 15, className = '1-9반', recordKey = null, studySec = 600, studyIv = null, studyPage = 0, studyAuto = true;
+  let order = [], pool = [], mainCount = 60, breaks = [], bossHp = BOSS_MAX_HP, forceDouble = false, round = 0;
+  let curPhase = 'lobby', lastAnswerCount = 0; const hostStart = Date.now();
+  let curQ = -1, finishing = false, timerIv = null, answersRef = null, answersListener = null;
+  $('hBoss').innerHTML = BOSS_SVG;
+  $('hClassTag').textContent = '';
+
+  $('hCode').textContent = roomCode;
+  const joinUrl = location.origin + location.pathname + '?room=' + roomCode;
+  $('qrcode').innerHTML = '';
+  try{ new QRCode($('qrcode'), {text: joinUrl, width:220, height:220, colorDark:'#141414', colorLight:'#ffffff'}); }catch(e){}
+  try{ const sc = localStorage.getItem('sqd_class'); if(sc) $('classNameInput').value = sc; }catch(e){}
+  show('screen-host-lobby');
+
+  roomRef.child('players').on('value', function(s){
+    players = s.val() || {};
+    renderLobbyTeams();
+    renderTeamsBar();
+    $('hAlive').textContent = curPhase==='lobby' ? '' : ('🔥 생존 '+aliveCount(players)+' / '+Object.keys(players).length+'명');
+    if(curPhase==='question') updateSubmitCount();
+  });
+
+  roomRef.child('reactions').limitToLast(1).on('child_added', function(s){
+    const r = s.val(); if(!r || r.t < hostStart) return;
+    floatEmoji(r.e, r.n);
+  });
+  roomRef.child('swaps').limitToLast(1).on('child_added', function(s){
+    const r = s.val(); if(!r || r.t < hostStart) return;
+    floatEmoji('🔄', r.a+' ↔ '+r.b);
+  });
+
+  function renderLobbyTeams(){
+    const keys = Object.keys(players);
+    $('hCount').textContent = keys.length;
+    const wrap = $('hTeamCols'); wrap.innerHTML = '';
+    TEAMS.forEach(function(t,i){
+      const col = document.createElement('div'); col.className='tcol'; col.style.borderTopColor = t.c;
+      const mem = keys.filter(function(k){ return (players[k].team||0)===i; }).map(function(k){ return '<span class="chip">'+esc(players[k].name)+'</span>'; }).join('');
+      col.innerHTML = '<h3>'+t.e+' '+t.n+'</h3>'+mem;
+      wrap.appendChild(col);
+    });
+  }
+  function renderTeamsBar(){
+    const wrap = $('hTeams'); wrap.innerHTML = '';
+    teamStats(players).forEach(function(t){
+      const d = document.createElement('div'); d.className='tpill'; d.style.background = TEAMS[t.i].c;
+      d.innerHTML = '<div class="n">'+TEAMS[t.i].e+' '+TEAMS[t.i].n+'</div><div class="s">'+(t.n?t.avg:'-')+'</div>';
+      wrap.appendChild(d);
+    });
+  }
+  function setHp(hp){
+    bossHp = hp;
+    $('hHpFill').style.width = Math.max(0,Math.min(100,hp/BOSS_MAX_HP*100))+'%';
+    $('hHpLabel').textContent = 'HP '+Math.max(0,hp)+' / '+BOSS_MAX_HP+'  (반 전체가 정답을 맞힐수록 ↓)';
+  }
+
+  document.querySelectorAll('#scopeRow .btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('#scopeRow .btn').forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active'); selectedScope = b.getAttribute('data-scope');
+    });
+  });
+  document.querySelectorAll('#countRow .btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('#countRow .btn').forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active'); selectedCount = parseInt(b.getAttribute('data-count'),10);
+    });
+  });
+
+  document.querySelectorAll('#studyRow .btn').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('#studyRow .btn').forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active'); studySec = parseInt(b.getAttribute('data-study'),10);
+    });
+  });
+
+  /* ---- 게임 시작: 프롤로그 ---- */
+  $('hStartBtn').addEventListener('click', function(){
+    if(Object.keys(players).length < 1){ alert('아직 참가자가 없어요!'); return; }
+    className = ($('classNameInput').value || '').trim() || '우리반';
+    try{ localStorage.setItem('sqd_class', className); }catch(e){}
+    if(selectedScope==='official'){
+      const mainIdx = officialOrder();
+      const rest = []; QUESTIONS.forEach(function(q,i){ if(mainIdx.indexOf(i)===-1) rest.push(i); });
+      order = mainIdx.concat(seededShuffle(rest, 777));   // 60문제 + 서든데스용 예비 문제 (모든 반 동일)
+      mainCount = mainIdx.length;
+    }else{
+      const idxs = [];
+      QUESTIONS.forEach(function(q,i){
+        if((selectedScope==='old' && (q.lesson===7||q.lesson===8)) || (selectedScope==='new' && q.lesson>=1 && q.lesson<=6) || (selectedScope==='extra' && q.lesson>=9)) idxs.push(i);
+      });
+      order = shuffle(idxs).slice(0, Math.min(selectedCount, idxs.length));
+      mainCount = order.length;
+    }
+    pool = poolFromOrder(order);
+    breaks = breaksFor(mainCount);
+    setHp(BOSS_MAX_HP); $('hClassTag').textContent = '🏫 '+className;
+    roomRef.child('state').update({phase:'story', scope:selectedScope, className:className, official:(selectedScope==='official'), order:order, mainCount:mainCount, qIndex:-1, bossHp:BOSS_MAX_HP, round:++round}).then(function(){
+      curPhase = 'story';
+      $('hStoryBox').innerHTML = '<b class="t">'+PROLOGUE.title+'</b>'+PROLOGUE.text;
+      $('hStoryRules').innerHTML = '<h4 style="color:var(--yellow);margin:0 0 6px;">📜 게임 규칙</h4>' + RULES.join('<br>');
+      show('screen-host-story');
+    });
+  });
+  $('hStoryBtn').addEventListener('click', function(){ if(studySec>0) startStudy(); else startQuestion(0, false); });
+
+  /* ---- 공부 타임 ---- */
+  function startStudy(){
+    const cards = studyFor(selectedScope);
+    const startAt = nowS();
+    studyPage = 0; studyAuto = true;
+    roomRef.child('state').update({phase:'study', scope:selectedScope, studyStart:startAt, studySec:studySec, round:++round}).then(function(){
+      curPhase = 'study';
+      show('screen-host-study');
+      const per = studySec / cards.length;
+      function draw(){
+        $('hStudyCard').innerHTML = studyHtml(cards[studyPage]);
+        $('hStudyNo').textContent = '📚 '+(studyPage+1)+' / '+cards.length;
+        $('hStudyDots').innerHTML = cards.map(function(c,i){ return '<span class="'+(i===studyPage?'on':'')+'"></span>'; }).join('');
+      }
+      draw();
+      $('hStudyPrev').onclick = function(){ studyAuto=false; studyPage = Math.max(0,studyPage-1); draw(); };
+      $('hStudyNext').onclick = function(){ studyAuto=false; studyPage = Math.min(cards.length-1,studyPage+1); draw(); };
+      if(studyIv) clearInterval(studyIv);
+      studyIv = setInterval(function(){
+        const el = (nowS()-startAt)/1000, left = studySec - el;
+        $('hStudyFill').style.width = Math.max(0,left/studySec*100)+'%';
+        $('hStudyTimer').textContent = left>0 ? fmtTime(left) : '⏰ 끝!';
+        if(studyAuto){ const pg = Math.min(cards.length-1, Math.floor(el/per)); if(pg!==studyPage){ studyPage=pg; draw(); } }
+      }, 300);
+      $('hStudyGo').onclick = function(){ if(studyIv){ clearInterval(studyIv); studyIv=null; } startQuestion(0, false); };
+    });
+  }
+
+  /* ---- 문제 ---- */
+  function startQuestion(i, dbl){
+    curQ = i; finishing = false;
+    const isDouble = dbl || Math.random() < DOUBLE_CHANCE;
+    const startAt = nowS();
+    roomRef.child('state').update({phase:'question', qIndex:i, questionStartAt:startAt, isDouble:isDouble, speaker:null, round:++round}).then(function(){
+      curPhase = 'question';
+      renderHostQuestion(i, isDouble, startAt);
+    });
+  }
+
+  function renderHostQuestion(i, isDouble, startAt){
+    const q = pool[i], limit = TIME_LIMIT[q.type];
+    show('screen-host-question');
+    renderTeamsBar(); setHp(bossHp);
+    $('hQnum').textContent = qLabel(i, mainCount);
+    $('hDbl').classList.toggle('show', !!isDouble);
+    $('hQtag').textContent = qTag(q);
+    $('hQtext').textContent = q.q;
+    const wrap = $('hOptions'); wrap.innerHTML = ''; wrap.className = 'hopts' + (q.type==='ox' ? ' ox' : '');
+    optionsFor(q).forEach(function(o){
+      const d = document.createElement('div'); d.className = 'hopt '+o.cls; d.setAttribute('data-idx', o.idx);
+      d.innerHTML = '<span class="sh">'+o.sh+'</span>' + (q.type==='ox' ? '' : '<span>'+esc(o.text)+'</span>');
+      if(q.type==='ox') d.innerHTML = '<span class="sh">'+o.sh+'</span><span>'+(o.idx===1?'맞다':'틀리다')+'</span>';
+      wrap.appendChild(d);
+    });
+    updateSubmitCount();
+
+    if(answersRef && answersListener) answersRef.off('value', answersListener);
+    answersRef = roomRef.child('answers/'+i);
+    answersListener = answersRef.on('value', function(s){
+      lastAnswerCount = s.numChildren();
+      updateSubmitCount();
+      const total = aliveCount(players);
+      if(total>0 && lastAnswerCount >= total && !finishing){
+        finishing = true; if(timerIv){ clearInterval(timerIv); timerIv=null; }
+        setTimeout(function(){ finishRound(i, isDouble); }, 1200);
+      }
+    });
+
+    if(timerIv) clearInterval(timerIv);
+    timerIv = setInterval(function(){
+      const left = Math.max(0, limit - (nowS()-startAt)/1000);
+      $('hTimerFill').style.width = (left/limit*100)+'%';
+      $('hTimerNum').textContent = Math.ceil(left);
+      if(left<=0 && !finishing){
+        finishing = true; clearInterval(timerIv); timerIv=null;
+        setTimeout(function(){ finishRound(i, isDouble); }, 1300);
+      }
+    }, 100);
+  }
+  function updateSubmitCount(){
+    const total = aliveCount(players);
+    $('hSubmit').textContent = '📱 제출 '+lastAnswerCount+' / '+total+(lastAnswerCount>=total && total>0 ? '  — 전원 완료!' : '  (아직 안 낸 사람 손 들어!)');
+  }
+
+  function finishRound(i, isDouble){
+    if(answersRef && answersListener){ answersRef.off('value', answersListener); answersListener = null; }
+    const q = pool[i];
+    Promise.all([roomRef.child('answers/'+i).once('value'), roomRef.child('players').once('value')]).then(function(r){
+      const answers = r[0].val() || {};
+      players = r[1].val() || {};
+      const alivePids = Object.keys(players).filter(function(k){ return players[k].alive!==false; });
+      const total = alivePids.length || 1;
+      const cnt = {}; let correctN = 0;
+      const rightList = [];
+      alivePids.forEach(function(pid){
+        const a = answers[pid]; if(!a) return;
+        cnt[a.choice] = (cnt[a.choice]||0)+1;
+        if(a.correct){ correctN++; rightList.push({pid:pid, ts:a.ts}); }
+      });
+      rightList.sort(function(a,b){ return a.ts - b.ts; });
+      const fastest = rightList.slice(0,3);
+      if(fastest[0]) roomRef.child('players/'+fastest[0].pid+'/fast').transaction(function(c){ return (c||0)+1; });
+
+      let dmg = Math.round((BOSS_MAX_HP/mainCount) * (correctN/total) * 1.15);
+      if(isDouble) dmg *= 2;
+      const newHp = Math.max(0, bossHp - dmg);
+
+      /* ---- 목숨 계산: 오답·미제출 → -1 (방패 사용자는 제외), 0이면 탈락 ---- */
+      const wrongAlive = alivePids.filter(function(pid){ const a = answers[pid]; return !a || !a.correct; });
+      const shielded = [], lost = [];
+      wrongAlive.forEach(function(pid){
+        const a = answers[pid];
+        if(a && a.info && a.info.shield) shielded.push(pid); else lost.push(pid);
+      });
+      const newLives = {};
+      lost.forEach(function(pid){ newLives[pid] = (players[pid].lives!=null ? players[pid].lives : LIVES_START) - 1; });
+      const wouldDie = lost.filter(function(pid){ return newLives[pid] <= 0; });
+      const wipeGuard = (alivePids.length - wouldDie.length) < 1;   // 전원 탈락 방지: 모두 목숨 1로 보정
+      const upd = {}, deadNames = [];
+      lost.forEach(function(pid){
+        let nl = newLives[pid];
+        if(wipeGuard && nl<=0) nl = 1;
+        upd[pid+'/lives'] = nl;
+        if(nl<=0){ upd[pid+'/alive'] = false; deadNames.push(players[pid].name); }
+      });
+      const aliveAfter = alivePids.length - deadNames.length;
+      const writeP = Object.keys(upd).length ? roomRef.child('players').update(upd) : Promise.resolve();
+
+      writeP.then(function(){ return roomRef.child('state').update({phase:'reveal', bossHp:newHp, speaker:null, round:++round}); }).then(function(){
+        curPhase = 'reveal';
+        show('screen-host-reveal');
+        Object.keys(upd).forEach(function(k){ const p = k.split('/'); if(players[p[0]]){ if(p[1]==='lives') players[p[0]].lives = upd[k]; else players[p[0]].alive = upd[k]; } });
+        renderTeamsBar(); $('hAlive').textContent = '🔥 생존 '+aliveAfter+' / '+Object.keys(players).length+'명';
+        setHp(newHp);
+        const bs = $('hBoss'); bs.classList.remove('boss-shake'); void bs.offsetWidth; bs.classList.add('boss-shake');
+        $('hRQnum').textContent = qLabel(i, mainCount);
+        $('hRStats').textContent = '✅ 정답 '+correctN+'명 / '+total+'명  ·  ' + (isDouble?'🔥 더블! ':'') + '아차차 -'+dmg + (wipeGuard?'  ·  ⚠️ 전원 위기라 목숨 보정!':'');
+        $('hRQtag').textContent = qTag(q);
+        $('hRQtext').textContent = q.q;
+        const wrap = $('hROptions'); wrap.innerHTML=''; wrap.className = 'hopts' + (q.type==='ox'?' ox':'');
+        optionsFor(q).forEach(function(o){
+          const d = document.createElement('div');
+          d.className = 'hopt '+o.cls+' '+(o.idx===q.answer ? 'right' : 'dim');
+          d.innerHTML = '<span class="sh">'+o.sh+'</span><span>'+(q.type==='ox' ? (o.idx===1?'맞다':'틀리다') : esc(o.text))+'</span><span class="cnt">'+(cnt[o.idx]||0)+'명</span>';
+          wrap.appendChild(d);
+        });
+        $('hRExplain').innerHTML = '<b>정답: '+esc(answerText(q))+'</b><br>'+esc(q.explain);
+        const names = fastest.map(function(f,k){ return ['🥇','🥈','🥉'][k]+' '+esc(players[f.pid]?players[f.pid].name:'?'); });
+        function lifeLine(){
+          const parts = [];
+          if(deadNames.length) parts.push('<div style="color:#ff6b6b;font-weight:900;">💀 탈락 : '+deadNames.map(esc).join(', ')+'</div>');
+          const hit = lost.filter(function(pid){ return upd[pid+'/alive']!==false; }).map(function(pid){ return esc(players[pid].name)+' ❤️'+(upd[pid+'/lives']); });
+          if(hit.length) parts.push('<div style="color:#ffb3b3;">💔 목숨 -1 : '+hit.join(', ')+'</div>');
+          if(shielded.length) parts.push('<div style="color:#c4b5fd;">🛡️ 방패 방어 : '+shielded.map(function(pid){ return esc(players[pid].name); }).join(', ')+'</div>');
+          return parts.join('');
+        }
+        $('hRInfo').innerHTML = lifeLine();
+        setTimeout(function(){
+          roomRef.child('players').once('value').then(function(ps){
+            players = ps.val()||{}; renderTeamsBar();
+            const top = sortedPlayers(players).slice(0,3).map(function(p,k){ return ['👑','2위','3위'][k]+' '+esc(p.name)+' <b>'+(p.score||0)+'</b>'; });
+            $('hRInfo').innerHTML = lifeLine() + '<h4 style="margin-top:10px;">⚡ 번개 손</h4>'+(names.join('<br>')||'없음')+'<h4 style="margin-top:12px;">⭐ 개인 TOP 3</h4>'+top.join('<br>');
+          });
+        }, 900);
+        $('hSpeaker').classList.add('hidden');
+
+        $('hSpeakBtn').onclick = function(){ pickSpeaker(); };
+        $('hNextBtn').onclick = function(){
+          const nextIdx = i+1;
+          if(aliveAfter <= 1 || nextIdx >= pool.length){ goFinal(); }
+          else if(nextIdx === mainCount){ runSudden(nextIdx); }
+          else if(breaks.indexOf(i) !== -1 && i < mainCount-1){ runEvent(i, nextIdx); }
+          else startQuestion(nextIdx, forceDouble ? (forceDouble=false, true) : false);
+        };
+      });
+    });
+  }
+
+  /* ---- 서든데스 (60문제 후에도 2명 이상 생존 시) ---- */
+  function runSudden(nextIdx){
+    roomRef.child('players').once('value').then(function(ps){
+      players = ps.val() || {};
+      return roomRef.child('state').update({phase:'event', eventKey:'sudden', chapterIdx:0, nBreaks:breaks.length, round:++round});
+    }).then(function(){
+      curPhase = 'event';
+      show('screen-host-event');
+      renderTeamsBar();
+      $('hEventStory').innerHTML = '<b class="t">⚔️ 서든데스 돌입!</b>'+mainCount+'문제를 다 풀었는데 아직 <b>'+aliveCount(players)+'명</b>이 살아있다! 이제부터 한 문제씩 — <b>최후의 1인</b>이 가려질 때까지!';
+      $('hEventBox').innerHTML = '<b class="t" style="font-size:clamp(28px,3.4vw,52px);">❤️ 남은 목숨 그대로, 한 문제 한 문제가 승부!</b>';
+      $('hEventBtn').onclick = function(){ startQuestion(nextIdx, false); };
+    });
+  }
+
+  function pickSpeaker(){
+    const keys = Object.keys(players); if(!keys.length) return;
+    const box = $('hSpeaker'); box.classList.remove('hidden');
+    let n = 0;
+    const iv = setInterval(function(){
+      box.textContent = '🎤 ' + players[keys[Math.floor(Math.random()*keys.length)]].name;
+      if(++n > 18){
+        clearInterval(iv);
+        const pid = keys[Math.floor(Math.random()*keys.length)];
+        const p = players[pid];
+        box.textContent = '🎤 ' + p.name + ' — 정답 이유를 말해주세요!';
+        roomRef.child('state/speaker').set({pid:pid, name:p.name, n:Date.now()});
+      }
+    }, 90);
+  }
+
+  /* ---- 이벤트 ---- */
+  function runEvent(i, nextIdx){
+    roomRef.child('players').once('value').then(function(ps){
+      players = ps.val() || {};
+      const rt = rankedTeams(players);
+      const multi = rt.length >= 2;
+      const choices = EVENTS.filter(function(e){ return multi || (e.key!=='comeback' && e.key!=='rival'); });
+      const ev = choices[Math.floor(Math.random()*choices.length)];
+      const chapterIdx = breaks.indexOf(i) + 1;
+      const upd = {}; let eventTeam = null, eventPids = null, newHp = bossHp, dbl = false;
+      const keys = Object.keys(players);
+      if(ev.key==='comeback'){
+        eventTeam = rt[rt.length-1].i;
+        keys.forEach(function(k){ if((players[k].team||0)===eventTeam) upd[k+'/score'] = (players[k].score||0)+300; });
+      }else if(ev.key==='rival'){
+        eventTeam = rt[0].i;
+        keys.forEach(function(k){ if((players[k].team||0)===eventTeam) upd[k+'/score'] = Math.max(0,(players[k].score||0)-100); });
+      }else if(ev.key==='lucky'){
+        eventPids = shuffle(keys).slice(0,3);
+        eventPids.forEach(function(k){ upd[k+'/score'] = (players[k].score||0)+300; });
+      }else if(ev.key==='gauge'){
+        newHp = Math.max(0, bossHp-100);
+      }else if(ev.key==='double'){
+        dbl = true;
+      }
+      forceDouble = dbl;
+      const writes = [];
+      if(Object.keys(upd).length) writes.push(roomRef.child('players').update(upd));
+      writes.push(roomRef.child('state').update({phase:'event', chapterIdx:chapterIdx, eventKey:ev.key, eventTeam:eventTeam, eventPids:eventPids, nBreaks:breaks.length, bossHp:newHp, round:++round}));
+      Promise.all(writes).then(function(){ return roomRef.child('players').once('value'); }).then(function(ps2){
+        players = ps2.val()||{};
+        curPhase = 'event';
+        show('screen-host-event');
+        renderTeamsBar(); setHp(newHp);
+        const ch = chapterFor(chapterIdx, breaks.length);
+        $('hEventStory').innerHTML = ch ? '<b class="t">'+ch.title+'</b>'+fillStory(ch.text, null, players) : '';
+        let extra = '';
+        if(eventTeam!=null) extra = '<br><br>'+teamTag(eventTeam);
+        if(eventPids) extra = '<br><br>🎉 ' + eventPids.map(function(k){ return '<b>'+esc(players[k].name)+'</b>'; }).join(' · ');
+        $('hEventBox').innerHTML = '<b class="t" style="font-size:clamp(28px,3.4vw,52px);">'+ev.title+'</b>'+ev.desc+extra;
+        $('hEventBtn').onclick = function(){
+          const d = forceDouble; forceDouble = false; startQuestion(nextIdx, d);
+        };
+      });
+    });
+  }
+
+  /* ---- 역대 기록 저장 ---- */
+  function saveRecord(arr){
+    if(selectedScope!=='official' || !arr.length){ $('hBoardNote').textContent = '(연습 모드는 기록되지 않아요)'; $('hBoardMini').innerHTML=''; return; }
+    const n = arr.length;
+    const total = arr.reduce(function(s,p){ return s+(p.score||0); },0);
+    const okSum = arr.reduce(function(s,p){ return s+(p.ok||0); },0);
+    const ansSum = arr.reduce(function(s,p){ return s+(p.ans||0); },0);
+    const champ = pickChampion(players);
+    const rec = {cls:className, avg:Math.round(total/n), total:total, n:n, acc:ansSum?Math.round(okSum/ansSum*100):0, count:curQ+1,
+      ts:Date.now(), win:(bossHp<=0), champ:(champ.champion?champ.champion.name:''), survivors:champ.aliveCount,
+      tops:arr.slice(0,5).map(function(p){ return {name:p.name, score:p.score||0}; })};
+    recordKey = roomCode + '_' + hostStart;
+    roomRef.child('state').update({recordKey:recordKey, recAvg:rec.avg, recCls:className});
+    db.ref('leaderboard/'+recordKey).set(rec).then(function(){
+      return db.ref('leaderboard').once('value');
+    }).then(function(s){
+      const all = recordsFrom(s.val());
+      renderBoardList($('hBoardMini'), 'cls', all, recordKey, true);
+      const rk = all.slice().sort(function(a,b){ return b.avg-a.avg; }).findIndex(function(r){ return r.key===recordKey; });
+      $('hBoardNote').textContent = '— 이번 기록 평균 '+rec.avg+'점, 전체 '+(rk+1)+'위 / '+all.length+'경기';
+    }).catch(function(){ $('hBoardNote').textContent = '(기록 저장 실패 — 인터넷 확인)'; });
+  }
+
+  /* ---- 최종 ---- */
+  function goFinal(){
+    roomRef.child('players').once('value').then(function(ps){
+      players = ps.val() || {};
+      return roomRef.child('state').update({phase:'final', bossHp:bossHp, round:++round});
+    }).then(function(){
+      curPhase = 'final';
+      show('screen-host-final');
+      const win = bossHp <= 0;
+      const rt = rankedTeams(players);
+      const champ = pickChampion(players);
+      $('hFinalTitle').textContent = champ.champion ? ('👑 '+(champ.isSurvivor?'최후의 1인':'최종 우승')+' — '+champ.champion.name+'!') : '🎉 게임 종료';
+      $('hEnding').innerHTML = '<b class="t">'+(win?'🎊 아차차 정화 성공!':'🛠️ 공장은 지켰다!')+'</b>'+(win?ENDING_WIN:ENDING_LOSE);
+      const medals = ['🥇','🥈','🥉','4위'];
+      const pod = $('hPodium'); pod.innerHTML='';
+      const heights = [260,210,170,140];
+      rt.forEach(function(t,k){
+        const d = document.createElement('div'); d.className='pod'; d.style.background = TEAMS[t.i].c; d.style.minHeight = heights[k]+'px';
+        d.innerHTML = '<div class="m">'+medals[k]+'</div><div class="n">'+TEAMS[t.i].e+' '+TEAMS[t.i].n+'</div><div class="s">평균 '+t.avg+'점</div>';
+        pod.appendChild(d);
+      });
+      const arr = sortedPlayers(players);
+      $('hTop').innerHTML = arr.slice(0,5).map(function(p,k){ return (k===0?'👑':(k+1)+'위')+' '+esc(p.name)+' <b style="color:var(--yellow);">'+(p.score||0)+'</b> '+(TEAMS[p.team||0].e); }).join('<br>');
+      const bestStreak = arr.slice().sort(function(a,b){ return (b.best||0)-(a.best||0); })[0];
+      const fastest = arr.slice().sort(function(a,b){ return (b.fast||0)-(a.fast||0); })[0];
+      const aw = [];
+      if(champ.champion) aw.push([champ.isSurvivor?'👑 최후의 1인':'👑 최종 우승(생존자 최고 점수)', champ.champion.name]);
+      if(arr[0]) aw.push(['🏅 최고 득점', arr[0].name]);
+      if(bestStreak && bestStreak.best>=2) aw.push(['🔥 콤보왕 ('+bestStreak.best+'연속)', bestStreak.name]);
+      if(fastest && fastest.fast>=1) aw.push(['⚡ 번개손 ('+fastest.fast+'회 1등)', fastest.name]);
+      $('hAwards').innerHTML = aw.map(function(a){ return '<div class="award"><div class="a">'+a[0]+'</div><div class="w">'+esc(a[1])+'</div></div>'; }).join('');
+      saveRecord(arr);
+    });
+    $('hRestartBtn').onclick = function(){ location.href = location.pathname; };
+  }
+}
+
+})();
+</script>
+</body>
+</html>

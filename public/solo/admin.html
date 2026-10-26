@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>운영자 · 사이버 나는 SOLO</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/solo.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body>
+<div class="wrap wide">
+  <div class="row" style="margin:6px 0 14px;">
+    <div><div class="eyebrow">Control Room</div><h1 class="brand" style="font-size:30px;margin:2px 0;">사이버 나는 <span class="solo">SOLO</span> · 운영자</h1></div>
+    <div style="flex:0 0 auto;"><a class="btn sm ghost" href="./">게임 화면</a></div>
+  </div>
+
+  <!-- 로그인 / 권한 확인 -->
+  <div class="card" id="aAuth">
+    <h3>운영자 확인</h3>
+    <p class="muted" id="aAuthMsg">로그인 정보를 확인하는 중…</p>
+    <div id="aAuthBody"></div>
+  </div>
+
+  <div id="aMain" class="hidden">
+    <div class="adm-grid">
+      <!-- 기수 -->
+      <div class="card">
+        <h3>기수 관리</h3>
+        <label class="f">현재 기수</label>
+        <div class="row"><select class="t" id="seasonSel"></select><button class="btn sm navy" id="seasonSet" style="flex:0 0 auto;">현재 기수로 지정</button></div>
+        <details style="margin-top:12px;"><summary class="muted" style="cursor:pointer;">＋ 새 기수 만들기</summary>
+          <label class="f">기수 이름</label><input class="t" id="nsName" maxlength="40" placeholder="예) 1기 · 가을 특집">
+          <label class="f">첫인상 선택 인원</label><select class="t" id="nsPicks"><option value="1">1명</option><option value="2" selected>2명</option><option value="3">3명</option></select>
+          <label class="row" style="gap:8px;margin:12px 0;"><input type="checkbox" id="nsApprove" style="flex:0 0 auto;width:18px;height:18px;"> <span>참가 신청을 운영자가 승인한 뒤 입장</span></label>
+          <button class="btn" id="nsCreate">기수 만들기</button>
+        </details>
+      </div>
+
+      <!-- 진행 -->
+      <div class="card" id="ctl">
+        <h3>게임 진행 <span class="pill" id="cPhase"></span></h3>
+        <p class="muted" id="cInfo"></p>
+        <label class="f">모집 상태</label>
+        <div class="seg" id="cStatus"><button class="chip" data-v="recruiting">모집 중</button><button class="chip" data-v="running">진행 중</button><button class="chip" data-v="ended">종료</button></div>
+        <label class="row" style="gap:8px;margin:12px 0 0;"><input type="checkbox" id="cApprove" style="flex:0 0 auto;width:18px;height:18px;"> <span>신규 참가자 승인 필요</span></label>
+        <label class="f">첫인상 선택 인원</label><select class="t" id="cPicks"><option value="1">1명</option><option value="2">2명</option><option value="3">3명</option></select>
+        <label class="f">① 첫인상 선택 마감 시각 <span class="muted">(비우면 운영자가 직접 마감)</span></label>
+        <input class="t" type="datetime-local" id="cFirstEnd">
+        <label class="f">② 최종 선택 마감 시각</label>
+        <input class="t" type="datetime-local" id="cFinalEnd">
+        <button class="btn sm ghost" id="cSaveTimes" style="margin-top:10px;">설정 저장</button>
+        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0;">
+        <div class="row" style="flex-wrap:wrap;">
+          <button class="btn sm" data-phase="lobby">로비(탐색)</button>
+          <button class="btn sm" data-phase="first">첫인상 선택 시작</button>
+          <button class="btn sm navy" data-phase="break">첫인상 마감</button>
+          <button class="btn sm" data-phase="final">최종 선택 시작</button>
+          <button class="btn sm navy" data-phase="closed">최종 선택 마감</button>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button class="btn sm" id="cRevealFirst">💗 첫인상 결과 계산·공개</button>
+          <button class="btn sm" id="cPublish">💍 최종 결과 계산·공개</button>
+        </div>
+        <div class="hint" id="cHint"></div>
+      </div>
+    </div>
+
+    <!-- 참가자 -->
+    <div class="card">
+      <h3>참가자 관리 <span class="muted" id="pCount"></span></h3>
+      <div class="tblwrap"><table class="tbl"><thead><tr><th></th><th>닉네임</th><th>성별/연령</th><th>상태</th><th>첫인상</th><th>최종</th><th>관리</th></tr></thead><tbody id="pBody"></tbody></table></div>
+    </div>
+
+    <div class="adm-grid">
+      <!-- 공지 -->
+      <div class="card">
+        <h3>공지사항</h3>
+        <textarea class="t" id="nText" maxlength="300" placeholder="참가자 화면 상단과 소식 탭에 표시돼요"></textarea>
+        <button class="btn sm" id="nAdd" style="margin-top:8px;">공지 등록</button>
+        <div id="nList" style="margin-top:12px;"></div>
+      </div>
+      <!-- 신고 -->
+      <div class="card">
+        <h3>신고 내역</h3>
+        <div id="rList"></div>
+      </div>
+    </div>
+
+    <!-- QR -->
+    <div class="card">
+      <h3>게임 접속 QR코드</h3>
+      <div class="adm-grid">
+        <div>
+          <label class="f">공개 게임 입장 주소 (실제 배포 주소)</label>
+          <input class="t" id="qUrl" placeholder="https://실제-홈페이지-주소/solo/">
+          <div class="hint" id="qHint"></div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn sm ghost" id="qCurrent">현재 접속 주소 넣기</button>
+            <button class="btn sm navy" id="qSave">이 주소로 저장 · QR 다시 만들기</button>
+          </div>
+          <p class="muted">QR에는 게임 입구 주소만 담겨요. 참가자 정보나 운영자 정보는 들어가지 않아요.<br>저장한 주소는 참가자 화면의 "QR코드로 입장하기"에도 쓰여요.</p>
+        </div>
+        <div class="center">
+          <div class="qrbox" id="qBox"></div>
+          <p class="serif" style="font-weight:700;color:var(--wine);margin:10px 0 0;">QR코드를 스캔하고 사이버 솔로 나라에 입장하세요.</p>
+          <p class="muted" style="margin:2px 0 10px;">닉네임을 만들고 당신의 인연을 찾아보세요.</p>
+          <p class="url" id="qShown"></p>
+          <div class="row"><button class="btn sm" id="qDown">QR 이미지 다운로드</button><button class="btn sm ghost" id="qPrint">인쇄용 안내문</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="printArea" class="print-only"></div>
+<script src="js/solo-core.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

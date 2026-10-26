@@ -62,6 +62,8 @@ function sim_open_db(string $dataDir): PDO {
     $addCol('transactions', 'leverage', 'INTEGER NOT NULL DEFAULT 1');
     $addCol('holdings', 'side', "TEXT NOT NULL DEFAULT 'long'"); // 매수 포지션(long) / 매도 포지션(short)
     $addCol('transactions', 'effect', 'TEXT'); // open / close / flip / liquidation
+    // 예전 기본 이름(너굴이들)으로 만든 이벤트 이름을 새 이름으로 바꾼다
+    $db->exec("UPDATE events SET name = REPLACE(REPLACE(name, '너굴이들', '동그라미 선생님들'), '너굴', '동그라미') WHERE name LIKE '%너굴%'");
     return $db;
 }
 

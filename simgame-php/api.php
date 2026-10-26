@@ -38,7 +38,7 @@ require __DIR__ . '/lib/live.php';
 require __DIR__ . '/lib/game.php';
 
 const MAX_BODY = 16384;
-const APP_VERSION = '2026.10.26-premium';
+const APP_VERSION = '2026.10.26-name';
 
 try {
     $cfg = require __DIR__ . '/config.php';

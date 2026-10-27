@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자유게시판 | 가나북스</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="board">
+<main>
+  <section class="sub-hero"><div class="container">
+    <div class="breadcrumb"><a href="index.html">홈</a><span>›</span><a href="board.html">자유게시판</a><span>›</span><span>글보기</span></div>
+    <h1>자유게시판</h1>
+    <p>가나북스 신간 소개와 공지사항, 자유로운 이야기를 나누는 공간입니다.</p>
+  </div></section>
+
+  <div class="page"><div class="container" id="view"></div></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/board.js"></script>
+<script>
+  const no = Number(GN.param("no")) || GN.board[0].no;
+  const p = GN.board.find(x => x.no === no);
+  const el = document.getElementById("view");
+
+  if (!p) {
+    el.innerHTML = `<div class="empty-state">존재하지 않는 게시글입니다. <a class="more-link" href="board.html">목록으로 →</a></div>`;
+  } else {
+    document.title = `${p.title} | 가나북스`;
+    const b = p.bookId && GN.books.find(x => x.id === p.bookId);
+    const body = b ? `
+      <div class="view-book">
+        ${GN.cover(b)}
+        <div>
+          <span class="badge orange">${GN.esc(b.category)}</span>
+          <h3 style="font-size:26px;margin:12px 0 8px;letter-spacing:-.5px">${GN.esc(b.title)}</h3>
+          <p style="color:var(--ink-500);margin:0 0 18px">${GN.esc(b.author)} 지음 · ${GN.esc(b.publisher)}</p>
+          <table class="book-meta-table">
+            <tr><th>출간일</th><td>${GN.dot(b.date)}</td></tr>
+            <tr><th>정가</th><td><b>${GN.won(b.price)}</b></td></tr>
+            <tr><th>쪽수</th><td>${b.pages}쪽</td></tr>
+            <tr><th>판형</th><td>${b.size}</td></tr>
+            <tr><th>ISBN</th><td>${b.isbn}</td></tr>
+          </table>
+          <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
+            <a class="btn btn-navy btn-sm" target="_blank" rel="noopener" href="https://search.kyobobook.co.kr/search?keyword=${encodeURIComponent(b.title)}">교보문고에서 찾기</a>
+            <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://www.yes24.com/Product/Search?query=${encodeURIComponent(b.title)}">예스24</a>
+            <a class="btn btn-outline btn-sm" target="_blank" rel="noopener" href="https://www.aladin.co.kr/search/wsearchresult.aspx?SearchWord=${encodeURIComponent(b.title)}">알라딘</a>
+          </div>
+        </div>
+      </div>
+      <h4 style="font-size:18px;margin:0 0 10px;color:var(--ink-900)">책 소개</h4>
+      <p>${GN.esc(b.desc)}</p>
+      <p>도서 주문 및 공급 문의는 가나북스 고객센터(${GN.company.tel})로 연락 주시기 바랍니다.</p>`
+      : (p.body || []).map(t => `<p>${GN.esc(t)}</p>`).join("");
+
+    el.innerHTML = `
+      <div class="view-head">
+        <h2>${p.notice ? '<span class="badge orange" style="vertical-align:5px">공지</span> ' : ""}${GN.esc(p.title)}</h2>
+        <div class="view-meta"><span><b>작성자</b>${GN.esc(p.writer)}</span><span><b>등록일</b>${GN.dot(p.date)}</span><span><b>조회</b>${p.hit}</span></div>
+      </div>
+      <div class="view-body">${body}</div>
+      <ul class="view-nav">${GN.prevNext(GN.board, p.no, "board-view.html")}</ul>
+      <div class="board-foot"><span></span><a class="btn btn-navy btn-sm" href="board.html">목록</a></div>`;
+  }
+</script>
+</body>
+</html>

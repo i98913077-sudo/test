@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>전국서점 | 가나북스</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="bookstore">
+<main>
+  <section class="sub-hero"><div class="container">
+    <div class="breadcrumb"><a href="index.html">홈</a><span>›</span><span>전국서점</span></div>
+    <h1>전국서점 안내</h1>
+    <p>전국 서점을 한눈에 확인하세요. 가나북스가 도와드립니다!</p>
+  </div></section>
+
+  <div class="page"><div class="container store-layout">
+    <aside>
+      <div class="radio-row" style="margin-bottom:14px">
+        <label><input type="radio" name="region" value="" checked><span>전체 지역</span></label>
+      </div>
+      <div class="region-map" id="regionMap"></div>
+    </aside>
+    <section>
+      <div class="toolbar">
+        <div class="count"><b id="regionName">전체</b> 지역 서점 <b id="count">0</b>곳</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;width:auto">
+          <div class="radio-row" id="typeFilter">
+            <label><input type="radio" name="type" value="" checked><span>전체</span></label>
+            <label><input type="radio" name="type" value="서점"><span>서점</span></label>
+            <label><input type="radio" name="type" value="도매점"><span>도매점</span></label>
+          </div>
+          <form class="search-box" id="searchForm" role="search"><input id="q" placeholder="서점명 · 주소 검색" aria-label="서점 검색"><button>검색</button></form>
+        </div>
+      </div>
+      <div class="store-list" id="storeList"></div>
+    </section>
+  </div></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+  const state = { region: GN.param("region") || "", type: "", q: "" };
+  const map = document.getElementById("regionMap");
+  // 사이드바용 4열 배치
+  const layout = ["인천", "서울", "경기", "강원", "충남", "세종", "충북", "경북", "전북", "대전", "대구", "울산", "광주", "전남", "경남", "부산", "제주", "", "", ""];
+
+  function render() {
+    map.innerHTML = GN.regionTiles(state.region, layout);
+    document.querySelector('input[name=region]').checked = !state.region;
+    const q = state.q.trim();
+    const list = GN.stores.filter(s => (!state.region || s.region === state.region) && (!state.type || s.type === state.type) && (!q || (s.name + s.addr).includes(q)));
+    document.getElementById("regionName").textContent = state.region || "전체";
+    document.getElementById("count").textContent = list.length;
+    document.getElementById("storeList").innerHTML = list.length ? list.map(s => `
+      <article class="store-card">
+        <div class="sc-top"><h4>${GN.esc(s.name)}</h4><span class="badge ${s.type === "도매점" ? "orange" : ""}">${s.type}</span></div>
+        <p>${GN.esc(s.addr)}</p>
+        <p><span class="badge gray">${s.region}</span> &nbsp;<a class="tel" href="tel:${s.tel}">${s.tel}</a></p>
+      </article>`).join("") : `<div class="empty-state">조건에 맞는 서점이 없습니다.</div>`;
+  }
+
+  map.addEventListener("click", e => {
+    const a = e.target.closest("a[data-region]");
+    if (!a) return;
+    e.preventDefault();
+    state.region = state.region === a.dataset.region ? "" : a.dataset.region;
+    history.replaceState(null, "", state.region ? `?region=${encodeURIComponent(state.region)}` : location.pathname);
+    render();
+  });
+  document.querySelector('input[name=region]').addEventListener("change", () => { state.region = ""; history.replaceState(null, "", location.pathname); render(); });
+  document.getElementById("typeFilter").addEventListener("change", e => { state.type = e.target.value; render(); });
+  document.getElementById("searchForm").addEventListener("submit", e => { e.preventDefault(); state.q = document.getElementById("q").value; render(); });
+  document.getElementById("q").addEventListener("input", e => { state.q = e.target.value; render(); });
+  render();
+</script>
+</body>
+</html>

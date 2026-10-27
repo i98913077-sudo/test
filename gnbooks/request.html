@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>대행문의 | 가나북스</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="request">
+<main>
+  <section class="sub-hero"><div class="container">
+    <div class="breadcrumb"><a href="index.html">홈</a><span>›</span><span>대행문의</span></div>
+    <h1>대행문의</h1>
+    <p>판매영업대행 · 출판(제작) · 도서보관 문의를 남겨 주시면 빠르게 연락드리겠습니다.</p>
+  </div></section>
+
+  <div class="page"><div class="container form-layout">
+    <form class="form-card" id="reqForm" novalidate>
+      <div class="field full" style="margin-bottom:22px">
+        <label>문의 유형 <span class="req">*</span></label>
+        <div class="radio-row">
+          <label><input type="radio" name="kind" value="판매영업대행" checked><span>판매영업대행</span></label>
+          <label><input type="radio" name="kind" value="출판(제작)"><span>출판(제작)</span></label>
+          <label><input type="radio" name="kind" value="도서보관"><span>도서보관</span></label>
+          <label><input type="radio" name="kind" value="원고투고"><span>원고투고</span></label>
+          <label><input type="radio" name="kind" value="기타"><span>기타</span></label>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label for="company">출판사 / 회사명 <span class="req">*</span></label><input id="company" name="company" required></div>
+        <div class="field"><label for="name">담당자 <span class="req">*</span></label><input id="name" name="name" required></div>
+        <div class="field"><label for="tel">연락처 <span class="req">*</span></label><input id="tel" name="tel" type="tel" placeholder="010-0000-0000" required></div>
+        <div class="field"><label for="email">이메일</label><input id="email" name="email" type="email" placeholder="example@email.com"></div>
+        <div class="field"><label for="titles">보유 도서 종수</label>
+          <select id="titles" name="titles"><option>1~5종</option><option>6~20종</option><option>21~50종</option><option>50종 이상</option><option>출간 예정</option></select></div>
+        <div class="field"><label for="subject">제목 <span class="req">*</span></label><input id="subject" name="subject" required></div>
+        <div class="field full"><label for="msg">문의 내용 <span class="req">*</span></label><textarea id="msg" name="msg" placeholder="도서 분야, 희망 공급처, 월 예상 출고량 등을 적어 주시면 상담에 도움이 됩니다." required></textarea></div>
+        <div class="field full"><label class="agree"><input type="checkbox" id="agree"> 문의 접수 및 답변을 위한 개인정보(회사명, 담당자, 연락처, 이메일) 수집 · 이용에 동의합니다. 수집된 정보는 상담 완료 후 지체 없이 파기합니다.</label></div>
+      </div>
+      <div class="form-actions"><button type="reset" class="btn btn-outline">다시 작성</button><button class="btn btn-primary">문의 접수하기</button></div>
+    </form>
+
+    <aside style="display:grid;gap:20px">
+      <div class="cs-card">
+        <span class="kicker">CUSTOMER CENTER</span>
+        <div class="hours" id="csHours"></div>
+        <dl id="csInfo"></dl>
+      </div>
+      <div class="link-card">
+        <h4>거래 시 준비 서류</h4>
+        <ul style="margin:0;padding-left:18px;color:var(--ink-700);font-size:15px;line-height:2">
+          <li>사업자등록증 사본</li><li>출판사 신고확인증 사본</li><li>통장 사본</li><li>도서 목록 (도서명 · ISBN · 정가)</li>
+        </ul>
+        <a class="chip" style="margin-top:14px" href="dataroom-view.html?no=527">신규 거래 신청서 받기<small>자료실 →</small></a>
+      </div>
+    </aside>
+  </div></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script>
+  const C = GN.company;
+  document.getElementById("csHours").textContent = C.hours.replace(" ~ ", " – ");
+  document.getElementById("csInfo").innerHTML = `<dt>TEL</dt><dd><a href="tel:${C.tel}">${C.tel}</a></dd><dt>FAX</dt><dd>${C.fax}</dd><dt>E-mail</dt><dd>${C.email}</dd>`;
+
+  const form = document.getElementById("reqForm");
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const bad = [...form.querySelectorAll("[required]")].find(f => !f.value.trim());
+    if (bad) { bad.focus(); GN.toast(`'${bad.labels[0].textContent.replace("*", "").trim()}' 항목을 입력해 주세요.`); return; }
+    if (!document.getElementById("agree").checked) { GN.toast("개인정보 수집 · 이용에 동의해 주세요."); return; }
+    // 서버 연동 전: 메일 앱으로 문의 내용을 전달
+    const d = Object.fromEntries(new FormData(form));
+    const body = `문의유형: ${d.kind}\n회사명: ${d.company}\n담당자: ${d.name}\n연락처: ${d.tel}\n이메일: ${d.email}\n보유 도서: ${d.titles}\n\n${d.msg}`;
+    location.href = `mailto:${C.email}?subject=${encodeURIComponent(`[대행문의] ${d.subject}`)}&body=${encodeURIComponent(body)}`;
+    GN.toast("메일 앱에서 문의 내용을 확인 후 전송해 주세요.");
+  });
+</script>
+</body>
+</html>

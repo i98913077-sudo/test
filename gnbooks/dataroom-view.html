@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자료실 | 가나북스</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="dataroom">
+<main>
+  <section class="sub-hero"><div class="container">
+    <div class="breadcrumb"><a href="index.html">홈</a><span>›</span><a href="dataroom.html">자료실</a><span>›</span><span>글보기</span></div>
+    <h1>자료실</h1>
+    <p>월별 총판 도서리스트와 각종 서식을 내려받으실 수 있습니다.</p>
+  </div></section>
+
+  <div class="page"><div class="container" id="view"></div></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/board.js"></script>
+<script>
+  const no = Number(GN.param("no")) || GN.dataroom[0].no;
+  const p = GN.dataroom.find(x => x.no === no);
+  const el = document.getElementById("view");
+
+  // 월별 총판 도서리스트 (예시: 카탈로그에서 결정적으로 생성 — 실제 리스트로 교체하세요)
+  function bookList(post) {
+    let s = post.seed * 9973;
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    const [y, m] = post.month.split("-").map(Number);
+    return GN.catalog
+      .map((c, i) => ({ c, i, k: rnd() }))
+      .filter(x => x.i < 5 || x.k > 0.25)
+      .map(({ c, i }, n) => {
+        const back = Math.floor(rnd() * 30);
+        const d = new Date(y, m - 1 - back, 1 + Math.floor(rnd() * 27));
+        return {
+          title: c[0], publisher: c[1], category: c[2], price: c[3],
+          rate: [60, 65, 70][Math.floor(rnd() * 3)],
+          isbn: `979-11-${String(5000 + i * 37).padStart(4, "0")}-${String(100 + i * 7).slice(-3)}-${i % 10}`,
+          date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+          isNew: back === 0
+        };
+      });
+  }
+
+  if (!p) {
+    el.innerHTML = `<div class="empty-state">존재하지 않는 게시글입니다. <a class="more-link" href="dataroom.html">목록으로 →</a></div>`;
+  } else {
+    document.title = `${p.title} | 가나북스`;
+    const rows = p.month ? bookList(p) : null;
+    const listHtml = rows ? `
+      <p>${p.month.replace("-", "년 ")}월 가나북스 총판 도서리스트입니다. 서점 · 도매점 주문 시 참고 부탁드립니다.</p>
+      <div class="list-summary">
+        <div><span>총 도서</span><b>${rows.length}종</b></div>
+        <div><span>출판사</span><b>${new Set(rows.map(r => r.publisher)).size}곳</b></div>
+        <div><span>분야</span><b>${new Set(rows.map(r => r.category)).size}개</b></div>
+        <div><span>기준월</span><b>${p.month.replace("-", ".")}</b></div>
+      </div>
+      <div class="toolbar">
+        <div class="radio-row" id="pubFilter"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="search-box"><input id="q" placeholder="도서명 · 출판사 · ISBN" aria-label="도서 검색"><button type="button" id="qBtn">검색</button></div>
+          <button class="btn btn-outline btn-sm" id="csv" type="button">⬇ 엑셀(CSV) 받기</button>
+        </div>
+      </div>
+      <div class="table-scroll"><table class="book-table">
+        <thead><tr>
+          <th data-sort="n">No</th><th data-sort="title">도서명</th><th data-sort="publisher">출판사</th><th data-sort="category">분야</th>
+          <th data-sort="price">정가</th><th data-sort="rate">공급률</th><th data-sort="isbn">ISBN</th><th data-sort="date">출간일</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>`
+      : `<p>첨부된 서식 파일을 내려받아 작성하신 후, 팩스(${GN.company.fax}) 또는 이메일(${GN.company.email})로 보내 주시기 바랍니다.</p>`;
+
+    el.innerHTML = `
+      <div class="view-head">
+        <h2>${GN.esc(p.title)}</h2>
+        <div class="view-meta"><span><b>작성자</b>가나북스</span><span><b>등록일</b>${GN.dot(p.date)}</span><span><b>조회</b>${p.hit}</span></div>
+      </div>
+      <div class="view-files"><b>첨부파일</b><a href="#" id="fileLink">📎 ${GN.esc(p.file)}</a></div>
+      <div class="view-body">${listHtml}</div>
+      <ul class="view-nav">${GN.prevNext(GN.dataroom, p.no, "dataroom-view.html")}</ul>
+      <div class="board-foot"><span></span><a class="btn btn-navy btn-sm" href="dataroom.html">목록</a></div>`;
+
+    if (rows) {
+      rows.forEach((r, i) => r.n = i + 1);
+      const st = { q: "", pub: "", key: "n", dir: 1 };
+      const pubs = [...new Set(rows.map(r => r.publisher))];
+      document.getElementById("pubFilter").innerHTML = ["", ...pubs].map(x => `<label><input type="radio" name="pub" value="${x}" ${x ? "" : "checked"}><span>${x || "전체"}</span></label>`).join("");
+      const mark = (t, q) => q ? GN.esc(t).split(GN.esc(q)).join(`<mark>${GN.esc(q)}</mark>`) : GN.esc(t);
+      const filtered = () => rows
+        .filter(r => (!st.pub || r.publisher === st.pub) && (!st.q || (r.title + r.publisher + r.isbn).includes(st.q)))
+        .sort((a, b) => (a[st.key] > b[st.key] ? 1 : a[st.key] < b[st.key] ? -1 : 0) * st.dir);
+      const draw = () => {
+        const list = filtered();
+        document.getElementById("rows").innerHTML = list.length ? list.map(r => `<tr>
+          <td>${r.n}</td><td class="t">${r.isNew ? '<span class="tag-new">신간</span>' : ""}${mark(r.title, st.q)}</td><td>${mark(r.publisher, st.q)}</td><td>${r.category}</td>
+          <td class="num">${r.price.toLocaleString()}</td><td class="num">${r.rate}%</td><td>${mark(r.isbn, st.q)}</td><td>${GN.dot(r.date)}</td></tr>`).join("")
+          : `<tr><td colspan="8" style="text-align:center;padding:48px;color:var(--ink-500)">검색 결과가 없습니다.</td></tr>`;
+        document.querySelectorAll(".book-table th").forEach(th => th.className = th.dataset.sort === st.key ? (st.dir > 0 ? "asc" : "desc") : "");
+      };
+      document.querySelector(".book-table thead").addEventListener("click", e => {
+        const k = e.target.dataset.sort;
+        if (!k) return;
+        st.dir = st.key === k ? -st.dir : 1;
+        st.key = k;
+        draw();
+      });
+      document.getElementById("pubFilter").addEventListener("change", e => { st.pub = e.target.value; draw(); });
+      document.getElementById("q").addEventListener("input", e => { st.q = e.target.value.trim(); draw(); });
+      document.getElementById("qBtn").addEventListener("click", draw);
+
+      const csv = () => {
+        const head = ["No", "도서명", "출판사", "분야", "정가", "공급률", "ISBN", "출간일"];
+        const body = filtered().map(r => [r.n, r.title, r.publisher, r.category, r.price, r.rate + "%", r.isbn, r.date]);
+        const text = "﻿" + [head, ...body].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+        a.download = p.file.replace(/\.\w+$/, ".csv");
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      };
+      document.getElementById("csv").addEventListener("click", csv);
+      document.getElementById("fileLink").addEventListener("click", e => { e.preventDefault(); csv(); });
+      draw();
+    } else {
+      document.getElementById("fileLink").addEventListener("click", e => { e.preventDefault(); GN.toast("서식 파일은 실제 서버 연결 후 내려받을 수 있습니다."); });
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>자료실 | 가나북스</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="dataroom">
+<main>
+  <section class="sub-hero"><div class="container">
+    <div class="breadcrumb"><a href="index.html">홈</a><span>›</span><span>자료실</span></div>
+    <h1>자료실</h1>
+    <p>월별 총판 도서리스트와 각종 서식을 내려받으실 수 있습니다.</p>
+  </div></section>
+
+  <div class="page"><div class="container" id="board">
+    <div class="toolbar">
+      <div class="count">전체 <b class="total">0</b>건</div>
+      <form class="search-box" role="search">
+        <select aria-label="검색 항목"><option value="title">제목</option><option value="writer">작성자</option></select>
+        <input placeholder="검색어를 입력하세요" aria-label="검색어"><button>검색</button>
+      </form>
+    </div>
+    <table class="board-table">
+      <colgroup><col class="c-num"><col><col class="c-writer"><col class="c-date"><col class="c-hit"></colgroup>
+      <thead><tr><th class="c-num">번호</th><th>제목</th><th class="c-writer">작성자</th><th class="c-date">등록일</th><th class="c-hit">조회</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="pager"></div>
+  </div></div>
+</main>
+<script src="js/data.js"></script>
+<script src="js/common.js"></script>
+<script src="js/board.js"></script>
+<script>
+  GN.boardList({ posts: GN.dataroom.map(p => ({ ...p, writer: "가나북스" })), viewPage: "dataroom-view.html", el: document.getElementById("board") });
+</script>
+</body>
+</html>

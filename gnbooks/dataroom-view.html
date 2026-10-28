@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>자료실 | 가나북스</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-page="dataroom">
@@ -83,7 +84,7 @@
       <div class="view-files"><b>첨부파일</b><a href="#" id="fileLink">📎 ${GN.esc(p.file)}</a></div>
       <div class="view-body">${listHtml}</div>
       <ul class="view-nav">${GN.prevNext(GN.dataroom, p.no, "dataroom-view.html")}</ul>
-      <div class="board-foot"><span></span><a class="btn btn-navy btn-sm" href="dataroom.html">목록</a></div>`;
+      <div class="board-foot"><span></span><a class="btn btn-navy btn-sm" href="dataroom.html${GN.pageOf(GN.dataroom, p.no) > 1 ? "?page=" + GN.pageOf(GN.dataroom, p.no) : ""}">목록</a></div>`;
 
     if (rows) {
       rows.forEach((r, i) => r.n = i + 1);

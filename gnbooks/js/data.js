@@ -10,13 +10,18 @@ GN.company = {
   ceo: "배수현",
   bizNo: "134-98-32326",
   mailOrder: "제318호",
-  address: "경기도 파주시 파평면 율곡로 1406",
-  logistics: "경기도 파주시 파평면 율곡로 1406-1",
+  address: "경기도 파주시 파평면 율곡로 1404",      // 찾아오실 때
+  logistics: "경기도 파주시 파평면 율곡로 1406",    // 물건 보내실 때
+  mobile: "010-3605-2583",
   tel: "031-959-8833",
   fax: "031-959-8834",
   email: "sh119man@naver.com",
+  email2: "gnbooks@hanmail.net",
   hours: "09:00 ~ 18:00",
-  slogan: "정성으로 판매(유통) · 출판(제작) · 도서(보관)하여 드립니다"
+  slogan: "정성으로 판매(유통) · 출판(제작) · 도서(보관)하여 드립니다",
+  motto: "거저 받았으니 거저 주라",
+  tagline: "출판에서 유통 · 물류 · 보관까지",
+  award: "백년가게 선정기업"
 };
 
 GN.notice = "방문해 주셔서 감사드립니다 — 출판사 여러분의 도서를 정성으로 유통(판매), 출판(제작)하여 드립니다. 여러분의 성원에 늘 감사드립니다.";
@@ -63,6 +68,20 @@ GN.dataroom = [
   { no: 528, title: "반품 요청서 양식", date: "2020-06-15", hit: 980, file: "반품요청서.hwp", form: true },
   { no: 527, title: "신규 거래 신청서 (출판사용)", date: "2020-05-20", hit: 1102, file: "거래신청서.hwp", form: true }
 ];
+// 이전 월별 총판도서리스트 (no.526 ~ 509, 2020년 6월 ~ 2019년 10월) — 2페이지 이후 목록
+(() => {
+  let no = 526;
+  for (let i = 0; i < 9; i++) {
+    const d = new Date(2020, 5 - i, 1 + (i * 5) % 20);
+    const y = d.getFullYear(), m = d.getMonth() + 1, mm = String(m).padStart(2, "0");
+    const date = `${y}-${mm}-${String(d.getDate()).padStart(2, "0")}`;
+    [["신간 포함", ""], ["출판사별", "_출판사별"]].forEach(([label, suffix], k) => {
+      GN.dataroom.push({ no, title: `총판도서리스트 (${y}년 ${m}월) - ${label}`, date, hit: 380 + ((no * 37) % 300),
+        file: `총판도서리스트_${y}${mm}${suffix}.xlsx`, month: `${y}-${mm}`, seed: no });
+      no--;
+    });
+  }
+})();
 
 // 총판 도서 카탈로그 (예시) — 자료실 도서리스트 화면에서 사용
 GN.catalog = [

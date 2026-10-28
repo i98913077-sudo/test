@@ -8,10 +8,15 @@
 | 회사소개 (top_menu=1) | `company.html` |
 | 판매영업대행 (top_menu=2) | `business.html` |
 | 전국서점 (top_menu=3·4, 지역별) | `bookstore.html?region=서울` |
-| 자료실 (KstBoard_Board2) | `dataroom.html`, `dataroom-view.html?no=536` (총판 도서리스트 표: 검색·정렬·CSV 받기) |
+| 자료실 (KstBoard_Board2) | `dataroom.html?page=2`, `dataroom-view.html?no=519` (no.536~509, 3페이지 / 총판 도서리스트 표: 검색·정렬·CSV 받기) |
 | 자유게시판 (KstBoard_Board3) | `board.html`, `board-view.html?no=548` (신간 도서 상세) |
 | 대행문의 (top_menu=7) | `request.html` |
 | 문헌번호센터 | https://www.nl.go.kr/seoji/ (외부 링크) |
+
+## 브랜드
+- 로고(마크 + 가나북스 워드마크)는 `js/common.js`의 `GN.mark()` / `GN.wordmark()` SVG로 그렸습니다. 원본 로고 파일(AI/PDF)이 있으면 교체하세요.
+- 물류센터 사진 `img/warehouse.jpg`는 명함 이미지에서 잘라낸 저해상도 사진입니다. 원본 사진으로 바꾸면 더 선명해집니다.
+- 회사 정보는 명함 기준입니다(찾아오실 때 율곡로 1404, 물건 보내실 때 율곡로 1406, 대표 휴대폰, 이메일 2개).
 
 ## 내용 교체
 모든 글, 도서, 서점, 회사 정보는 `js/data.js` 한 곳에 모여 있습니다. 이 파일만 고치면 모든 페이지에 반영됩니다.

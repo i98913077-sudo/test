@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>자유게시판 | 가나북스</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-page="board">
@@ -63,7 +64,7 @@
       </div>
       <div class="view-body">${body}</div>
       <ul class="view-nav">${GN.prevNext(GN.board, p.no, "board-view.html")}</ul>
-      <div class="board-foot"><span></span><a class="btn btn-navy btn-sm" href="board.html">목록</a></div>`;
+      <div class="board-foot"><span></span><a class="btn btn-navy btn-sm" href="board.html${GN.pageOf(GN.board, p.no) > 1 ? "?page=" + GN.pageOf(GN.board, p.no) : ""}">목록</a></div>`;
   }
 </script>
 </body>

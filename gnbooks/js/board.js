@@ -34,7 +34,9 @@ GN.boardList = function ({ posts, viewPage, el, pageSize = 10 }) {
     if (!a) return;
     e.preventDefault();
     state.page = Number(a.dataset.p);
+    history.replaceState(null, "", state.page > 1 ? `?page=${state.page}` : location.pathname);
     render();
+    el.scrollIntoView({ behavior: "smooth" });
   });
   el.querySelector("form").addEventListener("submit", e => {
     e.preventDefault();
@@ -53,4 +55,10 @@ GN.prevNext = (posts, no, viewPage) => {
   const prev = sorted[i + 1], next = sorted[i - 1];
   return `<li><span>다음글 ▲</span>${next ? `<a href="${viewPage}?no=${next.no}">${GN.esc(next.title)}</a>` : "다음글이 없습니다."}</li>
           <li><span>이전글 ▼</span>${prev ? `<a href="${viewPage}?no=${prev.no}">${GN.esc(prev.title)}</a>` : "이전글이 없습니다."}</li>`;
+};
+
+/* 게시글이 속한 목록 페이지 번호 (목록 버튼용) */
+GN.pageOf = (posts, no, pageSize = 10) => {
+  const sorted = [...posts].sort((a, b) => (b.notice ? 1 : 0) - (a.notice ? 1 : 0) || b.no - a.no);
+  return Math.floor(sorted.findIndex(p => p.no === no) / pageSize) + 1;
 };

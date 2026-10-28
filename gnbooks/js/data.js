@@ -12,7 +12,6 @@ GN.company = {
   mailOrder: "제318호",
   address: "경기도 파주시 파평면 율곡로 1404",      // 찾아오실 때
   logistics: "경기도 파주시 파평면 율곡로 1406",    // 물건 보내실 때
-  mobile: "010-3605-2583",
   tel: "031-959-8833",
   fax: "031-959-8834",
   email: "sh119man@naver.com",

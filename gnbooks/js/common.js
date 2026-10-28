@@ -85,7 +85,7 @@
           <div>
             <h5>고객센터</h5>
             <div class="footer-tel">${C.tel}</div>
-            <p style="margin-top:6px">평일 ${C.hours} · FAX ${C.fax}<br>대표 ${C.ceo} ${C.mobile}<br>원고투고 및 문의 <a href="mailto:${C.email}">${C.email}</a> / <a href="mailto:${C.email2}">${C.email2}</a></p>
+            <p style="margin-top:6px">평일 ${C.hours} · FAX ${C.fax}<br>원고투고 및 문의 <a href="mailto:${C.email}">${C.email}</a> / <a href="mailto:${C.email2}">${C.email2}</a></p>
           </div>
         </div>
         <div class="footer-bottom"><div class="container">

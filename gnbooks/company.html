@@ -67,7 +67,7 @@
       </div>
       <div class="map-info">
         <h3>가나북스 본사 · 물류센터</h3>
-        <img src="img/warehouse.jpg" alt="가나북스 물류센터 전경" style="border-radius:4px;margin-bottom:18px;aspect-ratio:2.4/1;object-fit:cover;width:100%">
+        <img src="img/warehouse.svg" alt="가나북스 물류센터 전경" style="border-radius:4px;margin-bottom:18px;aspect-ratio:2.4/1;object-fit:cover;width:100%">
         <dl id="mapInfo"></dl>
         <a class="btn btn-outline btn-sm" style="margin-top:22px" target="_blank" rel="noopener" id="mapLink">지도 앱에서 보기 ↗</a>
       </div>
@@ -83,7 +83,7 @@
     ["회사명", C.name], ["대표자", C.ceo], ["사업자등록번호", C.bizNo], ["통신판매신고", C.mailOrder],
     ["인증", C.award], ["주요사업", "도서 판매(유통) · 출판(제작) · 도서(보관) · 판매영업대행"],
     ["찾아오실 때", C.address], ["물건 보내실 때", C.logistics],
-    ["전화 / 팩스", `${C.tel} / ${C.fax}`], ["대표 휴대폰", C.mobile], ["E-mail", `${C.email} / ${C.email2}`]
+    ["전화 / 팩스", `${C.tel} / ${C.fax}`], ["E-mail", `${C.email} / ${C.email2}`]
   ].map(([k, v]) => `<tr><th>${k}</th><td>${GN.esc(v)}</td></tr>`).join("");
   document.getElementById("mapInfo").innerHTML = `<dt>방문</dt><dd>${C.address}</dd><dt>택배·화물</dt><dd>${C.logistics}</dd><dt>전화</dt><dd>${C.tel}</dd><dt>팩스</dt><dd>${C.fax}</dd><dt>운영</dt><dd>평일 ${C.hours}</dd>`;
   document.getElementById("mapLink").href = "https://map.naver.com/p/search/" + encodeURIComponent(C.address);

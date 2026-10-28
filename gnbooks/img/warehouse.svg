@@ -1,0 +1,188 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 480" width="1600" height="480">
+  <title>가나북스 출판·유통 파주 물류센터</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fb0de"/>
+      <stop offset=".55" stop-color="#bcd8ef"/>
+      <stop offset="1" stop-color="#eaf3f9"/>
+    </linearGradient>
+    <linearGradient id="hillFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fae9a"/><stop offset="1" stop-color="#a9c2ae"/>
+    </linearGradient>
+    <linearGradient id="hillNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5f8f55"/><stop offset="1" stop-color="#7aa36a"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfcac0"/><stop offset="1" stop-color="#e6e2da"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4b525c"/><stop offset="1" stop-color="#353b43"/>
+    </linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4d545e"/><stop offset=".5" stop-color="#5a626c"/><stop offset="1" stop-color="#454b54"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity=".18"/><stop offset=".25" stop-color="#000" stop-opacity="0"/>
+      <stop offset=".85" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".12"/>
+    </linearGradient>
+    <linearGradient id="light" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".45" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <!-- 은색 골강판: 가로 줄무늬 -->
+    <pattern id="clad" width="8" height="12" patternUnits="userSpaceOnUse">
+      <rect width="8" height="12" fill="#c3c9d0"/>
+      <rect y="0" width="8" height="2" fill="#e3e7eb"/>
+      <rect y="7" width="8" height="2.5" fill="#a9b0b9"/>
+    </pattern>
+    <pattern id="cladDark" width="8" height="12" patternUnits="userSpaceOnUse">
+      <rect width="8" height="12" fill="#545b65"/>
+      <rect y="0" width="8" height="2" fill="#666e78"/>
+      <rect y="7" width="8" height="2.5" fill="#474d56"/>
+    </pattern>
+    <pattern id="shutter" width="6" height="8" patternUnits="userSpaceOnUse">
+      <rect width="6" height="8" fill="#8d949d"/><rect y="0" width="6" height="1.6" fill="#b5bbc2"/><rect y="5" width="6" height="1.4" fill="#767d86"/>
+    </pattern>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 .45  0 0 0 0 .42  0 0 0 0 .38  0 0 0 .55 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+      <feBlend in2="SourceGraphic" mode="multiply"/>
+    </filter>
+    <filter id="soft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+    <filter id="shadowBlur" x="-10%" y="-100%" width="120%" height="300%"><feGaussianBlur stdDeviation="8"/></filter>
+    <!-- 작은 창 -->
+    <g id="win">
+      <rect width="50" height="20" fill="#f4f6f8"/>
+      <rect x="3" y="3" width="21" height="14" fill="#2f3943"/>
+      <rect x="26" y="3" width="21" height="14" fill="#2f3943"/>
+      <rect x="3" y="3" width="21" height="5" fill="#5d7184" opacity=".7"/>
+      <rect x="26" y="3" width="21" height="5" fill="#5d7184" opacity=".7"/>
+    </g>
+    <g id="winPair"><use href="#win"/><use href="#win" x="62"/></g>
+  </defs>
+
+  <!-- 하늘 · 구름 -->
+  <rect width="1600" height="480" fill="url(#sky)"/>
+  <g fill="#fff" filter="url(#soft)" opacity=".85">
+    <ellipse cx="230" cy="70" rx="170" ry="26"/><ellipse cx="330" cy="58" rx="90" ry="22"/>
+    <ellipse cx="900" cy="48" rx="220" ry="22"/><ellipse cx="1010" cy="62" rx="120" ry="20"/>
+    <ellipse cx="1420" cy="90" rx="160" ry="24"/>
+  </g>
+
+  <!-- 먼 산 -->
+  <path d="M0 250 C120 205 220 222 330 200 C450 176 560 214 660 206 C800 194 900 170 1040 192 C1160 210 1260 180 1380 196 C1480 208 1550 196 1600 204 V400 H0Z" fill="url(#hillFar)"/>
+  <path d="M0 290 C140 256 260 270 380 258 C520 246 600 270 760 262 C900 256 1000 240 1140 252 C1280 264 1400 246 1600 258 V400 H0Z" fill="url(#hillNear)"/>
+  <g fill="#4f7c47" opacity=".7">
+    <ellipse cx="60" cy="300" rx="70" ry="30"/><ellipse cx="1540" cy="298" rx="80" ry="32"/><ellipse cx="1480" cy="306" rx="50" ry="22"/>
+  </g>
+
+  <!-- 바닥 -->
+  <rect y="392" width="1600" height="88" fill="url(#ground)" filter="url(#grain)"/>
+  <ellipse cx="800" cy="404" rx="740" ry="14" fill="#000" opacity=".22" filter="url(#shadowBlur)"/>
+
+  <!-- 왼쪽 부속동 -->
+  <rect x="70" y="250" width="92" height="148" fill="url(#cladDark)"/>
+  <rect x="66" y="244" width="100" height="8" fill="#3a4047"/>
+  <rect x="92" y="300" width="48" height="70" fill="#3d444d"/><rect x="94" y="302" width="44" height="66" fill="url(#shutter)" opacity=".5"/>
+
+  <!-- 본동 -->
+  <g>
+    <!-- 지붕 처마 -->
+    <path d="M150 152 L1452 152 L1460 140 L142 140 Z" fill="#2c3138"/>
+    <!-- 상단 간판 띠 -->
+    <rect x="150" y="152" width="1302" height="56" fill="url(#band)"/>
+    <!-- 벽체 -->
+    <rect x="150" y="208" width="1302" height="190" fill="url(#clad)"/>
+    <!-- 어두운 기둥 구간 -->
+    <rect x="150" y="208" width="128" height="190" fill="url(#cladDark)"/>
+    <rect x="1324" y="208" width="128" height="190" fill="url(#cladDark)"/>
+    <rect x="722" y="208" width="156" height="190" fill="url(#cladDark)"/>
+    <!-- 수직 줄눈 -->
+    <g stroke="#9aa1aa" stroke-width="2">
+      <path d="M430 208V398M580 208V398M1020 208V398M1170 208V398"/>
+    </g>
+    <!-- 중간 띠 -->
+    <rect x="150" y="270" width="1302" height="6" fill="#59616b"/>
+    <rect x="150" y="276" width="1302" height="2" fill="#dfe3e7"/>
+
+    <!-- 창: 상단 -->
+    <g>
+      <use href="#winPair" x="300" y="226"/><use href="#winPair" x="450" y="226"/><use href="#winPair" x="600" y="226"/>
+      <use href="#winPair" x="900" y="226"/><use href="#winPair" x="1040" y="226"/><use href="#winPair" x="1190" y="226"/>
+      <use href="#win" x="180" y="226"/><use href="#win" x="1366" y="226"/>
+      <use href="#win" x="760" y="226"/>
+    </g>
+    <!-- 창: 하단 -->
+    <g>
+      <use href="#winPair" x="300" y="300"/><use href="#winPair" x="450" y="300"/><use href="#winPair" x="600" y="300"/>
+      <use href="#winPair" x="900" y="300"/><use href="#winPair" x="1040" y="300"/><use href="#winPair" x="1190" y="300"/>
+      <use href="#win" x="180" y="300"/><use href="#win" x="1366" y="300"/>
+    </g>
+
+    <!-- 셔터 도어 -->
+    <g>
+      <rect x="186" y="336" width="72" height="62" fill="#3b424a"/><rect x="190" y="340" width="64" height="58" fill="url(#shutter)"/>
+      <rect x="1344" y="336" width="72" height="62" fill="#3b424a"/><rect x="1348" y="340" width="64" height="58" fill="url(#shutter)"/>
+      <rect x="470" y="336" width="80" height="62" fill="#3b424a"/><rect x="474" y="340" width="72" height="58" fill="url(#shutter)"/>
+      <rect x="1060" y="336" width="80" height="62" fill="#3b424a"/><rect x="1064" y="340" width="72" height="58" fill="url(#shutter)"/>
+    </g>
+
+    <!-- 중앙 출입구 -->
+    <g>
+      <rect x="752" y="318" width="96" height="6" fill="#2b3037"/>
+      <rect x="760" y="324" width="80" height="74" fill="#22282e"/>
+      <rect x="764" y="328" width="34" height="70" fill="#3e4a55"/><rect x="802" y="328" width="34" height="70" fill="#3e4a55"/>
+      <rect x="764" y="328" width="34" height="20" fill="#7b8f9f" opacity=".55"/><rect x="802" y="328" width="34" height="20" fill="#7b8f9f" opacity=".55"/>
+      <rect x="784" y="352" width="4" height="40" fill="#b8915a" opacity=".8"/>
+      <rect x="812" y="352" width="4" height="40" fill="#b8915a" opacity=".8"/>
+    </g>
+
+    <!-- 조명 · 음영 -->
+    <rect x="150" y="152" width="1302" height="246" fill="url(#light)"/>
+    <rect x="150" y="208" width="1302" height="190" fill="url(#shade)"/>
+    <rect x="150" y="394" width="1302" height="4" fill="#2f343a" opacity=".6"/>
+  </g>
+
+  <!-- 간판 -->
+  <g font-family="Pretendard, 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif" font-weight="900" fill="#2f6fe0" text-anchor="middle">
+    <rect x="360" y="160" width="880" height="40" rx="3" fill="#f3f5f8"/>
+    <text x="560" y="191" font-size="30" letter-spacing="22">가나북스</text>
+    <!-- 로고 마크 -->
+    <g transform="translate(730 163) scale(.094)">
+      <path fill="#e3141c" d="M50 0h90v245h75v50H50zM315 245h35v50h-35z"/>
+      <path fill="#7cc11c" d="M0 53h305v297h-90V105H0z"/>
+    </g>
+    <g font-size="11" fill="#1b1d21" font-weight="800" text-anchor="start">
+      <text x="770" y="178">백년가게</text><text x="770" y="193">선정기업</text>
+    </g>
+    <text x="1030" y="191" font-size="30" letter-spacing="10">출판·유통</text>
+  </g>
+
+  <!-- 배송 트럭 -->
+  <g transform="translate(920 330)">
+    <ellipse cx="80" cy="70" rx="96" ry="6" fill="#000" opacity=".25"/>
+    <rect x="0" y="0" width="118" height="58" rx="3" fill="#f7f8fa"/>
+    <rect x="0" y="0" width="118" height="58" rx="3" fill="none" stroke="#c9ced4" stroke-width="2"/>
+    <rect x="0" y="44" width="118" height="6" fill="#1a7a3a"/>
+    <rect x="0" y="50" width="118" height="3" fill="#e3141c"/>
+    <g transform="translate(10 12) scale(.07)">
+      <path fill="#e3141c" d="M50 0h90v245h75v50H50zM315 245h35v50h-35z"/>
+      <path fill="#7cc11c" d="M0 53h305v297h-90V105H0z"/>
+    </g>
+    <text x="40" y="33" font-family="Pretendard, 'Malgun Gothic', sans-serif" font-size="16" font-weight="900" fill="#1b1d21">가나북스</text>
+    <path d="M120 16 H146 Q154 16 158 24 L166 40 V60 H120 Z" fill="#e9ecef"/>
+    <path d="M126 22 H144 Q149 22 151 27 L157 40 H126 Z" fill="#3e5468"/>
+    <rect x="-2" y="58" width="170" height="6" rx="2" fill="#2d3238"/>
+    <circle cx="28" cy="66" r="11" fill="#1c1f23"/><circle cx="28" cy="66" r="4.5" fill="#9aa1aa"/>
+    <circle cx="140" cy="66" r="11" fill="#1c1f23"/><circle cx="140" cy="66" r="4.5" fill="#9aa1aa"/>
+  </g>
+
+  <!-- 팔레트 · 도서 박스 -->
+  <g transform="translate(600 360)">
+    <rect x="0" y="32" width="84" height="6" fill="#9b7b4f"/>
+    <rect x="4" y="38" width="8" height="4" fill="#7d6240"/><rect x="38" y="38" width="8" height="4" fill="#7d6240"/><rect x="72" y="38" width="8" height="4" fill="#7d6240"/>
+    <rect x="2" y="14" width="38" height="18" fill="#c9a774"/><rect x="42" y="14" width="40" height="18" fill="#bf9c68"/>
+    <rect x="10" y="-2" width="36" height="16" fill="#d3b382"/><rect x="48" y="-2" width="30" height="16" fill="#c4a16d"/>
+    <g stroke="#a3824f" stroke-width="1.5"><path d="M21 14V32M62 14V32M28 -2V14M63 -2V14"/></g>
+  </g>
+</svg>

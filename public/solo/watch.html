@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>관람석 · 사이버 나는 SOLO</title>
+<meta name="description" content="사이버 나는 SOLO 초등교사 편 — 시청자 관람석. 출연자를 응원하고, 기프티콘을 보내고, 솔로 친구를 소개하세요.">
+<meta name="theme-color" content="#FBF7EF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/solo.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<!-- 관람석 입장 -->
+<div class="wrap" id="v-join">
+  <div class="hero">
+    <div class="eyebrow"><span class="live-dot"></span>On Air · 관람석</div>
+    <h1 class="brand">사이버 나는 <span class="solo">SOLO</span></h1>
+    <p class="subbrand">초등교사 편 · 시청자 관람석</p>
+    <div class="spot"></div>
+    <p class="quote">"그들의 인연을 함께 지켜봐 주세요."</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="vjSeason">-</b><span>현재 기수</span></div>
+    <div class="stat"><b id="vjViewers">-</b><span>시청자</span></div>
+  </div>
+  <div class="card" id="vjForm">
+    <h3>시청자 닉네임</h3>
+    <input class="t" id="vjNick" maxlength="12" placeholder="예) 과몰입 시청자">
+    <ol class="guide muted" style="font-size:14px;">
+      <li>출연자 프로필, 자기어필, 속마음 인터뷰, (운영자가 켜면) 공용 거실 생중계를 볼 수 있어요.</li>
+      <li>가상 기프티콘으로 응원하고, 솔로 친구를 소개할 수 있어요. <b>실제 결제는 없어요.</b></li>
+      <li>출연자의 1:1 대화·호감 선택·연락처는 볼 수 없어요.</li>
+      <li>출연자를 존중해 주세요. 악성 댓글은 차단될 수 있어요.</li>
+    </ol>
+    <button class="btn big" id="vjGo" disabled>관람석 입장</button>
+    <div class="hint bad center" id="vjErr"></div>
+  </div>
+  <div class="footer"><a href="./">출연자로 입장</a> · <a href="../">홈으로</a></div>
+</div>
+
+<!-- 관람석 -->
+<div class="hidden" id="v-app">
+  <div class="topbar">
+    <div class="in">
+      <span class="logo"><span class="live-dot"></span>관람석</span>
+      <span class="me" id="vMe"></span>
+    </div>
+    <div class="phasebar"><span class="pill" id="vPhase"></span><span class="muted" id="vInfo"></span></div>
+  </div>
+  <div class="wrap">
+    <section id="w-live"></section>
+    <section id="w-cast" class="hidden"></section>
+    <section id="w-iv" class="hidden"></section>
+    <section id="w-talk" class="hidden"></section>
+    <section id="w-friend" class="hidden"></section>
+  </div>
+  <nav class="tabs"><div class="in">
+    <button data-w="live" class="on"><b>📺</b>생중계</button>
+    <button data-w="cast"><b>👥</b>출연자</button>
+    <button data-w="iv"><b>🎤</b>속마음</button>
+    <button data-w="talk"><b>💬</b>시청자톡</button>
+    <button data-w="friend"><b>👭</b>친구 소개</button>
+  </div></nav>
+</div>
+
+<div id="modalRoot"></div>
+<script src="js/solo-core.js"></script>
+<script src="js/watch.js"></script>
+</body>
+</html>

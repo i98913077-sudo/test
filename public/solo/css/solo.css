@@ -138,3 +138,50 @@ table.tbl th{font-size:12px;color:var(--muted);font-weight:700;}
   #printArea{display:block !important;position:absolute;left:0;top:0;width:100%;}
   #printArea img{width:100%;max-width:700px;display:block;margin:0 auto;}
 }
+
+/* ── 대화 ── */
+.chathead{display:flex;align-items:center;gap:10px;margin:4px 0 8px;}
+.chathead .avatar{width:42px;height:42px;font-size:22px;border-radius:14px;}
+.chatbox{display:flex;flex-direction:column;height:calc(100vh - 250px);height:calc(100dvh - 250px);min-height:320px;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;}
+.msgs{flex:1;overflow-y:auto;padding:12px 12px 6px;background:linear-gradient(180deg,#FFFDF8,#FBF7EF);-webkit-overflow-scrolling:touch;}
+.msg{display:flex;flex-direction:column;align-items:flex-start;margin:6px 0;max-width:100%;}
+.msg .who{font-size:12px;color:var(--muted);margin:0 0 2px 4px;}
+.msg .bub{background:#fff;border:1px solid var(--line);padding:9px 13px;border-radius:4px 18px 18px 18px;max-width:78%;white-space:pre-wrap;word-break:break-word;font-size:15px;}
+.msg .tm{font-size:11px;color:#aaa;margin:2px 4px 0;}
+.msg.mine{align-items:flex-end;}
+.msg.mine .bub{background:var(--wine);color:#fff;border-color:var(--wine);border-radius:18px 4px 18px 18px;}
+.msg.staff .bub{background:var(--navy);color:#fff;border-color:var(--navy);}
+.daysep{text-align:center;font-size:12px;color:var(--muted);margin:10px 0;}
+.chatin{display:flex;gap:8px;padding:8px;border-top:1px solid var(--line);background:#fff;}
+.chatin input.t{padding:11px 14px;border-radius:999px;font-size:15px;}
+.chatin .btn{flex:0 0 auto;border-radius:999px;}
+.chrow{display:flex;gap:12px;align-items:center;}
+.chrow > .ie{font-size:30px;}
+.ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw;}
+.exbar{margin-bottom:8px;}
+.exbar details{background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px 14px;}
+.exbar summary{cursor:pointer;font-weight:700;font-size:14px;}
+.exrow{border-top:1px dashed var(--line);padding:10px 0 4px;margin-top:6px;}
+.exval{margin-top:8px;font-weight:700;color:var(--wine);word-break:break-all;}
+.exphoto{max-width:100%;max-height:260px;border-radius:14px;cursor:zoom-in;display:block;}
+.item.super{border-color:var(--gold);background:linear-gradient(135deg,#fff,#FBF0DC);}
+.item .avatar{width:48px;height:48px;font-size:26px;border-radius:16px;}
+
+/* ── 자기어필 · 스포트라이트 ── */
+.spotlight{display:flex;gap:12px;align-items:center;padding:14px;border-radius:20px;margin-bottom:14px;color:#fff;
+  background:radial-gradient(circle at 15% 20%,rgba(255,255,255,.25),transparent 40%),linear-gradient(135deg,var(--wine),var(--navy));box-shadow:0 10px 30px rgba(122,30,58,.3);animation:rise .5s ease both;}
+.spotlight .muted{color:rgba(255,255,255,.8);} .spotlight .eyebrow{color:#F6D9A8;}
+.pcard.onair{box-shadow:0 0 0 3px var(--gold),var(--shadow);}
+.appeal{margin-top:10px;padding:10px 12px;border-radius:14px;background:var(--ivory2);}
+.appeal-photo{max-width:100%;max-height:300px;border-radius:12px;display:block;margin-top:6px;}
+.refline{display:inline-block;font-size:13px;background:#E2F2EA;color:var(--ok);border-radius:10px;padding:3px 9px;margin:4px 0;}
+
+/* ── 시청자 ── */
+.gift-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.gift-grid button{border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:10px 4px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--navy);}
+.gift-grid button b{display:block;font-size:28px;line-height:1.2;}
+.gift-grid button.on{border-color:var(--wine);background:var(--wine-soft);}
+.rank{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);}
+.rank .no{width:28px;text-align:center;font-weight:700;color:var(--wine);font-family:var(--serif);}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#E5484D;margin-right:6px;animation:blink 1.2s infinite;}
+@keyframes blink{50%{opacity:.25;}}

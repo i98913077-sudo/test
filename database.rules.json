@@ -76,6 +76,24 @@
           "resultsPublished": {
             ".validate": "newData.isBoolean()"
           },
+          "chatOpen": {
+            ".validate": "newData.isBoolean()"
+          },
+          "viewersOpen": {
+            ".validate": "newData.isBoolean()"
+          },
+          "broadcastLounge": {
+            ".validate": "newData.isBoolean()"
+          },
+          "appealOpen": {
+            ".validate": "newData.isBoolean()"
+          },
+          "spotlight": {
+            ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 128"
+          },
+          "exchange": {
+            ".validate": "newData.isString() && newData.val().matches(/^(chat|couple|off)$/)"
+          },
           "createdAt": {
             ".validate": "newData.isNumber()"
           },
@@ -88,7 +106,7 @@
         "$sid": {
           ".read": "auth != null",
           "$uid": {
-            ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && auth.uid === $uid && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/seasons/' + $sid).exists() && newData.exists() && (data.exists() ? data.child('status').val() !== 'blocked' : root.child('solo/seasons/' + $sid).child('status').val() !== 'ended'))",
+            ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && auth.uid === $uid && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/seasons/' + $sid).exists() && newData.exists() && (data.exists() ? data.child('status').val() !== 'blocked' : (root.child('solo/seasons/' + $sid).child('status').val() !== 'ended' && !root.child('solo/viewers/' + $sid + '/' + auth.uid).exists())))",
             ".validate": "newData.hasChildren(['nick', 'age', 'gender', 'lookingFor', 'intro', 'avatar', 'status', 'createdAt'])",
             "nick": {
               ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 12 && !newData.val().contains('.') && !newData.val().contains('#') && !newData.val().contains('$') && !newData.val().contains('[') && !newData.val().contains(']') && !newData.val().contains('/') && (!data.exists() || newData.val() === data.val()) && newData.parent().parent().parent().parent().child('nicknames/' + $sid + '/' + newData.val().toLowerCase()).val() === $uid"
@@ -116,6 +134,9 @@
             },
             "style": {
               ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 40"
+            },
+            "ref": {
+              ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val()) && newData.val() !== $uid && root.child('solo/referrals/' + $sid + '/' + newData.val()).exists()"
             },
             "avatar": {
               ".validate": "newData.hasChildren(['emoji', 'color'])",
@@ -235,11 +256,325 @@
             "reason": {
               ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
             },
+            "room": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 300"
+            },
             "at": {
               ".validate": "newData.isNumber() && newData.val() === now"
             },
             "$other": {
               ".validate": false
+            }
+          }
+        }
+      },
+      "lounge": {
+        "$sid": {
+          ".read": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved') || ((auth != null && root.child('solo/viewers/' + $sid + '/' + auth.uid).exists()) && root.child('solo/seasons/' + $sid).child('broadcastLounge').val() === true)",
+          "$id": {
+            ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && !data.exists() && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved' && root.child('solo/seasons/' + $sid).child('chatOpen').val() !== false)",
+            ".validate": "newData.hasChildren(['uid', 'nick', 'text', 'at'])",
+            "uid": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "nick": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12 && ((auth != null && root.child('solo/admins/' + auth.uid).val() === true) ? true : newData.val() === root.child('solo/participants/' + $sid + '/' + auth.uid).child('nick').val())"
+            },
+            "emoji": {
+              ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 8"
+            },
+            "staff": {
+              ".validate": "newData.isBoolean() && (auth != null && root.child('solo/admins/' + auth.uid).val() === true)"
+            },
+            "text": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 300"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "dmReq": {
+        "$sid": {
+          "$to": {
+            ".read": "auth != null && auth.uid === $to",
+            "$from": {
+              ".read": "auth != null && auth.uid === $from",
+              ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && auth.uid === $from && $to !== $from && newData.exists() && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved' && root.child('solo/seasons/' + $sid).child('chatOpen').val() !== false && root.child('solo/participants/' + $sid + '/' + $to).child('status').val() === 'approved') || (auth != null && (auth.uid === $to || auth.uid === $from) && !newData.exists())",
+              ".validate": "newData.hasChildren(['at'])",
+              "msg": {
+                ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 80"
+              },
+              "ticket": {
+                ".validate": "newData.isString() && root.child('solo/items/' + $sid + '/' + newData.val() + '/owner').val() === auth.uid && root.child('solo/items/' + $sid + '/' + newData.val() + '/kind').val() === 'date' && !newData.parent().parent().parent().parent().parent().child('items/' + $sid + '/' + newData.val()).exists()"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() === now"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        }
+      },
+      "dmRooms": {
+        "$sid": {
+          "$room": {
+            ".read": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || auth != null && (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid || root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() === auth.uid)",
+            ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && !data.exists() && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved' && root.child('solo/seasons/' + $sid).child('chatOpen').val() !== false && ((newData.child('a').val() === auth.uid && root.child('solo/dmReq/' + $sid + '/' + auth.uid + '/' + newData.child('b').val()).exists()) || (newData.child('b').val() === auth.uid && root.child('solo/dmReq/' + $sid + '/' + auth.uid + '/' + newData.child('a').val()).exists())))",
+            ".validate": "newData.hasChildren(['a', 'b', 'createdAt']) && $room === newData.child('a').val() + '__' + newData.child('b').val() && newData.child('a').val() < newData.child('b').val()",
+            "a": {
+              ".validate": "(!data.exists() || newData.val() === data.val()) && root.child('solo/participants/' + $sid + '/' + newData.val()).child('status').val() === 'approved'"
+            },
+            "b": {
+              ".validate": "(!data.exists() || newData.val() === data.val()) && root.child('solo/participants/' + $sid + '/' + newData.val()).child('status').val() === 'approved'"
+            },
+            "createdAt": {
+              ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)"
+            },
+            "closed": {
+              ".write": "auth != null && (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid || root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() === auth.uid)",
+              ".validate": "newData.isBoolean()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "myRooms": {
+        "$sid": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            "$room": {
+              ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && (auth.uid === $uid ? true : newData.exists()) && (newData.parent().parent().parent().parent().child('dmRooms/' + $sid + '/' + $room + '/a').val() === auth.uid || newData.parent().parent().parent().parent().child('dmRooms/' + $sid + '/' + $room + '/b').val() === auth.uid) && (newData.parent().parent().parent().parent().child('dmRooms/' + $sid + '/' + $room + '/a').val() === $uid || newData.parent().parent().parent().parent().child('dmRooms/' + $sid + '/' + $room + '/b').val() === $uid))",
+              ".validate": "newData.val() === true"
+            }
+          }
+        }
+      },
+      "dmMsgs": {
+        "$sid": {
+          "$room": {
+            ".read": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || auth != null && (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid || root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() === auth.uid)",
+            "$id": {
+              ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid || root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() === auth.uid) && !data.exists() && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved' && root.child('solo/seasons/' + $sid).child('chatOpen').val() !== false && root.child('solo/dmRooms/' + $sid + '/' + $room).child('closed').val() !== true)",
+              ".validate": "newData.hasChildren(['uid', 'text', 'at'])",
+              "uid": {
+                ".validate": "newData.val() === auth.uid"
+              },
+              "text": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 500"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() === now"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        }
+      },
+      "dmRead": {
+        "$sid": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid",
+            "$room": {
+              ".validate": "newData.isNumber()"
+            }
+          }
+        }
+      },
+      "dmShare": {
+        "$sid": {
+          "$room": {
+            "$uid": {
+              "$kind": {
+                ".read": "auth != null && (auth.uid === $uid || (auth != null && (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid || root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() === auth.uid) && root.child('solo/dmShare/' + $sid + '/' + $room + '/' + auth.uid + '/' + $kind).exists()))",
+                ".write": "((auth != null && root.child('solo/admins/' + auth.uid).val() === true) && !newData.exists()) || (auth != null && auth.uid === $uid && auth != null && (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid || root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() === auth.uid) && (!newData.exists() || (!root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved' && root.child('solo/dmRooms/' + $sid + '/' + $room).child('closed').val() !== true && root.child('solo/seasons/' + $sid).child('exchange').val() !== 'off' && (root.child('solo/seasons/' + $sid).child('exchange').val() !== 'couple' || root.child('solo/results/' + $sid + '/final/' + auth.uid + '/partner').val() === (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid ? root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() : root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val())))))",
+                ".validate": "($kind === 'contact' && newData.isString() && newData.val().length >= 1 && newData.val().length <= 100) || ($kind === 'photo' && newData.isString() && newData.val().beginsWith('data:image/jpeg;base64,') && newData.val().length <= 400000)"
+              }
+            }
+          }
+        }
+      },
+      "dmShareState": {
+        "$sid": {
+          "$room": {
+            ".read": "auth != null && (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid || root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() === auth.uid)",
+            "$uid": {
+              ".write": "((auth != null && root.child('solo/admins/' + auth.uid).val() === true) && !newData.exists()) || (auth != null && auth.uid === $uid && auth != null && (root.child('solo/dmRooms/' + $sid + '/' + $room).child('a').val() === auth.uid || root.child('solo/dmRooms/' + $sid + '/' + $room).child('b').val() === auth.uid))",
+              "contact": {
+                ".validate": "newData.val() === true"
+              },
+              "photo": {
+                ".validate": "newData.val() === true"
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          }
+        }
+      },
+      "viewers": {
+        "$sid": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && auth.uid === $uid && newData.exists() && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/seasons/' + $sid).exists() && root.child('solo/seasons/' + $sid).child('viewersOpen').val() !== false && !root.child('solo/participants/' + $sid + '/' + auth.uid).exists())",
+            ".validate": "newData.hasChildren(['nick', 'at'])",
+            "nick": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12 && !newData.val().contains('.') && !newData.val().contains('#') && !newData.val().contains('$') && !newData.val().contains('[') && !newData.val().contains(']') && !newData.val().contains('/')"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "viewerChat": {
+        "$sid": {
+          ".read": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && root.child('solo/viewers/' + $sid + '/' + auth.uid).exists())",
+          "$id": {
+            ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || ((auth != null && root.child('solo/viewers/' + $sid + '/' + auth.uid).exists()) && !data.exists() && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/seasons/' + $sid).child('chatOpen').val() !== false)",
+            ".validate": "newData.hasChildren(['uid', 'nick', 'text', 'at'])",
+            "uid": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "nick": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12 && ((auth != null && root.child('solo/admins/' + auth.uid).val() === true) ? true : newData.val() === root.child('solo/viewers/' + $sid + '/' + auth.uid + '/nick').val())"
+            },
+            "staff": {
+              ".validate": "newData.isBoolean() && (auth != null && root.child('solo/admins/' + auth.uid).val() === true)"
+            },
+            "text": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 200"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "cheers": {
+        "$sid": {
+          ".read": "auth != null",
+          "$id": {
+            ".write": "((auth != null && root.child('solo/admins/' + auth.uid).val() === true) && !newData.exists()) || ((auth != null && root.child('solo/viewers/' + $sid + '/' + auth.uid).exists()) && !data.exists() && !root.child('solo/blocked/' + auth.uid).exists() && $id.beginsWith(auth.uid + '_') && $id.length === auth.uid.length + 2 && $id.matches(/_[0-9a-j]$/))",
+            ".validate": "newData.hasChildren(['from', 'fromNick', 'to', 'gift', 'at'])",
+            "from": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "fromNick": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12"
+            },
+            "to": {
+              ".validate": "newData.isString() && root.child('solo/participants/' + $sid + '/' + newData.val()).child('status').val() === 'approved'"
+            },
+            "gift": {
+              ".validate": "newData.isString() && newData.val().matches(/^(coffee|cake|flower|chicken|icecream|ring|letter|star)$/)"
+            },
+            "msg": {
+              ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 60"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "referrals": {
+        "$sid": {
+          ".read": "auth != null",
+          "$code": {
+            ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && $code === auth.uid && newData.exists() && !root.child('solo/blocked/' + auth.uid).exists() && ((auth != null && root.child('solo/viewers/' + $sid + '/' + auth.uid).exists()) || root.child('solo/participants/' + $sid + '/' + auth.uid).exists()))",
+            ".validate": "newData.hasChildren(['by', 'byNick', 'role', 'at'])",
+            "by": {
+              ".validate": "newData.val() === auth.uid"
+            },
+            "byNick": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 12"
+            },
+            "role": {
+              ".validate": "newData.isString() && newData.val().matches(/^(viewer|participant)$/)"
+            },
+            "note": {
+              ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 100"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "appeals": {
+        "$sid": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && auth.uid === $uid && (!newData.exists() || (!root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved' && root.child('solo/seasons/' + $sid).child('appealOpen').val() === true)))",
+            ".validate": "newData.hasChildren(['text', 'at'])",
+            "text": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 500"
+            },
+            "photo": {
+              ".validate": "newData.isString() && newData.val().beginsWith('data:image/jpeg;base64,') && newData.val().length <= 400000"
+            },
+            "at": {
+              ".validate": "newData.isNumber() && newData.val() === now"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      },
+      "appealLikes": {
+        "$sid": {
+          ".read": "auth != null",
+          "$target": {
+            "$liker": {
+              ".write": "auth != null && auth.uid === $liker && $target !== $liker && (!newData.exists() || (!root.child('solo/blocked/' + auth.uid).exists() && ((auth != null && root.child('solo/viewers/' + $sid + '/' + auth.uid).exists()) || root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved') && root.child('solo/participants/' + $sid + '/' + $target).child('status').val() === 'approved'))",
+              ".validate": "newData.val() === true"
+            }
+          }
+        }
+      },
+      "interviews": {
+        "$sid": {
+          ".read": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && root.child('solo/viewers/' + $sid + '/' + auth.uid).exists())",
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            "$id": {
+              ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (auth != null && auth.uid === $uid && (!newData.exists() || (!data.exists() && !root.child('solo/blocked/' + auth.uid).exists() && root.child('solo/participants/' + $sid + '/' + auth.uid).child('status').val() === 'approved')))",
+              ".validate": "newData.hasChildren(['text', 'at'])",
+              "text": {
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 300"
+              },
+              "at": {
+                ".validate": "newData.isNumber() && newData.val() === now"
+              },
+              "$other": {
+                ".validate": false
+              }
             }
           }
         }

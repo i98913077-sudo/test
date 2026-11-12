@@ -57,6 +57,18 @@
         <input class="t" type="datetime-local" id="cFinalEnd">
         <button class="btn sm ghost" id="cSaveTimes" style="margin-top:10px;">설정 저장</button>
         <hr style="border:0;border-top:1px solid var(--line);margin:16px 0;">
+        <label class="f">방송 설정</label>
+        <div class="chips" id="cFlags">
+          <button class="chip" data-flag="chatOpen" data-def="1">💬 대화 열기</button>
+          <button class="chip" data-flag="viewersOpen" data-def="1">📺 관람석 열기</button>
+          <button class="chip" data-flag="broadcastLounge">🛋️ 거실 생중계</button>
+          <button class="chip" data-flag="appealOpen">🎙️ 자기어필 시간</button>
+        </div>
+        <label class="f">연락처 · 사진 교환</label>
+        <select class="t" id="cExchange"><option value="chat">1:1 대화방에서 서로 동의하면 언제나</option><option value="couple">최종 커플끼리만</option><option value="off">교환 막기</option></select>
+        <label class="f">🔦 스포트라이트 (자기어필 순서)</label>
+        <div class="row"><select class="t" id="cSpot"></select><button class="btn sm ghost" id="cSpotNext" style="flex:0 0 auto;">다음 출연자 ▶</button></div>
+        <hr style="border:0;border-top:1px solid var(--line);margin:16px 0;">
         <div class="row" style="flex-wrap:wrap;">
           <button class="btn sm" data-phase="lobby">로비(탐색)</button>
           <button class="btn sm" data-phase="first">첫인상 선택 시작</button>
@@ -93,9 +105,29 @@
       </div>
     </div>
 
+    <div class="adm-grid">
+      <!-- 공용 거실 -->
+      <div class="card">
+        <h3>🛋️ 공용 거실 <span class="muted" id="lgCount"></span></h3>
+        <div class="chatbox" style="height:360px;"><div class="msgs" id="lgMsgs"></div>
+          <form class="chatin" id="lgForm" autocomplete="off"><input class="t" id="lgText" maxlength="300" placeholder="📢 제작진으로 말하기"><button class="btn sm">전송</button></form></div>
+      </div>
+      <!-- 시청자 -->
+      <div class="card">
+        <h3>📺 시청자톡 <span class="muted" id="vwCount"></span></h3>
+        <div class="chatbox" style="height:360px;"><div class="msgs" id="vwMsgs"></div>
+          <form class="chatin" id="vwForm" autocomplete="off"><input class="t" id="vwText" maxlength="200" placeholder="📢 제작진으로 말하기"><button class="btn sm">전송</button></form></div>
+      </div>
+    </div>
+    <div class="adm-grid">
+      <div class="card"><h3>🎤 속마음 인터뷰 <span class="muted">(시청자 공개)</span></h3><div id="ivList" style="max-height:420px;overflow:auto;"></div></div>
+      <div class="card"><h3>👀 시청자 · 🎁 기프티콘</h3><div id="vwList" style="max-height:420px;overflow:auto;"></div></div>
+    </div>
+
     <!-- QR -->
     <div class="card">
       <h3>게임 접속 QR코드</h3>
+      <div class="seg" id="qKind" style="max-width:360px;margin-bottom:10px;"><button class="chip on" data-k="cast">출연자용 (입장)</button><button class="chip" data-k="watch">시청자용 (관람석)</button></div>
       <div class="adm-grid">
         <div>
           <label class="f">공개 게임 입장 주소 (실제 배포 주소)</label>
@@ -119,6 +151,7 @@
   </div>
 </div>
 <div id="printArea" class="print-only"></div>
+<div id="modalRoot"></div>
 <script src="js/solo-core.js"></script>
 <script src="js/admin.js"></script>
 </body>

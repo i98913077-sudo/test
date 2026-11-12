@@ -126,7 +126,8 @@ function watchSeason(cb){
 }
 
 // QR 포스터(이미지)를 캔버스로 그린다 — 다운로드·인쇄용
-function drawPoster(qrCanvas, url, seasonName){
+function drawPoster(qrCanvas, url, seasonName, lines){
+  lines = lines || ['QR코드를 스캔하고 사이버 솔로 나라에 입장하세요.', '닉네임을 만들고 당신의 인연을 찾아보세요.'];
   const W = 1080, H = 1500, c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
@@ -148,9 +149,9 @@ function drawPoster(qrCanvas, url, seasonName){
   g.imageSmoothingEnabled = false;
   g.drawImage(qrCanvas, qx, qy, qs, qs);
   g.fillStyle = '#1F2A44'; g.font = '700 40px "Noto Sans KR", sans-serif';
-  text('QR코드를 스캔하고 사이버 솔로 나라에 입장하세요.', 1170);
+  text(lines[0], 1170);
   g.fillStyle = '#555'; g.font = '400 38px "Noto Sans KR", sans-serif';
-  text('닉네임을 만들고 당신의 인연을 찾아보세요.', 1235);
+  text(lines[1], 1235);
   g.fillStyle = '#7A1E3A'; g.font = '500 30px "Noto Sans KR", monospace';
   text(url.length > 60 ? url.slice(0,57) + '…' : url, 1330);
   g.fillStyle = '#999'; g.font = '400 26px "Noto Sans KR", sans-serif';
@@ -164,12 +165,72 @@ function makeQR(el, url, size){
   return el.querySelector('canvas');
 }
 
+// 가상 기프티콘 (실제 결제·실물 교환 없음) — 규칙 GIFTS 목록과 같아야 한다
+const GIFTS = {
+  coffee:  {e:'☕', n:'아메리카노'},
+  cake:    {e:'🍰', n:'조각 케이크'},
+  flower:  {e:'💐', n:'꽃다발'},
+  chicken: {e:'🍗', n:'치킨'},
+  icecream:{e:'🍦', n:'아이스크림'},
+  letter:  {e:'💌', n:'응원 편지'},
+  star:    {e:'⭐', n:'스타 응원'},
+  ring:    {e:'💍', n:'커플 기원 반지'}
+};
+// 나는 솔로식 가명 추천
+const SOLO_NAMES = {M:['영수','영호','영식','영철','광수','상철','경수','종수'], F:['영숙','정숙','순자','영자','옥순','현숙','정희','영미']};
+
+function roomIdOf(a, b){ return a < b ? a + '__' + b : b + '__' + a; }
+function otherOf(roomId, uid){ const p = String(roomId).split('__'); return p[0] === uid ? p[1] : p[0]; }
+
+// 사진을 긴 변 640px JPEG(약 400KB 이하)로 줄여 data URL로 만든다 — Storage 없이 DB에 저장
+function compressPhoto(file, maxSide){
+  return new Promise(function(resolve, reject){
+    if(!file || !/^image\//.test(file.type)){ reject(new Error('사진 파일을 골라 주세요.')); return; }
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = function(){
+      const m = maxSide || 640, sc = Math.min(1, m / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * sc)); c.height = Math.max(1, Math.round(img.height * sc));
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      let q = 0.82, d = c.toDataURL('image/jpeg', q);
+      while(d.length > 380000 && q > 0.35){ q -= 0.1; d = c.toDataURL('image/jpeg', q); }
+      URL.revokeObjectURL(url);
+      if(d.length > 380000) reject(new Error('사진이 너무 커요. 다른 사진을 골라 주세요.')); else resolve(d);
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('사진을 읽을 수 없어요.')); };
+    img.src = url;
+  });
+}
+function isJpeg(d){ return typeof d === 'string' && d.indexOf('data:image/jpeg;base64,') === 0; }
+
+function fmtTime(ts){ const d = new Date(ts || 0); return (d.getHours() < 12 ? '오전 ' : '오후 ') + ((d.getHours() + 11) % 12 + 1) + ':' + String(d.getMinutes()).padStart(2, '0'); }
+
+// 말풍선 목록 HTML. msgs: [{uid, nick, emoji, text, at, staff}], myUid: 내 메시지는 오른쪽
+function bubbles(msgs, myUid, opt){
+  opt = opt || {};
+  if(!msgs.length) return '<div class="empty">' + esc(opt.empty || '아직 대화가 없어요. 먼저 인사해 보세요!') + '</div>';
+  let html = '', prevDay = '';
+  msgs.forEach(function(m){
+    const day = new Date(m.at || 0).toLocaleDateString('ko-KR');
+    if(day !== prevDay){ html += '<div class="daysep">' + esc(day) + '</div>'; prevDay = day; }
+    const mine = m.uid === myUid;
+    html += '<div class="msg' + (mine ? ' mine' : '') + (m.staff ? ' staff' : '') + '">' +
+      (mine || opt.noNames ? '' : '<div class="who">' + esc((m.staff ? '📢 ' : (m.emoji ? m.emoji + ' ' : '')) + (m.nick || '')) + '</div>') +
+      '<div class="bub">' + esc(m.text) + '</div><div class="tm">' + fmtTime(m.at) + '</div>' +
+      (opt.del ? '<button class="linkbtn" data-del="' + esc(m.id) + '">삭제</button>' : '') + '</div>';
+  });
+  return html;
+}
+function listOf(v){ return Object.keys(v || {}).map(function(k){ return Object.assign({id: k}, v[k]); }).sort(function(a, b){ return (a.at || 0) - (b.at || 0); }); }
+
 window.SOLO = {
   db: db, auth: auth, ready: ready, $: $, esc: esc, now: now, nickKey: nickKey, BAD_NICK: BAD_NICK,
   toast: toast, fmtLeft: fmtLeft, PHASES: PHASES, STATUS: STATUS, GENDER: GENDER, ITEM_KIND: ITEM_KIND,
   computedEntryUrl: computedEntryUrl, isPublicUrl: isPublicUrl, watchSeason: watchSeason,
   drawPoster: drawPoster, makeQR: makeQR, useEmu: useEmu, initError: initError,
   TS: firebase.database && firebase.database.ServerValue ? firebase.database.ServerValue.TIMESTAMP : null,
-  AUTH_SETUP_HELP: AUTH_SETUP_HELP, authErrorMessage: authErrorMessage
+  AUTH_SETUP_HELP: AUTH_SETUP_HELP, authErrorMessage: authErrorMessage,
+  GIFTS: GIFTS, SOLO_NAMES: SOLO_NAMES, roomIdOf: roomIdOf, otherOf: otherOf, compressPhoto: compressPhoto, isJpeg: isJpeg,
+  fmtTime: fmtTime, bubbles: bubbles, listOf: listOf
 };
 })();

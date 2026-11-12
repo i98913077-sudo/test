@@ -6,6 +6,7 @@
 const S = window.SOLO, $ = S.$, esc = S.esc, db = S.db;
 
 let user = null, seasons = {}, curSid = null, parts = {}, votes = {}, finals = {}, notices = {}, reports = {}, entryUrl = null;
+let lounge = [], vtalk = [], viewers = {}, interviews = {}, cheers = {}, qKind = 'cast';
 let seasonListeners = [];
 
 function err(e){ const m = String((e && e.message) || e); return /permission|PERMISSION/.test(m) ? '권한이 없어요 (관리자 규칙에서 거부됨)' : m; }
@@ -92,6 +93,23 @@ function startAdmin(){
   $('qSave').onclick = saveUrl;
   $('qDown').onclick = downloadQR;
   $('qPrint').onclick = printQR;
+  $('qKind').querySelectorAll('.chip').forEach(function(c){ c.onclick = function(){ qKind = c.dataset.k; $('qKind').querySelectorAll('.chip').forEach(function(x){ x.classList.toggle('on', x === c); }); renderQR(); }; });
+  $('cFlags').querySelectorAll('.chip').forEach(function(c){ c.onclick = function(){
+    const se = season(); if(!se) return;
+    const cur = c.dataset.def ? se[c.dataset.flag] !== false : se[c.dataset.flag] === true, up = {};
+    up[c.dataset.flag] = !cur;
+    updSeason(up, c.textContent.trim() + (cur ? ' 끔' : ' 켬'));
+  }; });
+  $('cExchange').onchange = function(){ updSeason({exchange: this.value}, '교환 설정을 바꿨어요'); };
+  $('cSpot').onchange = function(){ updSeason({spotlight: this.value}, this.value ? nick(this.value) + '님 스포트라이트 ON' : '스포트라이트 끔'); };
+  $('cSpotNext').onclick = function(){
+    const ids = approvedIds(), se = season(); if(!ids.length || !se) return;
+    const i = ids.indexOf(se.spotlight || '');
+    const next = ids[(i + 1) % ids.length];
+    updSeason({spotlight: next, appealOpen: true}, nick(next) + '님의 자기어필 시간!');
+  };
+  $('lgForm').onsubmit = function(e){ e.preventDefault(); staffSay('lounge', $('lgText')); };
+  $('vwForm').onsubmit = function(e){ e.preventDefault(); staffSay('viewerChat', $('vwText')); };
 }
 
 function attachSeason(){
@@ -105,6 +123,57 @@ function attachSeason(){
   on('solo/finalChoices/' + curSid, function(v){ finals = v; renderParts(); });
   on('solo/announcements/' + curSid, function(v){ notices = v; renderNotices(); });
   on('solo/reports/' + curSid, function(v){ reports = v; renderReports(); });
+  on('solo/viewers/' + curSid, function(v){ viewers = v; renderViewers(); });
+  on('solo/interviews/' + curSid, function(v){ interviews = v; renderInterviews(); });
+  on('solo/cheers/' + curSid, function(v){ cheers = v; renderViewers(); });
+  function onQ(path, cb){ const r = db.ref(path).limitToLast(100); const f = r.on('value', function(s){ cb(S.listOf(s.val())); }, function(e){ S.toast(path + ': ' + err(e), 'bad'); }); seasonListeners.push(function(){ r.off('value', f); }); }
+  onQ('solo/lounge/' + curSid, function(v){ lounge = v; renderChatBox('lgMsgs', lounge, 'lounge'); $('lgCount').textContent = '(' + v.length + ')'; });
+  onQ('solo/viewerChat/' + curSid, function(v){ vtalk = v; renderChatBox('vwMsgs', vtalk, 'viewerChat'); });
+}
+function approvedIds(){ return Object.keys(parts).filter(function(k){ return parts[k].status === 'approved'; }).sort(function(a, b){ return (parts[a].createdAt || 0) - (parts[b].createdAt || 0); }); }
+function modal(html){ const r = $('modalRoot'); r.innerHTML = '<div class="modal"><div class="sheet">' + html + '</div></div>'; r.firstChild.addEventListener('click', function(e){ if(e.target === r.firstChild) r.innerHTML = ''; }); }
+
+/* ───────── 대화 관리 ───────── */
+function renderChatBox(id, list, path){
+  const m = $(id); if(!m) return;
+  m.innerHTML = S.bubbles(list, user.uid, {del: true, empty: '아직 대화가 없어요.'});
+  m.scrollTop = m.scrollHeight;
+  m.querySelectorAll('[data-del]').forEach(function(b){ b.onclick = function(){
+    if(confirm('이 메시지를 삭제할까요?')) db.ref('solo/' + path + '/' + curSid + '/' + b.dataset.del).remove().catch(function(e){ S.toast(err(e), 'bad'); });
+  }; });
+}
+function staffSay(path, input){
+  const t = input.value.trim(); if(!t || !curSid) return;
+  db.ref('solo/' + path + '/' + curSid).push({uid: user.uid, nick: '제작진', staff: true, text: t, at: S.TS}).then(function(){ input.value = ''; }, function(e){ S.toast(err(e), 'bad'); });
+}
+function renderInterviews(){
+  const all = [];
+  Object.keys(interviews).forEach(function(u){ S.listOf(interviews[u]).forEach(function(x){ all.push(Object.assign({u: u}, x)); }); });
+  all.sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
+  $('ivList').innerHTML = all.length ? all.map(function(x){ return '<div class="item"><div class="im"><div class="in">' + esc(nick(x.u)) + '</div><div style="white-space:pre-wrap;">' + esc(x.text) + '</div><div class="id">' + new Date(x.at).toLocaleString('ko-KR') + '</div></div><button class="btn sm ghost" data-ivd="' + x.u + '/' + x.id + '">삭제</button></div>'; }).join('') : '<p class="muted">아직 인터뷰가 없어요.</p>';
+  $('ivList').querySelectorAll('[data-ivd]').forEach(function(b){ b.onclick = function(){ if(confirm('이 인터뷰를 삭제할까요?')) db.ref('solo/interviews/' + curSid + '/' + b.dataset.ivd).remove().catch(function(e){ S.toast(err(e), 'bad'); }); }; });
+}
+function renderViewers(){
+  const ks = Object.keys(viewers).sort(function(a, b){ return (viewers[b].at || 0) - (viewers[a].at || 0); });
+  $('vwCount').textContent = '(시청자 ' + ks.length + '명)';
+  const sent = {}, got = {};
+  Object.keys(cheers).forEach(function(k){ const c = cheers[k]; sent[c.from] = (sent[c.from] || 0) + 1; got[c.to] = (got[c.to] || 0) + 1; });
+  const top = Object.keys(got).sort(function(a, b){ return got[b] - got[a]; }).slice(0, 5);
+  $('vwList').innerHTML = '<div class="muted" style="margin-bottom:6px;">🏆 기프티콘 순위: ' + (top.length ? top.map(function(u){ return esc(nick(u)) + ' ' + got[u]; }).join(' · ') : '없음') + '</div>' +
+    (ks.length ? ks.map(function(k){ return '<div class="item"><div class="im"><div class="in">👀 ' + esc(viewers[k].nick) + '</div><div class="id">기프티콘 ' + (sent[k] || 0) + '개 보냄</div></div><button class="btn sm ghost" data-vb="' + k + '" style="color:var(--bad);">차단</button></div>'; }).join('') : '<p class="muted">아직 시청자가 없어요. 시청자용 QR을 공유해 보세요.</p>');
+  $('vwList').querySelectorAll('[data-vb]').forEach(function(b){ b.onclick = function(){
+    if(confirm(viewers[b.dataset.vb].nick + ' 시청자를 차단할까요?')) db.ref('solo/blocked/' + b.dataset.vb).set(true).then(function(){ S.toast('차단했어요', 'ok'); }, function(e){ S.toast(err(e), 'bad'); });
+  }; });
+}
+function viewRoom(room){
+  db.ref('solo/dmMsgs/' + curSid + '/' + room).once('value').then(function(s){
+    const p = room.split('__'), msgs = S.listOf(s.val()).map(function(m){ return Object.assign({nick: nick(m.uid), emoji: parts[m.uid] && parts[m.uid].avatar ? parts[m.uid].avatar.emoji : ''}, m); });
+    modal('<h3 class="serif" style="color:var(--wine);margin-top:0;">신고된 1:1 대화</h3><p class="muted">' + esc(nick(p[0])) + ' ↔ ' + esc(nick(p[1])) + ' · 연락처·사진 내용은 운영자도 볼 수 없어요.</p>' +
+      '<div class="chatbox" style="height:60vh;"><div class="msgs">' + S.bubbles(msgs, '', {}) + '</div></div>' +
+      '<div class="row" style="margin-top:10px;"><button class="btn sm ghost" id="rvClose">대화방 종료시키기</button><button class="btn sm" id="rvX">닫기</button></div>');
+    $('rvX').onclick = function(){ $('modalRoot').innerHTML = ''; };
+    $('rvClose').onclick = function(){ db.ref('solo/dmRooms/' + curSid + '/' + room + '/closed').set(true).then(function(){ S.toast('대화방을 종료했어요', 'ok'); }, function(e){ S.toast(err(e), 'bad'); }); };
+  }, function(e){ S.toast(err(e), 'bad'); });
 }
 
 function renderSeasons(){
@@ -138,6 +207,9 @@ function renderCtl(){
   if(document.activeElement !== $('cFirstEnd')) $('cFirstEnd').value = toLocalInput(se.firstEndsAt);
   if(document.activeElement !== $('cFinalEnd')) $('cFinalEnd').value = toLocalInput(se.finalEndsAt);
   document.querySelectorAll('[data-phase]').forEach(function(b){ b.classList.toggle('ghost', b.dataset.phase !== se.phase); });
+  $('cFlags').querySelectorAll('.chip').forEach(function(c){ c.classList.toggle('on', c.dataset.def ? se[c.dataset.flag] !== false : se[c.dataset.flag] === true); });
+  $('cExchange').value = se.exchange || 'chat';
+  $('cSpot').innerHTML = '<option value="">스포트라이트 없음</option>' + approvedIds().map(function(k){ return '<option value="' + k + '"' + (k === se.spotlight ? ' selected' : '') + '>' + esc(parts[k].avatar.emoji + ' ' + parts[k].nick) + '</option>'; }).join('');
 }
 function setPhase(ph){
   const se = season(); if(!se) return;
@@ -239,13 +311,14 @@ function renderNotices(){
 function renderReports(){
   const ks = Object.keys(reports).sort(function(a, b){ return reports[b].at - reports[a].at; });
   $('rList').innerHTML = ks.length ? ks.map(function(k){ const r = reports[k]; return '<div class="item"><div class="im"><div class="in">' + esc(nick(r.target)) + ' <span class="muted">← ' + esc(nick(r.from)) + '</span></div><div class="id">' + esc(r.reason) + ' · ' + new Date(r.at).toLocaleString('ko-KR') + '</div></div>' +
-    '<div style="display:flex;flex-direction:column;gap:6px;"><button class="btn sm ghost" data-rb="' + esc(r.target) + '" style="color:var(--bad);">차단</button><button class="btn sm ghost" data-rd="' + k + '">처리 완료</button></div></div>'; }).join('') : '<p class="muted">신고 내역이 없어요.</p>';
+    '<div style="display:flex;flex-direction:column;gap:6px;">' + (r.room ? '<button class="btn sm navy" data-rv="' + esc(r.room) + '">대화 보기</button>' : '') + '<button class="btn sm ghost" data-rb="' + esc(r.target) + '" style="color:var(--bad);">차단</button><button class="btn sm ghost" data-rd="' + k + '">처리 완료</button></div></div>'; }).join('') : '<p class="muted">신고 내역이 없어요.</p>';
   $('rList').querySelectorAll('[data-rd]').forEach(function(b){ b.onclick = function(){ db.ref('solo/reports/' + curSid + '/' + b.dataset.rd).remove().catch(function(e){ S.toast(err(e), 'bad'); }); }; });
   $('rList').querySelectorAll('[data-rb]').forEach(function(b){ b.onclick = function(){ setStatus(b.dataset.rb, 'blocked'); }; });
+  $('rList').querySelectorAll('[data-rv]').forEach(function(b){ b.onclick = function(){ viewRoom(b.dataset.rv); }; });
 }
 
 /* ───────── QR ───────── */
-function currentQrUrl(){ return entryUrl || S.computedEntryUrl(); }
+function currentQrUrl(){ const u = entryUrl || S.computedEntryUrl(); return qKind === 'watch' ? u.replace(/\/?$/, '/') + 'watch.html' : u; }
 function checkUrl(){
   const v = $('qUrl').value.trim();
   if(!v){ $('qHint').textContent = ''; return false; }
@@ -271,11 +344,11 @@ function renderQR(){
 }
 function poster(){
   const qc = $('qBox').querySelector('canvas');
-  return S.drawPoster(qc, currentQrUrl(), season() ? season().name : '');
+  return S.drawPoster(qc, currentQrUrl(), season() ? season().name : '', qKind === 'watch' ? ['QR코드를 스캔하고 관람석에 입장하세요.', '출연자를 응원하고 기프티콘을 보내 보세요.'] : null);
 }
 function downloadQR(){
   const c = poster(), a = document.createElement('a');
-  a.download = 'cyber-solo-qr.png';
+  a.download = qKind === 'watch' ? 'cyber-solo-viewer-qr.png' : 'cyber-solo-qr.png';
   a.href = c.toDataURL('image/png');
   document.body.appendChild(a); a.click(); a.remove();
 }

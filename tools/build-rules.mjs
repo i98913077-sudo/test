@@ -16,6 +16,19 @@ const SERVER_TIME = 'newData.isNumber() && newData.val() === now';
 const IMMUTABLE = '(!data.exists() || newData.val() === data.val())';
 const deadlineOpen = (field) => `(!${SEASON}.child('${field}').exists() || ${SEASON}.child('${field}').val() === 0 || now < ${SEASON}.child('${field}').val())`;
 const NONE = { '.validate': false };
+const CHAT_OPEN = `${SEASON}.child('chatOpen').val() !== false`;
+const ROOM = "root.child('solo/dmRooms/' + $sid + '/' + $room)";
+const MEMBER = `auth != null && (${ROOM}.child('a').val() === auth.uid || ${ROOM}.child('b').val() === auth.uid)`;
+const OTHER = `(${ROOM}.child('a').val() === auth.uid ? ${ROOM}.child('b').val() : ${ROOM}.child('a').val())`;
+const ROOM_OPEN = `${ROOM}.child('closed').val() !== true`;
+// 연락처·사진 교환 허용 범위: 'chat'(1:1 대화방에서 언제나, 기본) | 'couple'(최종 커플끼리만) | 'off'
+const EXCHANGE_OK = `${SEASON}.child('exchange').val() !== 'off' && (${SEASON}.child('exchange').val() !== 'couple' || root.child('solo/results/' + $sid + '/final/' + auth.uid + '/partner').val() === ${OTHER})`;
+const ACTIVE = `${NOT_BLOCKED} && ${ME_APPROVED}`;
+const MY_NICK = `${PART('auth.uid')}.child('nick').val()`;
+const VIEWER = "(auth != null && root.child('solo/viewers/' + $sid + '/' + auth.uid).exists())";
+const JPEG = "newData.isString() && newData.val().beginsWith('data:image/jpeg;base64,') && newData.val().length <= 400000";
+// 가상 기프티콘 종류 (실제 결제 없음)
+const GIFTS = 'coffee|cake|flower|chicken|icecream|ring|letter|star';
 
 // 첫인상 선택 칸: $slot 은 0~2, 시즌 picks 수만큼만, 서로 다른 상대만.
 const slotRule = [
@@ -67,6 +80,12 @@ const rules = {
           finalEndsAt: { '.validate': 'newData.isNumber()' },
           firstRevealed: { '.validate': 'newData.isBoolean()' },
           resultsPublished: { '.validate': 'newData.isBoolean()' },
+          chatOpen: { '.validate': 'newData.isBoolean()' },
+          viewersOpen: { '.validate': 'newData.isBoolean()' },
+          broadcastLounge: { '.validate': 'newData.isBoolean()' },
+          appealOpen: { '.validate': 'newData.isBoolean()' },
+          spotlight: { '.validate': str(0, 128) },
+          exchange: { '.validate': "newData.isString() && newData.val().matches(/^(chat|couple|off)$/)" },
           createdAt: { '.validate': 'newData.isNumber()' },
           $other: NONE,
         },
@@ -77,7 +96,7 @@ const rules = {
         $sid: {
           '.read': 'auth != null',
           $uid: {
-            '.write': `${ADMIN} || (auth != null && auth.uid === $uid && ${NOT_BLOCKED} && ${SEASON}.exists() && newData.exists() && (data.exists() ? data.child('status').val() !== 'blocked' : ${SEASON}.child('status').val() !== 'ended'))`,
+            '.write': `${ADMIN} || (auth != null && auth.uid === $uid && ${NOT_BLOCKED} && ${SEASON}.exists() && newData.exists() && (data.exists() ? data.child('status').val() !== 'blocked' : (${SEASON}.child('status').val() !== 'ended' && !root.child('solo/viewers/' + $sid + '/' + auth.uid).exists())))`,
             '.validate': "newData.hasChildren(['nick', 'age', 'gender', 'lookingFor', 'intro', 'avatar', 'status', 'createdAt'])",
             nick: {
               '.validate': `${str(2, 12)} && ${NO_KEY_CHARS} && ${IMMUTABLE} && newData.parent().parent().parent().parent().child('nicknames/' + $sid + '/' + newData.val().toLowerCase()).val() === $uid`,
@@ -90,6 +109,8 @@ const rules = {
             intro: { '.validate': str(1, 300) },
             ideal: { '.validate': str(0, 100) },
             style: { '.validate': str(0, 40) },
+            // 친구 소개로 들어온 경우 소개한 사람의 추천 코드
+            ref: { '.validate': `newData.isString() && ${IMMUTABLE} && newData.val() !== $uid && root.child('solo/referrals/' + $sid + '/' + newData.val()).exists()` },
             avatar: {
               '.validate': "newData.hasChildren(['emoji', 'color'])",
               emoji: { '.validate': str(1, 8) },
@@ -176,8 +197,238 @@ const rules = {
             from: { '.validate': 'newData.val() === auth.uid' },
             target: { '.validate': str(1, 128) },
             reason: { '.validate': str(1, 200) },
+            room: { '.validate': str(1, 300) },
             at: { '.validate': SERVER_TIME },
             $other: NONE,
+          },
+        },
+      },
+
+      // ── 채팅 ──
+      // 공용 거실: 승인된 참가자 전체 대화방. 닉네임은 본인 프로필과 같아야 한다(사칭 방지).
+      lounge: {
+        $sid: {
+          '.read': `${ADMIN} || (auth != null && ${ME_APPROVED}) || (${VIEWER} && ${SEASON}.child('broadcastLounge').val() === true)`,
+          $id: {
+            '.write': `${ADMIN} || (auth != null && !data.exists() && ${ACTIVE} && ${CHAT_OPEN})`,
+            '.validate': "newData.hasChildren(['uid', 'nick', 'text', 'at'])",
+            uid: { '.validate': 'newData.val() === auth.uid' },
+            nick: { '.validate': `${str(1, 12)} && (${ADMIN} ? true : newData.val() === ${MY_NICK})` },
+            emoji: { '.validate': str(0, 8) },
+            staff: { '.validate': `newData.isBoolean() && ${ADMIN}` },
+            text: { '.validate': str(1, 300) },
+            at: { '.validate': SERVER_TIME },
+            $other: NONE,
+          },
+        },
+      },
+
+      // 1:1 데이트 대화 신청: dmReq/{sid}/{받는사람}/{보낸사람}
+      dmReq: {
+        $sid: {
+          $to: {
+            '.read': 'auth != null && auth.uid === $to',
+            $from: {
+              '.read': 'auth != null && auth.uid === $from',
+              '.write': `${ADMIN} || (auth != null && auth.uid === $from && $to !== $from && newData.exists() && ${ACTIVE} && ${CHAT_OPEN} && ${PART('$to')}.child('status').val() === 'approved') || (auth != null && (auth.uid === $to || auth.uid === $from) && !newData.exists())`,
+              '.validate': "newData.hasChildren(['at'])",
+              msg: { '.validate': str(0, 80) },
+              // 슈퍼데이트권: 내가 가진 '데이트권' 아이템을 같은 업데이트로 사용(삭제)해야 한다.
+              ticket: { '.validate': "newData.isString() && root.child('solo/items/' + $sid + '/' + newData.val() + '/owner').val() === auth.uid && root.child('solo/items/' + $sid + '/' + newData.val() + '/kind').val() === 'date' && !newData.parent().parent().parent().parent().parent().child('items/' + $sid + '/' + newData.val()).exists()" },
+              at: { '.validate': SERVER_TIME },
+              $other: NONE,
+            },
+          },
+        },
+      },
+
+      // 1:1 대화방: 신청을 받은 사람이 수락할 때만 만들 수 있다. 방 ID = 'uidA__uidB' (사전순)
+      dmRooms: {
+        $sid: {
+          $room: {
+            '.read': `${ADMIN} || ${MEMBER}`,
+            '.write': `${ADMIN} || (auth != null && !data.exists() && ${ACTIVE} && ${CHAT_OPEN} && ((newData.child('a').val() === auth.uid && root.child('solo/dmReq/' + $sid + '/' + auth.uid + '/' + newData.child('b').val()).exists()) || (newData.child('b').val() === auth.uid && root.child('solo/dmReq/' + $sid + '/' + auth.uid + '/' + newData.child('a').val()).exists())))`,
+            '.validate': `newData.hasChildren(['a', 'b', 'createdAt']) && $room === newData.child('a').val() + '__' + newData.child('b').val() && newData.child('a').val() < newData.child('b').val()`,
+            a: { '.validate': `${IMMUTABLE} && ${PART('newData.val()')}.child('status').val() === 'approved'` },
+            b: { '.validate': `${IMMUTABLE} && ${PART('newData.val()')}.child('status').val() === 'approved'` },
+            createdAt: { '.validate': `newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)` },
+            closed: { '.write': MEMBER, '.validate': 'newData.isBoolean()' },
+            $other: NONE,
+          },
+        },
+      },
+
+      // 내 대화방 목록 (본인만 읽기). 방 수락과 같은 업데이트로 양쪽에 기록된다.
+      myRooms: {
+        $sid: {
+          $uid: {
+            '.read': 'auth != null && auth.uid === $uid',
+            $room: {
+              '.write': `${ADMIN} || (auth != null && (auth.uid === $uid ? true : newData.exists()) && (newData.parent().parent().parent().parent().child('dmRooms/' + $sid + '/' + $room + '/a').val() === auth.uid || newData.parent().parent().parent().parent().child('dmRooms/' + $sid + '/' + $room + '/b').val() === auth.uid) && (newData.parent().parent().parent().parent().child('dmRooms/' + $sid + '/' + $room + '/a').val() === $uid || newData.parent().parent().parent().parent().child('dmRooms/' + $sid + '/' + $room + '/b').val() === $uid))`,
+              '.validate': 'newData.val() === true',
+            },
+          },
+        },
+      },
+
+      // 1:1 대화 메시지: 두 사람만 읽고 쓴다. 신고 처리를 위해 운영자도 읽을 수 있다(화면에 안내).
+      dmMsgs: {
+        $sid: {
+          $room: {
+            '.read': `${ADMIN} || ${MEMBER}`,
+            $id: {
+              '.write': `${ADMIN} || (${MEMBER} && !data.exists() && ${ACTIVE} && ${CHAT_OPEN} && ${ROOM_OPEN})`,
+              '.validate': "newData.hasChildren(['uid', 'text', 'at'])",
+              uid: { '.validate': 'newData.val() === auth.uid' },
+              text: { '.validate': str(1, 500) },
+              at: { '.validate': SERVER_TIME },
+              $other: NONE,
+            },
+          },
+        },
+      },
+
+      // 읽음 표시 (본인만)
+      dmRead: {
+        $sid: { $uid: { '.read': 'auth != null && auth.uid === $uid', '.write': 'auth != null && auth.uid === $uid', $room: { '.validate': 'newData.isNumber()' } } },
+      },
+
+      // 연락처·사진 교환: 내 것을 올려야만 상대 것을 볼 수 있다(서로 올린 경우에만 교환).
+      // 운영자도 내용은 읽을 수 없고, 부적절한 경우 삭제만 할 수 있다.
+      dmShare: {
+        $sid: {
+          $room: {
+            $uid: {
+              $kind: {
+                '.read': `auth != null && (auth.uid === $uid || (${MEMBER} && root.child('solo/dmShare/' + $sid + '/' + $room + '/' + auth.uid + '/' + $kind).exists()))`,
+                '.write': `(${ADMIN} && !newData.exists()) || (auth != null && auth.uid === $uid && ${MEMBER} && (!newData.exists() || (${ACTIVE} && ${ROOM_OPEN} && ${EXCHANGE_OK})))`,
+                '.validate': `($kind === 'contact' && ${str(1, 100)}) || ($kind === 'photo' && newData.isString() && newData.val().beginsWith('data:image/jpeg;base64,') && newData.val().length <= 400000)`,
+              },
+            },
+          },
+        },
+      },
+      // 교환 상태(누가 올렸는지)만 두 사람이 볼 수 있다. 실제 값은 위 dmShare.
+      dmShareState: {
+        $sid: {
+          $room: {
+            '.read': MEMBER,
+            $uid: {
+              '.write': `(${ADMIN} && !newData.exists()) || (auth != null && auth.uid === $uid && ${MEMBER})`,
+              contact: { '.validate': 'newData.val() === true' },
+              photo: { '.validate': 'newData.val() === true' },
+              $other: NONE,
+            },
+          },
+        },
+      },
+
+      // ── 시청자 ──
+      // 관람석 등록. 출연자와 시청자는 같은 기기(계정)로 겸할 수 없다(속마음 인터뷰 보호).
+      viewers: {
+        $sid: {
+          '.read': 'auth != null',
+          $uid: {
+            '.write': `${ADMIN} || (auth != null && auth.uid === $uid && newData.exists() && ${NOT_BLOCKED} && ${SEASON}.exists() && ${SEASON}.child('viewersOpen').val() !== false && !${PART('auth.uid')}.exists())`,
+            '.validate': "newData.hasChildren(['nick', 'at'])",
+            nick: { '.validate': `${str(1, 12)} && ${NO_KEY_CHARS}` },
+            at: { '.validate': `newData.isNumber() && (data.exists() ? newData.val() === data.val() : newData.val() === now)` },
+            $other: NONE,
+          },
+        },
+      },
+
+      // 시청자 전용 톡 (출연자는 읽을 수 없음)
+      viewerChat: {
+        $sid: {
+          '.read': `${ADMIN} || ${VIEWER}`,
+          $id: {
+            '.write': `${ADMIN} || (${VIEWER} && !data.exists() && ${NOT_BLOCKED} && ${CHAT_OPEN})`,
+            '.validate': "newData.hasChildren(['uid', 'nick', 'text', 'at'])",
+            uid: { '.validate': 'newData.val() === auth.uid' },
+            nick: { '.validate': `${str(1, 12)} && (${ADMIN} ? true : newData.val() === root.child('solo/viewers/' + $sid + '/' + auth.uid + '/nick').val())` },
+            staff: { '.validate': `newData.isBoolean() && ${ADMIN}` },
+            text: { '.validate': str(1, 200) },
+            at: { '.validate': SERVER_TIME },
+            $other: NONE,
+          },
+        },
+      },
+
+      // 가상 기프티콘 (실제 결제 없음): 시청자 1인당 기수별 최대 20개. ID = '<시청자uid>_<0-9a-j>'
+      cheers: {
+        $sid: {
+          '.read': 'auth != null',
+          $id: {
+            '.write': `(${ADMIN} && !newData.exists()) || (${VIEWER} && !data.exists() && ${NOT_BLOCKED} && $id.beginsWith(auth.uid + '_') && $id.length === auth.uid.length + 2 && $id.matches(/_[0-9a-j]$/))`,
+            '.validate': "newData.hasChildren(['from', 'fromNick', 'to', 'gift', 'at'])",
+            from: { '.validate': 'newData.val() === auth.uid' },
+            fromNick: { '.validate': str(1, 12) },
+            to: { '.validate': `newData.isString() && ${TARGET_APPROVED}` },
+            gift: { '.validate': `newData.isString() && newData.val().matches(/^(${GIFTS})$/)` },
+            msg: { '.validate': str(0, 60) },
+            at: { '.validate': SERVER_TIME },
+            $other: NONE,
+          },
+        },
+      },
+
+      // 친구 소개: 추천 코드 = 소개하는 사람의 uid. 소개받은 친구의 프로필에 추천사가 표시된다.
+      referrals: {
+        $sid: {
+          '.read': 'auth != null',
+          $code: {
+            '.write': `${ADMIN} || (auth != null && $code === auth.uid && newData.exists() && ${NOT_BLOCKED} && (${VIEWER} || ${PART('auth.uid')}.exists()))`,
+            '.validate': "newData.hasChildren(['by', 'byNick', 'role', 'at'])",
+            by: { '.validate': 'newData.val() === auth.uid' },
+            byNick: { '.validate': str(1, 12) },
+            role: { '.validate': "newData.isString() && newData.val().matches(/^(viewer|participant)$/)" },
+            note: { '.validate': str(0, 100) },
+            at: { '.validate': SERVER_TIME },
+            $other: NONE,
+          },
+        },
+      },
+
+      // 자기어필 시간: 운영자가 열어 둔 동안 출연자가 소개글(선택: 사진)을 올린다. 출연자·시청자 모두 볼 수 있다.
+      appeals: {
+        $sid: {
+          '.read': 'auth != null',
+          $uid: {
+            '.write': `${ADMIN} || (auth != null && auth.uid === $uid && (!newData.exists() || (${ACTIVE} && ${SEASON}.child('appealOpen').val() === true)))`,
+            '.validate': "newData.hasChildren(['text', 'at'])",
+            text: { '.validate': str(1, 500) },
+            photo: { '.validate': JPEG },
+            at: { '.validate': SERVER_TIME },
+            $other: NONE,
+          },
+        },
+      },
+      appealLikes: {
+        $sid: {
+          '.read': 'auth != null',
+          $target: {
+            $liker: {
+              '.write': `auth != null && auth.uid === $liker && $target !== $liker && (!newData.exists() || (${NOT_BLOCKED} && (${VIEWER} || ${ME_APPROVED}) && ${PART('$target')}.child('status').val() === 'approved'))`,
+              '.validate': 'newData.val() === true',
+            },
+          },
+        },
+      },
+
+      // 속마음 인터뷰: 출연자가 남기면 시청자와 운영자만 본다(다른 출연자는 볼 수 없음).
+      interviews: {
+        $sid: {
+          '.read': `${ADMIN} || ${VIEWER}`,
+          $uid: {
+            '.read': 'auth != null && auth.uid === $uid',
+            $id: {
+              '.write': `${ADMIN} || (auth != null && auth.uid === $uid && (!newData.exists() || (!data.exists() && ${ACTIVE})))`,
+              '.validate': "newData.hasChildren(['text', 'at'])",
+              text: { '.validate': str(1, 300) },
+              at: { '.validate': SERVER_TIME },
+              $other: NONE,
+            },
           },
         },
       },

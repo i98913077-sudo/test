@@ -32,8 +32,10 @@
     <div class="stat"><b id="iCount">-</b><span>참가자</span></div>
   </div>
   <div class="notice navy center" id="iStatus">불러오는 중…</div>
+  <div class="notice center hidden" id="iRef"></div>
   <button class="btn big" id="iEnter" disabled>사이버 솔로 나라 입장</button>
   <button class="btn navy" id="iQr">QR코드로 입장하기</button>
+  <button class="btn ghost" id="iWatch">📺 시청자로 관람하기</button>
   <button class="btn ghost" id="iGuide">프로그램 안내</button>
   <div class="hint bad center" id="iErr"></div>
   <div class="footer"><a href="../">홈으로</a> · <a href="admin.html">운영자</a></div>
@@ -70,13 +72,15 @@
   </div>
   <div class="wrap">
     <section id="t-lobby"></section>
+    <section id="t-chat" class="hidden"></section>
     <section id="t-picks" class="hidden"></section>
     <section id="t-items" class="hidden"></section>
     <section id="t-news" class="hidden"></section>
   </div>
   <nav class="tabs"><div class="in">
     <button data-t="lobby" class="on"><b>🏝️</b>솔로 나라</button>
-    <button data-t="picks"><b>💌</b>나의 선택</button>
+    <button data-t="chat"><b>💬</b>대화<i class="dot hidden" id="chatDot"></i></button>
+    <button data-t="picks"><b>💗</b>선택·인터뷰</button>
     <button data-t="items"><b>🎁</b>아이템</button>
     <button data-t="news"><b>📣</b>소식·결과<i class="dot hidden" id="newsDot"></i></button>
   </div></nav>
@@ -85,6 +89,7 @@
 <div id="modalRoot"></div>
 
 <script src="js/solo-core.js"></script>
+<script src="js/chat.js"></script>
 <script src="js/game.js"></script>
 </body>
 </html>

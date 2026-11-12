@@ -14,6 +14,8 @@ const MAX_ITEMS = 10;
 let user = null, sid = null, season = null, me = null, blocked = false;
 let parts = {}, myVotes = [], myFinal = null, items = {}, notices = {}, resFirst = null, resFinal = null, couples = null;
 let tab = 'lobby', showAll = false, appOn = false, listeners = [], resultListeners = [];
+let appeals = {}, likes = {}, cheers = {}, referrals = {}, myInterviews = {}, isViewer = false, refCode = null, chatFor = null;
+const Chat = window.SOLO_CHAT;
 
 /* ───────── 공통 ───────── */
 function show(id){ ['s-intro','s-onboard','s-wait','s-app'].forEach(function(s){ $(s).classList.toggle('hidden', s !== id); }); window.scrollTo(0,0); }
@@ -48,7 +50,12 @@ function guideModal(){
     '<li><b>첫인상 선택</b> — 운영자가 정한 기간 동안 마음에 드는 상대를 비공개로 선택해요.</li>' +
     '<li><b>호감 알림</b> — 운영자가 공개하면, 서로 선택한 경우에만 알려드려요.</li>' +
     '<li><b>최종 선택</b> — 기수 마지막에 단 한 명을 선택해요. 서로 선택하면 커플 성사!</li>' +
-    '<li><b>아이템</b> — 직접 아이템을 만들어 마음에 드는 상대에게 선물할 수 있어요.</li>' +
+    '<li><b>공용 거실 · 데이트 신청</b> — 모두와 이야기하는 공용 거실, 수락하면 열리는 1:1 데이트 대화방이 있어요.</li>' +
+    '<li><b>연락처 · 사진 교환</b> — 1:1 대화방에서 두 사람이 <b>모두</b> 올렸을 때만 서로 보여요.</li>' +
+    '<li><b>자기어필 시간</b> — 운영자가 열면 소개글과 사진으로 나를 어필해요. 스포트라이트를 받은 출연자는 모두의 화면에 소개돼요.</li>' +
+    '<li><b>속마음 인터뷰</b> — 시청자만 보는 진짜 속마음을 남길 수 있어요.</li>' +
+    '<li><b>아이템</b> — 직접 아이템을 만들어 선물해요. "데이트권"은 🎫 슈퍼데이트 신청에 쓸 수 있어요.</li>' +
+    '<li><b>시청자 · 친구 소개</b> — 관람석의 시청자가 기프티콘으로 응원하고, 솔로 친구를 소개할 수 있어요.</li>' +
     '</ol><p class="muted">선택 내용은 본인과 운영자만 볼 수 있고, 상대 동의 없이 연락처를 공개하지 않아요. 불편한 참가자는 카드의 "신고"로 알려주세요.</p>' +
     '<button class="btn" id="mClose">확인</button>');
   $('mClose').onclick = closeModal;
@@ -71,6 +78,13 @@ function boot(){
   show('s-intro');
   $('iGuide').onclick = guideModal;
   $('iQr').onclick = qrModal;
+  $('iWatch').onclick = function(){ location.href = 'watch.html' + location.search; };
+  // 친구 소개 링크(?ref=코드)로 들어온 경우 기억해 두었다가 캐릭터 생성 때 기록한다
+  try{
+    const r = new URLSearchParams(location.search).get('ref');
+    if(r && /^[A-Za-z0-9]{6,64}$/.test(r)) sessionStorage.setItem('solo_ref', r);
+    refCode = sessionStorage.getItem('solo_ref');
+  }catch(e){}
   if(S.initError){ $('iErr').textContent = 'Firebase를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.'; return; }
   S.ready().then(function(u){
     user = u;
@@ -96,18 +110,26 @@ function renderIntro(){
   if(!season){ $('iStatus').textContent = '아직 열린 기수가 없어요. 운영자가 기수를 열면 입장할 수 있어요.'; $('iEnter').disabled = true; return; }
   $('iStatus').textContent = S.STATUS[season.status] + ' · ' + (S.PHASES[season.phase] || '');
   $('iEnter').disabled = false;
+  const rf = refCode && referrals[refCode];
+  $('iRef').classList.toggle('hidden', !rf || !!me);
+  if(rf) $('iRef').innerHTML = '👭 <b>' + esc(rf.byNick) + '</b>님의 소개로 오셨군요!' + (rf.note ? '<br><span class="muted">"' + esc(rf.note) + '"</span>' : '');
 }
 
 function enter(){
   if(!sid || !season) return;
   if(blocked){ waitScreen('입장이 제한되었어요', '운영 정책에 따라 이 기기에서는 참가할 수 없어요.'); return; }
   if(me){ openApp(); return; }
+  if(isViewer){ S.toast('이 기기는 시청자(관람석)로 등록되어 있어요. 출연하려면 다른 기기나 브라우저를 사용해 주세요.'); return; }
   if(season.status === 'ended'){ S.toast('이번 기수는 종료되었어요. 다음 기수를 기다려 주세요.'); return; }
   startOnboarding();
 }
 
 /* ───────── 시즌 데이터 구독 ───────── */
-function detach(){ listeners.forEach(function(f){ f(); }); listeners = []; resultListeners.forEach(function(f){ f(); }); resultListeners = []; parts = {}; me = null; myVotes = []; myFinal = null; items = {}; notices = {}; }
+function detach(){
+  listeners.forEach(function(f){ f(); }); listeners = []; resultListeners.forEach(function(f){ f(); }); resultListeners = [];
+  parts = {}; me = null; myVotes = []; myFinal = null; items = {}; notices = {}; appeals = {}; likes = {}; cheers = {}; referrals = {}; myInterviews = {}; isViewer = false;
+  if(Chat) Chat.stop(); chatFor = null;
+}
 function attachSeason(){
   on(db.ref('solo/participants/' + sid), 'value', function(s){
     parts = (s && s.val()) || {};
@@ -124,6 +146,12 @@ function attachSeason(){
   on(db.ref('solo/finalChoices/' + sid + '/' + user.uid), 'value', function(s){ myFinal = s && s.val() ? s.val().target : null; if(appOn) renderAll(); });
   on(db.ref('solo/items/' + sid), 'value', function(s){ items = (s && s.val()) || {}; if(appOn) renderAll(); });
   on(db.ref('solo/announcements/' + sid), 'value', function(s){ notices = (s && s.val()) || {}; if(appOn) renderAll(); });
+  on(db.ref('solo/appeals/' + sid), 'value', function(s){ appeals = (s && s.val()) || {}; if(appOn) renderAll(); });
+  on(db.ref('solo/appealLikes/' + sid), 'value', function(s){ likes = (s && s.val()) || {}; if(appOn) renderAll(); });
+  on(db.ref('solo/cheers/' + sid), 'value', function(s){ cheers = (s && s.val()) || {}; if(appOn) renderAll(); });
+  on(db.ref('solo/referrals/' + sid), 'value', function(s){ referrals = (s && s.val()) || {}; renderIntro(); if(appOn) renderAll(); });
+  on(db.ref('solo/viewers/' + sid + '/' + user.uid), 'value', function(s){ isViewer = !!(s && s.exists()); });
+  on(db.ref('solo/interviews/' + sid + '/' + user.uid), 'value', function(s){ myInterviews = (s && s.val()) || {}; if(appOn && tab === 'picks') renderAll(); });
 }
 // 결과는 공개 플래그가 켜진 뒤에만 읽을 수 있어서, 시즌 상태가 바뀔 때마다 다시 구독한다.
 function attachResults(){
@@ -158,16 +186,22 @@ function renderOb(){
       '<li>프로필(닉네임·연령대·성별·성격·취미·자기소개)은 이번 기수 참가자에게 공개돼요.</li>' +
       '<li>호감 선택과 최종 선택은 <b>본인과 운영자만</b> 볼 수 있어요.</li>' +
       '<li>서로를 선택한 경우에만, 운영자가 공개한 뒤 결과를 알려드려요.</li>' +
+      '<li>1:1 데이트 대화는 두 사람만 보지만, <b>신고가 들어오면 운영자가 확인</b>할 수 있어요. 연락처·사진은 두 사람이 <b>모두</b> 올렸을 때만 서로 보여요.</li>' +
+      '<li>관람석의 <b>시청자</b>가 프로필·자기어필·속마음 인터뷰(와 운영자가 켜면 공용 거실)를 볼 수 있어요. 호감 선택·1:1 대화·연락처는 볼 수 없어요.</li>' +
       '<li>상대를 존중해 주세요. 부적절한 이용은 운영자가 차단할 수 있어요.</li>' +
       '<li>이 기기의 브라우저에 익명 로그인 정보가 저장돼요. 다른 기기에서는 새 캐릭터가 필요해요.</li></ol>' +
       '<label class="row" style="gap:8px;margin-top:10px;cursor:pointer;"><input type="checkbox" id="obAgree" style="flex:0 0 auto;width:20px;height:20px;"' + (ob.agree ? ' checked' : '') + '> <span>위 내용을 확인했어요</span></label></div>';
     $('obAgree').onchange = function(){ ob.agree = this.checked; };
   }else if(ob.step === 1){
     b.innerHTML = '<div class="card"><h3>닉네임 설정</h3><p class="muted">2~12자. 이번 기수에서 다른 참가자와 겹칠 수 없어요.</p>' +
-      '<input class="t" id="obNick" maxlength="12" placeholder="예) 영숙, 광수, 별빛쌤" value="' + esc(ob.nick) + '"><div class="hint" id="obNickHint"></div></div>';
+      '<input class="t" id="obNick" maxlength="12" placeholder="예) 영숙, 광수, 별빛쌤" value="' + esc(ob.nick) + '"><div class="hint" id="obNickHint"></div>' +
+      '<label class="f">솔로 나라 이름 추천 <span class="muted">(겹치면 뒤에 숫자를 붙여요)</span></label><div class="chips" id="obNames">' +
+      S.SOLO_NAMES.M.concat(S.SOLO_NAMES.F).map(function(n){ return '<button class="chip" data-v="' + n + '">' + n + '</button>'; }).join('') + '</div></div>';
     const inp = $('obNick');
+    $('obNames').querySelectorAll('.chip').forEach(function(c){ c.onclick = function(){ pickName(c.dataset.v); }; });
     inp.oninput = function(){ ob.nick = inp.value; ob.nickOk = false; $('obNickHint').textContent = ''; $('obNickHint').className = 'hint'; };
-    inp.onblur = function(){ checkNick(); };
+    // 빈 칸일 때 경고를 띄우면 아래 추천 칩이 밀려 탭이 빗나가므로, 입력이 있을 때만 확인한다
+    inp.onblur = function(){ if(inp.value.trim()) checkNick(); };
     inp.focus();
   }else if(ob.step === 2){
     b.innerHTML = '<div class="card"><h3>매칭 정보</h3>' +
@@ -218,6 +252,14 @@ function checkNick(){
     return ob.nickOk;
   });
 }
+// 추천 이름이 이미 있으면 '영수2', '영수3'… 처럼 비어 있는 이름을 찾아 준다
+function pickName(base){
+  const tryN = function(n){
+    const name = n < 2 ? base : base + n;
+    return db.ref('solo/nicknames/' + sid + '/' + S.nickKey(name)).once('value').then(function(s){ return s.exists() && n < 20 ? tryN(n + 1) : name; });
+  };
+  tryN(1).then(function(name){ ob.nick = name; $('obNick').value = name; checkNick(); });
+}
 function nextOb(){
   const st = ob.step;
   if(st === 0 && !ob.agree){ S.toast('이용 안내를 확인해 주세요'); return; }
@@ -231,6 +273,7 @@ function createCharacter(){
   const p = obProfile();
   p.status = season.requireApproval ? 'pending' : 'approved';
   p.createdAt = S.TS;
+  if(refCode && refCode !== user.uid && referrals[refCode]) p.ref = refCode;
   const up = {};
   up['participants/' + sid + '/' + user.uid] = p;
   up['nicknames/' + sid + '/' + S.nickKey(p.nick)] = user.uid;
@@ -253,13 +296,30 @@ function openApp(){
   show('s-app');
   document.querySelectorAll('.tabs button').forEach(function(b){ b.onclick = function(){ setTab(b.dataset.t); }; });
   attachResults();
+  startChat();
   renderAll();
   if(!openApp._iv) openApp._iv = setInterval(tick, 1000);
+}
+function startChat(){
+  if(!Chat || !sid || chatFor === sid || !me || me.status !== 'approved') return;
+  chatFor = sid;
+  Chat.start({
+    sid: function(){ return sid; }, uid: function(){ return user.uid; }, me: function(){ return me; }, season: function(){ return season; },
+    parts: function(){ return parts; }, items: function(){ return items; }, nickOf: nickOf, avatarHtml: avatarHtml, modal: modal, closeModal: closeModal, err: err,
+    tab: function(){ return tab; }, setTab: setTab, rerender: renderAll, badge: updateBadges,
+    finalPartner: function(){ return resFinal && resFinal.partner ? resFinal.partner : null; }
+  });
+}
+function updateBadges(){
+  if(!$('chatDot')) return;
+  const n = Chat ? Chat.badge() : 0;
+  $('chatDot').classList.toggle('hidden', !n);
+  $('newsDot').classList.toggle('hidden', !hasUnseen());
 }
 function setTab(t){
   tab = t;
   document.querySelectorAll('.tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.t === t); });
-  ['lobby','picks','items','news'].forEach(function(x){ $('t-' + x).classList.toggle('hidden', x !== t); });
+  ['lobby','chat','picks','items','news'].forEach(function(x){ $('t-' + x).classList.toggle('hidden', x !== t); });
   if(t === 'news') markSeen();
   renderAll(); window.scrollTo(0,0);
 }
@@ -274,6 +334,7 @@ function renderAll(){
   if(me.status === 'pending'){ waitScreen('참가 승인 대기 중', '운영자가 참가 신청을 확인하고 있어요. 승인되면 이 화면이 자동으로 바뀌어요.'); appOn = true; return; }
   if(me.status === 'hidden'){ waitScreen('프로필이 숨김 처리되었어요', '운영자에게 문의해 주세요.'); appOn = true; return; }
   if($('s-app').classList.contains('hidden')) show('s-app');
+  startChat();
   $('aMe').innerHTML = avatarHtml(me) + esc(me.nick);
   $('aPhase').textContent = season ? (S.PHASES[season.phase] || '') : '';
   tick();
@@ -281,7 +342,8 @@ function renderAll(){
   if(tab === 'picks') renderPicks();
   if(tab === 'items') renderItems();
   if(tab === 'news') renderNews();
-  $('newsDot').classList.toggle('hidden', !hasUnseen());
+  if(tab === 'chat' && Chat) Chat.render($('t-chat'));
+  updateBadges();
 }
 
 function cardInner(p, preview){
@@ -294,6 +356,24 @@ function cardInner(p, preview){
     (p.ideal ? '<div class="line">🔎 원하는 상대: ' + esc(p.ideal) + '</div>' : '') + '</div>';
 }
 
+function cheerSummary(uid){
+  const c = {};
+  Object.keys(cheers).forEach(function(k){ if(cheers[k].to === uid) c[cheers[k].gift] = (c[cheers[k].gift] || 0) + 1; });
+  return Object.keys(c).map(function(g){ return (S.GIFTS[g] ? S.GIFTS[g].e : '🎁') + c[g]; }).join(' ');
+}
+function likeCount(uid){ return Object.keys(likes[uid] || {}).length; }
+function appealBlock(uid){
+  const a = appeals[uid]; if(!a) return '';
+  const liked = likes[uid] && likes[uid][user.uid];
+  return '<div class="appeal"><div class="eyebrow" style="letter-spacing:.1em;">🎙️ 자기어필</div><div class="intro" style="margin:4px 0;">' + esc(a.text) + '</div>' +
+    (S.isJpeg(a.photo) ? '<img class="appeal-photo" alt="어필 사진" src="' + a.photo + '">' : '') +
+    '<div class="row" style="margin-top:6px;"><button class="btn sm ' + (liked ? '' : 'ghost') + '" data-like="' + uid + '"' + (uid === user.uid ? ' disabled' : '') + '>' + (liked ? '❤️' : '🤍') + ' ' + likeCount(uid) + '</button></div></div>';
+}
+function extrasFor(uid){
+  const p = parts[uid] || {}, rf = p.ref && referrals[p.ref], cs = cheerSummary(uid);
+  return (rf ? '<div class="refline">👭 ' + esc(rf.byNick) + '님의 친구 소개' + (rf.note ? ' · "' + esc(rf.note) + '"' : '') + '</div>' : '') +
+    (cs ? '<div class="line">📺 시청자 응원 ' + cs + '</div>' : '') + appealBlock(uid);
+}
 function renderLobby(){
   const el = $('t-lobby');
   let ids = approvedOthers();
@@ -304,24 +384,60 @@ function renderLobby(){
     '<p class="muted" style="margin-top:0;">' + ids.length + '명의 참가자가 함께하고 있어요.' + (me.lookingFor !== 'A' ? ' <button class="linkbtn" id="lAll">' + (showAll ? '관심 상대만 보기' : '모든 참가자 보기') + '</button>' : '') + '</p>';
   const latest = latestNotice();
   if(latest) html += '<div class="notice">📣 ' + esc(latest.text) + '</div>';
+  const spot = season && season.spotlight && parts[season.spotlight];
+  if(spot) html += '<div class="spotlight">' + avatarHtml(spot) + '<div class="grow"><div class="eyebrow" style="letter-spacing:.15em;">ON AIR · 스포트라이트</div><b class="serif" style="font-size:18px;">지금은 ' + esc(spot.nick) + '님의 자기어필 시간</b>' +
+    (appeals[season.spotlight] ? '<div class="muted ellip">' + esc(appeals[season.spotlight].text) + '</div>' : '') + '</div></div>';
+  if(season && season.appealOpen) html += '<div class="card"><h3>🎙️ 자기어필 시간</h3><p class="muted" style="margin-top:0;">교실 밖의 나를 마음껏 어필해 보세요. 출연자와 시청자 모두에게 보여요.</p>' +
+    (appeals[user.uid] ? '<div class="pcard">' + avatarHtml(me) + '<div class="meta">' + appealBlock(user.uid) + '</div></div>' : '') +
+    '<button class="btn" id="lAppeal">' + (appeals[user.uid] ? '✏️ 내 어필 고치기' : '🎤 내 어필 올리기') + '</button></div>';
   if(firstOn) html += '<div class="notice navy">💗 첫인상 선택 중! 최대 <b>' + season.picks + '명</b>까지 고를 수 있어요. (' + myVotes.length + '/' + season.picks + ')</div>';
   if(finalOn) html += '<div class="notice navy">💍 최종 선택 중! 단 <b>한 명</b>을 골라 주세요.</div>';
   if(!filtered.length) html += '<div class="empty">아직 다른 참가자가 없어요.<br>QR코드를 공유해 동료 선생님을 초대해 보세요!</div>';
   filtered.forEach(function(k){
     const p = parts[k], picked = myVotes.indexOf(k) >= 0, fin = myFinal === k;
-    html += '<div class="card pcard' + ((firstOn && picked) || (finalOn && fin) ? ' picked' : '') + '">' + cardInner(p) + '</div>' +
+    html += '<div class="card pcard' + ((firstOn && picked) || (finalOn && fin) ? ' picked' : '') + (season && season.spotlight === k ? ' onair' : '') + '">' + cardInner(p).replace(/<\/div>$/, function(){ return extrasFor(k) + '</div>'; }) + '</div>' +
       '<div class="row" style="margin:-6px 0 18px;">' +
       (firstOn ? '<button class="btn sm heart-btn' + (picked ? ' on' : '') + '" data-vote="' + k + '">' + (picked ? '💗 호감 선택됨' : '🤍 호감 선택') + '</button>' : '') +
       (finalOn ? '<button class="btn sm heart-btn' + (fin ? ' on' : '') + '" data-final="' + k + '">' + (fin ? '💍 최종 선택됨' : '💍 최종 선택') + '</button>' : '') +
+      (Chat ? Chat.lobbyAction(k) : '') +
       '<button class="btn sm ghost" data-gift="' + k + '">🎁 선물</button>' +
       '<button class="linkbtn" data-report="' + k + '" style="flex:0 0 auto;">신고</button></div>';
   });
   el.innerHTML = html;
   if($('lAll')) $('lAll').onclick = function(){ showAll = !showAll; renderLobby(); };
+  if($('lAppeal')) $('lAppeal').onclick = appealModal;
   el.querySelectorAll('[data-vote]').forEach(function(b){ b.onclick = function(){ toggleVote(b.dataset.vote); }; });
   el.querySelectorAll('[data-final]').forEach(function(b){ b.onclick = function(){ setFinal(b.dataset.final); }; });
   el.querySelectorAll('[data-gift]').forEach(function(b){ b.onclick = function(){ giftModal(null, b.dataset.gift); }; });
   el.querySelectorAll('[data-report]').forEach(function(b){ b.onclick = function(){ report(b.dataset.report); }; });
+  el.querySelectorAll('[data-like]').forEach(function(b){ b.onclick = function(){ toggleLike(b.dataset.like); }; });
+  if(Chat) Chat.bindLobby(el);
+}
+function toggleLike(target){
+  const r = db.ref('solo/appealLikes/' + sid + '/' + target + '/' + user.uid);
+  ((likes[target] || {})[user.uid] ? r.remove() : r.set(true)).catch(function(e){ S.toast(err(e), 'bad'); });
+}
+function appealModal(){
+  const cur = appeals[user.uid] || {};
+  let photo = S.isJpeg(cur.photo) ? cur.photo : null;
+  modal('<h3 class="serif" style="color:var(--wine);margin-top:0;">🎙️ 자기어필</h3>' +
+    '<p class="muted">직업 이야기, 반전 매력, 이상형, 데이트 코스… 무엇이든 좋아요. 출연자와 시청자 모두 볼 수 있어요.</p>' +
+    '<textarea class="t" id="apT" maxlength="500" placeholder="예) 평일엔 1학년 담임, 주말엔 캠핑 요리사! 장작불 앞에서 끓이는 라면이 특기예요.">' + esc(cur.text || '') + '</textarea>' +
+    '<label class="f">사진 <span class="muted">(선택 · 공개됨 · 얼굴 사진은 신중히)</span></label><input type="file" accept="image/*" class="t" id="apF"><div id="apPrev" style="margin-top:8px;"></div>' +
+    '<div style="height:10px"></div><button class="btn" id="apOk">올리기</button>' + (appeals[user.uid] ? '<button class="btn ghost" id="apDel">어필 내리기</button>' : '') + '<button class="btn ghost" id="apX">취소</button>');
+  function prev(){ $('apPrev').innerHTML = photo ? '<img alt="미리보기" style="max-width:100%;max-height:220px;border-radius:14px;" src="' + photo + '"> <button class="linkbtn" id="apNoPh">사진 빼기</button>' : ''; if($('apNoPh')) $('apNoPh').onclick = function(){ photo = null; prev(); }; }
+  prev();
+  $('apF').onchange = function(){ S.compressPhoto(this.files[0]).then(function(d){ photo = d; prev(); }, function(e){ S.toast(e.message, 'bad'); }); };
+  $('apX').onclick = closeModal;
+  if($('apDel')) $('apDel').onclick = function(){ db.ref('solo/appeals/' + sid + '/' + user.uid).remove().then(closeModal, function(e){ S.toast(err(e), 'bad'); }); };
+  $('apOk').onclick = function(){
+    const t = $('apT').value.trim();
+    if(!t){ S.toast('어필 내용을 적어 주세요'); return; }
+    const v = {text: t, at: S.TS}; if(photo) v.photo = photo;
+    $('apOk').disabled = true;
+    db.ref('solo/appeals/' + sid + '/' + user.uid).set(v).then(function(){ closeModal(); S.toast('자기어필을 올렸어요 🎤', 'ok'); },
+      function(e){ $('apOk').disabled = false; S.toast('올리지 못했어요: ' + err(e), 'bad'); });
+  };
 }
 
 function toggleVote(target){
@@ -370,8 +486,19 @@ function renderPicks(){
   else html += '<p class="muted">' + (phaseOpen('final') ? '진행 중 · 단 한 명 · 마감 전까지 변경 가능' : '마감되었어요.') + '</p>' +
     (myFinal ? '<div class="item"><div class="ie">' + esc(parts[myFinal] && parts[myFinal].avatar ? parts[myFinal].avatar.emoji : '🙂') + '</div><div class="im"><div class="in">' + esc(nickOf(myFinal)) + '</div></div></div>' : '<p class="muted">아직 최종 선택을 하지 않았어요.</p>');
   html += '</div><p class="muted center">선택 내용은 본인과 운영자만 볼 수 있어요.<br>서로 선택한 경우에만 결과 공개 후 알려드려요.</p>';
+  const iv = S.listOf(myInterviews).reverse();
+  html += '<div class="card"><h3>🎤 속마음 인터뷰</h3><p class="muted" style="margin-top:0;">제작진 카메라 앞에서 털어놓는 진짜 속마음. <b>시청자와 운영자만</b> 볼 수 있고, 다른 출연자에게는 보이지 않아요.</p>' +
+    '<textarea class="t" id="ivT" maxlength="300" placeholder="예) 사실 첫인상은 영숙님이었는데, 거실에서 대화해 보니 옥순님이 자꾸 생각나요."></textarea>' +
+    '<button class="btn sm" id="ivOk" style="margin-top:8px;">인터뷰 남기기</button>' +
+    (iv.length ? '<div style="margin-top:12px;">' + iv.map(function(x){ return '<div class="item"><div class="im"><div style="white-space:pre-wrap;">' + esc(x.text) + '</div><div class="id">' + new Date(x.at).toLocaleString('ko-KR') + '</div></div><button class="btn sm ghost" data-ivdel="' + x.id + '">삭제</button></div>'; }).join('') + '</div>' : '') + '</div>';
   el.innerHTML = html;
   el.querySelectorAll('[data-unvote]').forEach(function(b){ b.onclick = function(){ toggleVote(b.dataset.unvote); }; });
+  $('ivOk').onclick = function(){
+    const t = $('ivT').value.trim(); if(!t) return;
+    $('ivOk').disabled = true;
+    db.ref('solo/interviews/' + sid + '/' + user.uid).push({text: t, at: S.TS}).then(function(){ S.toast('속마음을 남겼어요 (시청자 공개)', 'ok'); }, function(e){ $('ivOk').disabled = false; S.toast(err(e), 'bad'); });
+  };
+  el.querySelectorAll('[data-ivdel]').forEach(function(b){ b.onclick = function(){ db.ref('solo/interviews/' + sid + '/' + user.uid + '/' + b.dataset.ivdel).remove().catch(function(e){ S.toast(err(e), 'bad'); }); }; });
 }
 
 /* ───────── 아이템 ───────── */
@@ -394,6 +521,9 @@ function renderItems(){
   });
   html += '</div>';
   const all = Object.keys(items).sort(function(a, b){ return (items[b].createdAt || 0) - (items[a].createdAt || 0); }).slice(0, 30);
+  const got = S.listOf(cheers).filter(function(c){ return c.to === user.uid; }).reverse();
+  html += '<div class="card"><h3>📺 시청자에게 받은 기프티콘</h3><p class="muted" style="margin-top:0;">관람석의 시청자들이 보내 준 응원이에요. (가상 기프티콘 · 실제 결제 없음)</p>' +
+    (got.length ? got.map(function(c){ const g = S.GIFTS[c.gift] || {e:'🎁', n:'선물'}; return '<div class="item"><div class="ie">' + g.e + '</div><div class="im"><div class="in">' + esc(g.n) + '</div><div class="id">' + esc(c.fromNick) + '님' + (c.msg ? ' · "' + esc(c.msg) + '"' : '') + '</div></div></div>'; }).join('') : '<p class="muted">아직 받은 기프티콘이 없어요. 자기어필로 시청자의 마음을 사로잡아 보세요!</p>') + '</div>';
   html += '<div class="card"><h3>아이템 도감</h3><p class="muted">이번 기수 참가자들이 만든 아이템이에요. 선물 기록은 참가자에게 보일 수 있어요.</p>' +
     (all.length ? all.map(function(k){ const it = items[k]; return '<div class="item"><div class="ie">' + esc(it.emoji) + '</div><div class="im"><div class="in">' + esc(it.name) + '</div><div class="id">' + esc(S.ITEM_KIND[it.kind] || '') + ' · ' + esc(it.creatorNick || '') + ' 제작</div></div></div>'; }).join('') : '<p class="muted">아직 만들어진 아이템이 없어요.</p>') + '</div>';
   el.innerHTML = html;
@@ -468,7 +598,7 @@ function renderNews(){
     else if(resFinal.partner){
       const pp = parts[resFinal.partner] || {nick: resFinal.partnerNick, avatar: {}};
       html += '<div class="result-big">🎉 커플 성사!</div><div class="couple">' + avatarHtml(me) + '<span>' + esc(me.nick) + '</span><span>💞</span><span>' + esc(pp.nick || resFinal.partnerNick) + '</span>' + avatarHtml(pp) + '</div>' +
-        '<p class="muted center">서로를 최종 선택했어요. 연락처는 공개되지 않으니, 운영자 안내에 따라 동의한 경우에만 교환해 주세요.</p>';
+        '<p class="muted center">서로를 최종 선택했어요. 연락처는 자동으로 공개되지 않아요. 1:1 대화방의 🤝 연락처·사진 교환에서 두 사람 모두 올리면 서로 볼 수 있어요.</p>';
     }else html += '<div class="result-big">🌙 솔로</div><p class="muted center">이번 기수에서는 서로의 최종 선택이 엇갈렸어요.<br>새로운 인연은 다음 기수에서!</p>';
     const cs = couples ? Object.keys(couples) : [];
     html += '<h3 style="margin-top:18px;">이번 기수 커플 (' + cs.length + '쌍)</h3>' + (cs.length ? cs.map(function(k){ const c = couples[k]; return '<div class="couple">' + esc(c.aEmoji || '') + ' ' + esc(c.a) + ' 💞 ' + esc(c.b) + ' ' + esc(c.bEmoji || '') + '</div>'; }).join('') : '<p class="muted">이번 기수에는 성사된 커플이 없어요.</p>');
@@ -487,7 +617,32 @@ function renderNews(){
   const ks = Object.keys(notices).sort(function(a, b){ return notices[b].at - notices[a].at; });
   html += '<div class="card"><h3>📣 공지사항</h3>' + (ks.length ? ks.map(function(k){ return '<div class="item"><div class="im"><div class="in" style="font-weight:500;white-space:pre-wrap;">' + esc(notices[k].text) + '</div><div class="id">' + new Date(notices[k].at).toLocaleString('ko-KR') + '</div></div></div>'; }).join('') : '<p class="muted">공지사항이 없어요.</p>') + '</div>';
   if(!(season && (season.firstRevealed || season.resultsPublished))) html += '<p class="muted center">결과는 운영자가 공개하면 여기에 표시돼요.</p>';
+  html += friendCard();
   el.innerHTML = html;
+  bindFriendCard();
+}
+
+/* ───────── 친구 소개 ───────── */
+function refUrl(){ return S.computedEntryUrl() + '?ref=' + user.uid; }
+function friendCard(){
+  const mine = referrals[user.uid], n = Object.keys(parts).filter(function(k){ return parts[k].ref === user.uid; }).length;
+  return '<div class="card"><h3>👭 친구 소개하기</h3><p class="muted" style="margin-top:0;">솔로인 동료 선생님을 솔로 나라에 소개해 주세요. 내 소개 링크로 들어온 친구의 프로필에 <b>추천사</b>가 함께 표시돼요.</p>' +
+    '<label class="f">추천사 <span class="muted">(100자)</span></label><input class="t" id="frNote" maxlength="100" placeholder="예) 학교에서 제일 다정한 선생님! 요리도 잘해요." value="' + esc(mine ? mine.note || '' : '') + '">' +
+    '<button class="btn sm" id="frSave" style="margin-top:8px;">' + (mine ? '추천사 고치기' : '내 소개 링크 만들기') + '</button>' +
+    (mine ? '<div class="center" style="margin-top:12px;"><div class="qrbox" id="frQr"></div><p class="url">' + esc(refUrl()) + '</p><button class="btn sm navy" id="frShare">링크 공유하기</button><p class="muted">내 소개로 입장한 친구: <b>' + n + '명</b></p></div>' : '') + '</div>';
+}
+function bindFriendCard(){
+  if(!$('frSave')) return;
+  $('frSave').onclick = function(){
+    db.ref('solo/referrals/' + sid + '/' + user.uid).set({by: user.uid, byNick: me.nick, role: 'participant', note: $('frNote').value.trim(), at: S.TS})
+      .then(function(){ S.toast('소개 링크가 준비됐어요', 'ok'); }, function(e){ S.toast(err(e), 'bad'); });
+  };
+  if($('frQr')) S.makeQR($('frQr'), refUrl(), 160);
+  if($('frShare')) $('frShare').onclick = function(){ shareLink(refUrl(), me.nick + '님이 사이버 나는 SOLO에 당신을 소개했어요!'); };
+}
+function shareLink(url, text){
+  if(navigator.share) navigator.share({title: '사이버 나는 SOLO', text: text, url: url}).catch(function(){});
+  else (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function(){ S.toast('링크를 복사했어요', 'ok'); }, function(){ prompt('링크를 복사하세요', url); });
 }
 
 boot();

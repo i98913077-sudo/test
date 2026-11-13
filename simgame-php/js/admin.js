@@ -1,4 +1,4 @@
-import { el, $, clear, fmt, fmtP, fmtPct, fmtSigned, dir, fmtTime, fmtDuration, api, apiUrl, banner, disclaimerBlock, toast } from './common.js?v=2026.10.26-name';
+import { el, $, clear, fmt, fmtP, fmtPct, fmtSigned, dir, fmtTime, fmtDuration, api, apiUrl, banner, disclaimerBlock, toast } from './common.js?v=2026.11.13-diag';
 
 const app = $('#app');
 const KEY = 'safeinvest.admin';

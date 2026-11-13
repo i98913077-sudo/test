@@ -31,14 +31,27 @@ foreach (['pdo_sqlite', 'mbstring'] as $ext) {
     if (!extension_loaded($ext)) out(500, ['error' => "PHP 확장 모듈 {$ext} 이(가) 필요합니다. 호스팅 관리 화면에서 켜거나 고객센터에 문의하세요."]);
 }
 
+// 치명적 오류(파일 누락·버전 섞임 등)도 호스팅의 '500 Internal Server Error' 대신 원인을 JSON으로 알려준다
+register_shutdown_function(function () {
+    $e = error_get_last();
+    if (!$e || !in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) return;
+    $msg = preg_replace('#(?:[A-Za-z]:)?[/\\\\][^\s:]*[/\\\\]#', '', (string)$e['message']); // 서버 경로는 숨김
+    out(500, ['error' => '서버 코드 오류: ' . mb_substr($msg, 0, 200) . ' (' . basename((string)$e['file']) . ':' . $e['line'] . '). 게임 폴더의 파일을 ZIP에 있는 것으로 모두 다시 올려 주세요.']);
+});
+
+$missing = array_values(array_filter(['lib/util.php', 'lib/market.php', 'lib/db.php', 'lib/live.php', 'lib/game.php', 'config.php'], fn($f) => !is_file(__DIR__ . '/' . $f)));
+if ($missing) out(500, ['error' => '서버에 파일이 없습니다: ' . implode(', ', $missing) . ' — 게임 폴더에 이 파일을 올려 주세요.' . (in_array('config.php', $missing, true) ? ' (config.php는 비밀번호가 들어 있는 설정 파일입니다)' : '')]);
+
 require __DIR__ . '/lib/util.php';
 require __DIR__ . '/lib/market.php';
 require __DIR__ . '/lib/db.php';
 require __DIR__ . '/lib/live.php';
 require __DIR__ . '/lib/game.php';
+// 예전 파일과 섞여 올라간 경우를 알려준다
+if (!method_exists('Market', 'sourceOf') || !isset(Market::TICKERS['BTC'])) out(500, ['error' => 'lib/market.php 가 예전 버전입니다. ZIP의 lib 폴더 파일을 모두 다시 올려 주세요.']);
 
 const MAX_BODY = 16384;
-const APP_VERSION = '2026.10.26-name';
+const APP_VERSION = '2026.11.13-diag';
 
 try {
     $cfg = require __DIR__ . '/config.php';
@@ -220,5 +233,7 @@ try {
     out($e->status, ['error' => $e->getMessage()]);
 } catch (Throwable $e) {
     error_log('[simgame] ' . $e);
-    out(500, ['error' => '서버 오류가 발생했습니다.']);
+    // 원인을 짧게 보여준다(서버 경로는 숨김). 운영자가 알려주면 바로 고칠 수 있도록
+    $why = $e instanceof Error ? preg_replace('#(?:[A-Za-z]:)?[/\\\\][^\s:]*[/\\\\]#', '', $e->getMessage()) . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')' : get_class($e);
+    out(500, ['error' => '서버 오류가 발생했습니다: ' . mb_substr($why, 0, 200)]);
 }

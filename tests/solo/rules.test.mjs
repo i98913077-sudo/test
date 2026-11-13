@@ -55,6 +55,7 @@ await expectOk('B 캐릭터 생성', join(B, sid, profile('영숙', 'F')));
 await expectDenied('C가 스스로 status=approved 외 값(관리자 전용) 설정', join(C, sid, profile('옥순', 'F', { status: 'hidden' })));
 await expectDenied('C가 닉네임 예약 없이 프로필만 생성', set(C.r(`participants/${sid}/${C.uid}`), profile('옥순', 'F')));
 await expectDenied('C가 남의 uid로 프로필 생성', set(C.r(`participants/${sid}/${A.uid}`), profile('가짜', 'F')));
+await expectDenied('참가자가 스스로 "이전 기수에서 이어짐" 표시', join(C, sid, profile('옥순', 'F', { fromSeason: '0기' })));
 await expectOk('C 캐릭터 생성', join(C, sid, profile('옥순', 'F')));
 await expectDenied('C가 닉네임 추가 예약(사재기)', set(C.r(`nicknames/${sid}/또다른닉`), C.uid));
 await expectDenied('A가 자기 닉네임 변경', set(A.r(`participants/${sid}/${A.uid}/nick`), '상철'));
@@ -99,6 +100,8 @@ await set(admin.r(`results/${sid}/first`), { [A.uid]: { received: 1, mutual: { [
 await expectDenied('공개 전 내 결과 조회', get(A.r(`results/${sid}/first/${A.uid}`)));
 await set(admin.r(`seasons/${sid}/firstRevealed`), true);
 await expectOk('공개 후 내 결과 조회', get(A.r(`results/${sid}/first/${A.uid}`)));
+await expectOk('관리자가 기수 전체 결과 조회(다음 기수 이어받기용)', get(admin.r(`results/${sid}`)));
+await expectDenied('참가자가 기수 전체 결과 조회', get(A.r(`results/${sid}`)));
 await expectDenied('공개 후에도 남의 결과 조회', get(C.r(`results/${sid}/first/${A.uid}`)));
 
 console.log('\n[최종 선택]');

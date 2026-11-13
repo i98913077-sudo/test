@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/solo.css?v=20261113">
+<link rel="stylesheet" href="css/solo.css?v=20261113b">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -39,6 +39,7 @@
           <label class="f">기수 이름</label><input class="t" id="nsName" maxlength="40" placeholder="예) 1기 · 가을 특집">
           <label class="f">첫인상 선택 인원</label><select class="t" id="nsPicks"><option value="1">1명</option><option value="2" selected>2명</option><option value="3">3명</option></select>
           <label class="row" style="gap:8px;margin:12px 0;"><input type="checkbox" id="nsApprove" style="flex:0 0 auto;width:18px;height:18px;"> <span>참가 신청을 운영자가 승인한 뒤 입장</span></label>
+          <label class="row" style="gap:8px;margin:12px 0;"><input type="checkbox" id="nsCarry" checked style="flex:0 0 auto;width:18px;height:18px;"> <span>지금 기수에서 <b>커플이 안 된 출연자</b>를 새 기수로 그대로 이어받기</span></label>
           <button class="btn" id="nsCreate">기수 만들기</button>
         </details>
       </div>
@@ -87,6 +88,7 @@
     <!-- 참가자 -->
     <div class="card">
       <h3>참가자 관리 <span class="muted" id="pCount"></span></h3>
+      <div class="row" style="margin-bottom:10px;"><button class="btn sm ghost" id="pCarry" style="flex:0 0 auto;">📥 이전 기수 솔로 출연자 불러오기</button><span class="muted" style="font-size:13px;">이미 있는 출연자는 건너뛰고, 커플이 된 사람은 제외해요.</span></div>
       <div class="tblwrap"><table class="tbl"><thead><tr><th></th><th>닉네임</th><th>성별/연령</th><th>상태</th><th>첫인상</th><th>최종</th><th>관리</th></tr></thead><tbody id="pBody"></tbody></table></div>
     </div>
 
@@ -152,7 +154,7 @@
 </div>
 <div id="printArea" class="print-only"></div>
 <div id="modalRoot"></div>
-<script src="js/solo-core.js?v=20261113"></script>
-<script src="js/admin.js?v=20261113"></script>
+<script src="js/solo-core.js?v=20261113b"></script>
+<script src="js/admin.js?v=20261113b"></script>
 </body>
 </html>

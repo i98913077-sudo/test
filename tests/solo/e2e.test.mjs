@@ -446,6 +446,31 @@ const rep = await B.evaluate((s) => window.SOLO.db.ref('solo/reports/' + s).once
 check('일반 참가자가 신고 내역 조회 → 거부', /permission/i.test(rep), rep);
 await shot(B, '09-admin-denied-mobile');
 
+console.log('\n[2기 이어받기]');
+await adm.goto(BASE + '/solo/admin.html?emu=1');
+await adm.waitForSelector('#aMain:not(.hidden)');
+await adm.click('summary');
+await adm.fill('#nsName', '2기 · 겨울 특집');
+check('새 기수 만들 때 "솔로 출연자 이어받기" 기본 선택', await adm.isChecked('#nsCarry'));
+await adm.click('#nsCreate');
+await adm.waitForFunction(() => document.getElementById('cInfo').textContent.includes('2기'));
+const seasons2 = await (await fetch(REST('solo/seasons'), { headers: owner })).json();
+const sid2 = Object.keys(seasons2).find((k) => seasons2[k].name.startsWith('2기'));
+const p2 = await (await fetch(REST('solo/participants/' + sid2), { headers: owner })).json();
+check('1기 커플(광수·영숙)은 2기로 넘어가지 않음', !p2[ua] && !p2[ub]);
+check('1기 솔로(옥순·정숙)는 2기로 이어짐', !!p2[uc] && Object.values(p2).some((p) => p.nick === '정숙'), JSON.stringify(Object.values(p2).map((p) => p.nick)));
+check('이어진 출연자는 승인 상태·"1기에서 이어진" 표시', p2[uc] && p2[uc].status === 'approved' && p2[uc].fromSeason.startsWith('1기'));
+await C.goto(BASE + '/solo/?emu=1');
+await C.waitForSelector('#iEnter:not([disabled])');
+await C.waitForFunction(() => document.getElementById('iSeason').textContent.includes('2기'));
+await C.click('#iEnter');
+await C.waitForSelector('#s-app:not(.hidden)');
+check('옥순은 다시 가입하지 않고 2기 솔로 나라에 바로 입장', (await C.textContent('#aMe')).includes('옥순'));
+await C.click('#lAll');
+await C.waitForFunction(() => document.querySelector('#t-lobby').textContent.includes('이어진 출연자'));
+check('2기 로비 카드에 "1기에서 이어진 출연자" 표시', true);
+await shot(C, '17-season2-carry-mobile');
+
 console.log('\n[모바일 레이아웃]');
 for(const p of [A, C, V]){
   const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

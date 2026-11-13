@@ -72,6 +72,12 @@ function startAdmin(){
     renderSeasons(); renderCtl(); renderQR();
   });
   $('nsCreate').onclick = createSeason;
+  $('pCarry').onclick = function(){
+    const prev = previousSeason();
+    if(!prev){ S.toast('이전 기수가 없어요'); return; }
+    if(!confirm(seasons[prev].name + '에서 커플이 안 된 출연자를 ' + seasons[curSid].name + '(으)로 불러올까요?')) return;
+    carryOver(prev, curSid).then(function(n){ S.toast(n + '명을 이어받았어요', 'ok'); }, function(e){ S.toast(err(e), 'bad'); });
+  };
   $('seasonSet').onclick = function(){
     const v = $('seasonSel').value; if(!v) return;
     db.ref('solo/config/currentSeason').set(v).then(function(){ S.toast('현재 기수를 바꿨어요', 'ok'); }, function(e){ S.toast(err(e), 'bad'); });
@@ -183,11 +189,45 @@ function renderSeasons(){
 function createSeason(){
   const name = $('nsName').value.trim();
   if(!name){ S.toast('기수 이름을 적어 주세요'); return; }
-  const ref = db.ref('solo/seasons').push(), had = curSid;
+  const ref = db.ref('solo/seasons').push(), had = curSid, carry = had && $('nsCarry').checked;
   ref.set({name: name, status: 'recruiting', phase: 'lobby', picks: Number($('nsPicks').value), requireApproval: $('nsApprove').checked,
     firstEndsAt: 0, finalEndsAt: 0, firstRevealed: false, resultsPublished: false, createdAt: S.TS})
-    .then(function(){ return had ? null : db.ref('solo/config/currentSeason').set(ref.key); })
-    .then(function(){ $('nsName').value = ''; S.toast('기수를 만들었어요' + (had ? ' — "현재 기수로 지정"을 눌러 전환하세요' : ''), 'ok'); }, function(e){ S.toast(err(e), 'bad'); });
+    .then(function(){ return carry ? carryOver(had, ref.key) : 0; })
+    .then(function(n){
+      $('nsName').value = '';
+      const msg = name + ' 기수를 만들었어요' + (carry ? ' · 이전 기수 솔로 출연자 ' + n + '명 이어받음' : '');
+      if(!had || confirm(msg + '\n\n지금 바로 ' + name + '(으)로 전환할까요?')) return db.ref('solo/config/currentSeason').set(ref.key).then(function(){ S.toast(msg, 'ok'); });
+      S.toast(msg + ' — "현재 기수로 지정"을 눌러 전환하세요', 'ok');
+    }).catch(function(e){ S.toast(err(e), 'bad'); });
+}
+// 이전 기수에서 커플이 되지 않은 승인 출연자를 새 기수로 복사한다 (프로필·닉네임 그대로, 선택·대화 기록은 새로 시작)
+function carryOver(fromSid, toSid){
+  const P = function(path){ return db.ref('solo/' + path).once('value').then(function(s){ return s.val() || {}; }); };
+  return Promise.all([P('participants/' + fromSid), P('results/' + fromSid + '/final'), P('seasons/' + fromSid), P('participants/' + toSid), P('nicknames/' + toSid), P('blocked')])
+    .then(function(r){
+      const from = r[0], fin = r[1], se = r[2], to = r[3], nicks = r[4], blockedAll = r[5], up = {};
+      let n = 0;
+      Object.keys(from).forEach(function(uid){
+        const p = from[uid];
+        if(p.status !== 'approved' || to[uid] || blockedAll[uid]) return;
+        if(se.resultsPublished && fin[uid] && fin[uid].partner) return;   // 커플 성사자는 졸업!
+        let nick = p.nick, k = 2;
+        while(nicks[S.nickKey(nick)] && nicks[S.nickKey(nick)] !== uid && k < 50){ nick = p.nick.slice(0, 10) + k; k++; }
+        nicks[S.nickKey(nick)] = uid;
+        const q = {nick: nick, age: p.age, gender: p.gender, lookingFor: p.lookingFor, intro: p.intro, avatar: p.avatar, status: 'approved', createdAt: S.TS, fromSeason: (se.name || '이전 기수').slice(0, 40)};
+        ['personality', 'hobby', 'ideal', 'style'].forEach(function(f){ if(p[f] != null) q[f] = p[f]; });
+        up['participants/' + toSid + '/' + uid] = q;
+        up['nicknames/' + toSid + '/' + S.nickKey(nick)] = uid;
+        n++;
+      });
+      return n ? db.ref('solo').update(up).then(function(){ return n; }) : 0;
+    });
+}
+function previousSeason(){
+  const cur = seasons[curSid]; if(!cur) return null;
+  const ks = Object.keys(seasons).filter(function(k){ return k !== curSid && (seasons[k].createdAt || 0) < (cur.createdAt || 0); })
+    .sort(function(a, b){ return (seasons[b].createdAt || 0) - (seasons[a].createdAt || 0); });
+  return ks[0] || null;
 }
 function updSeason(v, msg){
   if(!curSid) return Promise.resolve();

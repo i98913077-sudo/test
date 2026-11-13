@@ -144,6 +144,7 @@ function renderCast(){
     html += '<div class="card pcard' + (season && season.spotlight === k ? ' onair' : '') + '">' + avatarHtml(p, 'lg') + '<div class="meta"><div class="nick">' + esc(p.nick) + ' <span class="pill navy">' + (p.gender === 'M' ? '남' : '여') + '</span> <span class="pill">' + esc(p.age) + '</span></div>' +
       (p.personality ? '<div class="line">✨ ' + esc(p.personality) + '</div>' : '') + (p.hobby ? '<div class="line">🎯 ' + esc(p.hobby) + '</div>' : '') + (p.style ? '<div class="line">💞 ' + esc(p.style) + '</div>' : '') +
       '<div class="intro">' + esc(p.intro) + '</div>' + (p.ideal ? '<div class="line">🔎 원하는 상대: ' + esc(p.ideal) + '</div>' : '') +
+      (p.fromSeason ? '<div class="refline" style="background:#E5E9F2;color:var(--navy);">🔁 ' + esc(p.fromSeason) + '에서 이어진 출연자</div> ' : '') +
       (rf ? '<div class="refline">👭 ' + esc(rf.byNick) + '님의 친구 소개' + (rf.note ? ' · "' + esc(rf.note) + '"' : '') + '</div>' : '') +
       (a ? '<div class="appeal"><div class="eyebrow" style="letter-spacing:.1em;">🎙️ 자기어필</div><div class="intro" style="margin:4px 0;">' + esc(a.text) + '</div>' + (S.isJpeg(a.photo) ? '<img class="appeal-photo" alt="어필 사진" src="' + a.photo + '">' : '') + '</div>' : '') +
       (Object.keys(got).length ? '<div class="line">받은 응원 ' + Object.keys(got).map(function(g){ return (S.GIFTS[g] ? S.GIFTS[g].e : '🎁') + got[g]; }).join(' ') + '</div>' : '') +

@@ -109,6 +109,8 @@ const rules = {
             intro: { '.validate': str(1, 300) },
             ideal: { '.validate': str(0, 100) },
             style: { '.validate': str(0, 40) },
+            // 이전 기수에서 이어진 출연자 표시 (운영자만 기록)
+            fromSeason: { '.validate': `${str(1, 40)} && (${ADMIN} || (data.exists() && newData.val() === data.val()))` },
             // 친구 소개로 들어온 경우 소개한 사람의 추천 코드
             ref: { '.validate': `newData.isString() && ${IMMUTABLE} && newData.val() !== $uid && root.child('solo/referrals/' + $sid + '/' + newData.val()).exists()` },
             avatar: {
@@ -168,6 +170,7 @@ const rules = {
       // 결과: 관리자가 실제 선택 기록으로 계산해 기록. 공개 플래그가 켜진 뒤 본인 것만 읽기.
       results: {
         $sid: {
+          '.read': ADMIN,
           '.write': ADMIN,
           first: { $uid: { '.read': `${ADMIN} || (auth != null && auth.uid === $uid && ${SEASON}.child('firstRevealed').val() === true)` } },
           final: { $uid: { '.read': `${ADMIN} || (auth != null && auth.uid === $uid && ${SEASON}.child('resultsPublished').val() === true)` } },

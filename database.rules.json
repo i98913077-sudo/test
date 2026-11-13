@@ -135,6 +135,9 @@
             "style": {
               ".validate": "newData.isString() && newData.val().length >= 0 && newData.val().length <= 40"
             },
+            "fromSeason": {
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40 && ((auth != null && root.child('solo/admins/' + auth.uid).val() === true) || (data.exists() && newData.val() === data.val()))"
+            },
             "ref": {
               ".validate": "newData.isString() && (!data.exists() || newData.val() === data.val()) && newData.val() !== $uid && root.child('solo/referrals/' + $sid + '/' + newData.val()).exists()"
             },
@@ -207,6 +210,7 @@
       },
       "results": {
         "$sid": {
+          ".read": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true)",
           ".write": "(auth != null && root.child('solo/admins/' + auth.uid).val() === true)",
           "first": {
             "$uid": {

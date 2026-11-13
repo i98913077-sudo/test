@@ -372,7 +372,7 @@ function appealBlock(uid){
 }
 function extrasFor(uid){
   const p = parts[uid] || {}, rf = p.ref && referrals[p.ref], cs = cheerSummary(uid);
-  return (rf ? '<div class="refline">👭 ' + esc(rf.byNick) + '님의 친구 소개' + (rf.note ? ' · "' + esc(rf.note) + '"' : '') + '</div>' : '') +
+  return (p.fromSeason ? '<div class="refline" style="background:#E5E9F2;color:var(--navy);">🔁 ' + esc(p.fromSeason) + '에서 이어진 출연자</div> ' : '') + (rf ? '<div class="refline">👭 ' + esc(rf.byNick) + '님의 친구 소개' + (rf.note ? ' · "' + esc(rf.note) + '"' : '') + '</div>' : '') +
     (cs ? '<div class="line">📺 시청자 응원 ' + cs + '</div>' : '') + appealBlock(uid);
 }
 function renderLobby(){
@@ -600,7 +600,7 @@ function renderNews(){
       const pp = parts[resFinal.partner] || {nick: resFinal.partnerNick, avatar: {}};
       html += '<div class="result-big">🎉 커플 성사!</div><div class="couple">' + avatarHtml(me) + '<span>' + esc(me.nick) + '</span><span>💞</span><span>' + esc(pp.nick || resFinal.partnerNick) + '</span>' + avatarHtml(pp) + '</div>' +
         '<p class="muted center">서로를 최종 선택했어요. 연락처는 자동으로 공개되지 않아요. 1:1 대화방의 🤝 연락처·사진 교환에서 두 사람 모두 올리면 서로 볼 수 있어요.</p>';
-    }else html += '<div class="result-big">🌙 솔로</div><p class="muted center">이번 기수에서는 서로의 최종 선택이 엇갈렸어요.<br>새로운 인연은 다음 기수에서!</p>';
+    }else html += '<div class="result-big">🌙 솔로</div><p class="muted center">이번 기수에서는 서로의 최종 선택이 엇갈렸어요.<br>다음 기수가 열리면 <b>지금 캐릭터 그대로 자동으로 이어서 출연</b>해요!</p>';
     const cs = couples ? Object.keys(couples) : [];
     html += '<h3 style="margin-top:18px;">이번 기수 커플 (' + cs.length + '쌍)</h3>' + (cs.length ? cs.map(function(k){ const c = couples[k]; return '<div class="couple">' + esc(c.aEmoji || '') + ' ' + esc(c.a) + ' 💞 ' + esc(c.b) + ' ' + esc(c.bEmoji || '') + '</div>'; }).join('') : '<p class="muted">이번 기수에는 성사된 커플이 없어요.</p>');
     html += '<p class="muted center">' + esc(season.name) + ' 기수가 종료되었어요. 함께해 주셔서 감사합니다.</p></div>';

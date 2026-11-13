@@ -78,7 +78,8 @@ function boot(){
   show('s-intro');
   $('iGuide').onclick = guideModal;
   $('iQr').onclick = qrModal;
-  $('iWatch').onclick = function(){ location.href = 'watch.html' + location.search; };
+  // 링크 자체로도 이동하고, 에뮬레이터 테스트(?emu=1) 같은 주소 옵션만 이어 붙인다
+  if($('iWatch')) $('iWatch').href = 'watch.html' + location.search;
   // 친구 소개 링크(?ref=코드)로 들어온 경우 기억해 두었다가 캐릭터 생성 때 기록한다
   try{
     const r = new URLSearchParams(location.search).get('ref');
